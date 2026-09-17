@@ -293,14 +293,34 @@ var BRANCHES={
 };
 
 var ENEMY_BASE={
-  grunt:{hp:16,speed:44,armor:0,bounty:3,leak:1,color:'#6e7a3a',r:11},
-  raider:{hp:11,speed:76,armor:0,bounty:4,leak:1,color:'#7a7a82',r:9},
-  brute:{hp:52,speed:32,armor:3,bounty:8,leak:2,color:'#4a6e2e',r:14},
-  reaver:{hp:72,speed:26,armor:6,bounty:11,leak:3,color:'#9a7a3a',r:15},
-  swarmling:{hp:7,speed:95,armor:0,bounty:2,leak:1,color:'#5a3a5a',r:7},
-  boss:{hp:130,speed:28,armor:5,bounty:45,leak:5,color:'#7a2418',r:20}
+  grunt:{hp:16,speed:44,armor:0,bounty:3,leak:1,color:'#6a8a3a',r:11},
+  raider:{hp:11,speed:76,armor:0,bounty:4,leak:1,color:'#7a9a4a',r:9},
+  brute:{hp:52,speed:32,armor:3,bounty:8,leak:2,color:'#52b04a',r:14},
+  reaver:{hp:72,speed:26,armor:6,bounty:11,leak:3,color:'#8a8a96',r:15},
+  swarmling:{hp:7,speed:95,armor:0,bounty:2,leak:1,color:'#6ec46a',r:7},
+  boss:{hp:130,speed:28,armor:5,bounty:45,leak:5,color:'#3a7ac4',r:20}
 };
-var TYPE_NAMES={grunt:'Larva Podre',raider:'Lobo Selvagem',brute:'Troll do Pântano',reaver:'Minotauro Couraçado',swarmling:'Aranha-Filhote',boss:'Dragão Jovem'};
+var TYPE_NAMES={grunt:'Goblin',raider:'Goblin Batedor',brute:'Gosma Ácida',reaver:'Cavaleiro Esqueleto',swarmling:'Gosminha',boss:'Dragão de Cristal'};
+
+var SPRITE_DEFS={
+  grunt:{src:'sprites/goblin.png',scale:3.2},
+  raider:{src:'sprites/goblin.png',scale:2.8},
+  brute:{src:'sprites/slime.png',scale:2.9},
+  reaver:{src:'sprites/skeleton.png',scale:3.1},
+  swarmling:{src:'sprites/slime.png',scale:3.4},
+  boss:{src:'sprites/dragon.png',scale:3.6}
+};
+var SPRITE_IMAGES={};
+Object.keys(SPRITE_DEFS).forEach(function(k){
+  var src=SPRITE_DEFS[k].src;
+  if(!SPRITE_IMAGES[src]){ var im=new Image(); im.src=src; SPRITE_IMAGES[src]=im; }
+});
+function spriteFor(type){
+  var d=SPRITE_DEFS[type];
+  if(!d) return null;
+  var im=SPRITE_IMAGES[d.src];
+  return (im && im.complete && im.naturalWidth>0) ? {img:im,scale:d.scale} : null;
+}
 var TYPE_UNLOCK=[{type:'raider',wave:3},{type:'brute',wave:6},{type:'reaver',wave:9},{type:'swarmling',wave:12}];
 
 var VET_THRESHOLDS=[5,15,35,70];
@@ -952,12 +972,36 @@ function drawEnemySprite(e, perfNow){
   drawGroundShadow(e.x, e.y+e.r*0.7, e.r*0.98, e.r*0.4);
   var bob=Math.sin(perfNow/1000*7+e.id)*1.2;
   var ey=e.y+bob;
+
+  var sp=spriteFor(e.type);
+  if(sp){
+    if(e.type==='raider'){
+      ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(e.x-e.r*0.3,ey-e.r*1.6); ctx.lineTo(e.x-e.r*0.3,ey-e.r*2.6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(e.x+e.r*0.3,ey-e.r*1.6); ctx.lineTo(e.x+e.r*0.3,ey-e.r*2.4); ctx.stroke();
+    }
+    var h=e.r*sp.scale;
+    var w=h*(sp.img.naturalWidth/sp.img.naturalHeight);
+    if(e.type==='boss'){
+      var pulse=1+Math.sin(perfNow/1000*3)*0.06;
+      h*=pulse; w*=pulse;
+      ctx.save();
+      ctx.shadowColor='#5ad0ff'; ctx.shadowBlur=14;
+      ctx.drawImage(sp.img, e.x-w/2, ey+e.r*0.8-h, w, h);
+      ctx.restore();
+    } else {
+      ctx.drawImage(sp.img, e.x-w/2, ey+e.r*0.8-h, w, h);
+    }
+    return h;
+  }
+
   if(e.type==='grunt') drawGrunt(e.x,ey,e.r,e.color);
   else if(e.type==='raider') drawRaider(e.x,ey,e.r,e.color);
   else if(e.type==='brute') drawBrute(e.x,ey,e.r,e.color);
   else if(e.type==='reaver') drawReaver(e.x,ey,e.r,e.color);
   else if(e.type==='swarmling') drawSwarmling(e.x,ey,e.r,e.color,perfNow,e.id);
   else drawBoss(e.x,ey,e.r,e.color,perfNow);
+  return e.r*2;
 }
 
 function drawBuilder(perfNow){
@@ -1106,9 +1150,12 @@ function draw(){
 
   for(var i=0;i<enemies.length;i++){
     var e=enemies[i];
-    drawEnemySprite(e, perfNow);
-    if(now_slow(e)){ ctx.beginPath(); ctx.arc(e.x,e.y,e.r+3,0,Math.PI*2); ctx.strokeStyle='rgba(111,199,189,0.6)'; ctx.lineWidth=1.5; ctx.stroke(); }
-    var bw=e.r*2.2, bh=3, bx=e.x-bw/2, by=e.y-e.r-9;
+    var spriteH=drawEnemySprite(e, perfNow);
+    if(now_slow(e)){
+      ctx.beginPath(); ctx.ellipse(e.x,e.y+e.r*0.72,e.r*1.15,e.r*0.5,0,0,Math.PI*2);
+      ctx.strokeStyle='rgba(111,199,189,0.7)'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+    var bw=e.r*2.2, bh=3, bx=e.x-bw/2, by=e.y+e.r*0.8-spriteH-6;
     ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(bx,by,bw,bh);
     var pct=Math.max(0,e.hp/e.maxHp);
     ctx.fillStyle= pct>0.5 ? '#6fae63' : pct>0.25 ? '#d9992f' : '#c1503d';
