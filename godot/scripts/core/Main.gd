@@ -22,12 +22,23 @@ func _ready() -> void:
 	_load_map()
 	_connect_signals()
 	_start_match()
+	_maybe_start_smoke_bot()
+
+
+## O bot de teste vive em tests/ e fica fora das exportações, por isso é
+## carregado em tempo de execução: nada no jogo depende dele para compilar.
+func _maybe_start_smoke_bot() -> void:
+	const SMOKE_SCRIPT := "res://tests/SmokeRunner.gd"
 	var user_args := OS.get_cmdline_user_args()
-	if user_args.has("--smoke"):
-		var runner := SmokeRunner.new()
-		runner.main = self
-		runner.rush_waves = user_args.has("--rush")
-		add_child(runner)
+	if not user_args.has("--smoke") or not ResourceLoader.exists(SMOKE_SCRIPT):
+		return
+	var runner_script: Script = load(SMOKE_SCRIPT)
+	if runner_script == null:
+		return
+	var runner: Node = runner_script.new()
+	runner.main = self
+	runner.rush_waves = user_args.has("--rush")
+	add_child(runner)
 
 
 func _build_scene_tree() -> void:
