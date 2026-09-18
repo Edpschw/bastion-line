@@ -1,0 +1,31 @@
+{
+  "starting_gold": 300,
+  "base_hp": 20,
+  "build_time": 15.0,
+  "first_build_time": 20.0,
+  "early_call_bonus_per_second": 2,
+  "wave_clear_bonus": 25,
+  "wave_clear_bonus_per_wave": 4,
+  "waves": [
+    { "groups": [ { "type": "goblin", "count": 5, "interval": 0.9 } ] },
+    { "groups": [ { "type": "goblin", "count": 8, "interval": 0.7 } ] },
+    { "groups": [ { "type": "goblin", "count": 6, "interval": 0.7 }, { "type": "wolf", "count": 3, "interval": 0.5, "delay": 3.0 } ] },
+    { "groups": [ { "type": "wolf", "count": 8, "interval": 0.45 } ] },
+    { "groups": [ { "type": "goblin", "count": 8, "interval": 0.6 }, { "type": "skeleton", "count": 4, "interval": 0.9, "delay": 4.0 } ] },
+    { "groups": [ { "type": "skeleton", "count": 8, "interval": 0.8 } ] },
+    { "groups": [ { "type": "orc", "count": 5, "interval": 1.2 } ] },
+    { "groups": [ { "type": "slime", "count": 5, "interval": 1.0 }, { "type": "wolf", "count": 6, "interval": 0.4, "delay": 5.0 } ] },
+    { "groups": [ { "type": "orc", "count": 6, "interval": 1.0 }, { "type": "skeleton", "count": 6, "interval": 0.7, "delay": 4.0 } ] },
+    { "groups": [ { "type": "slime", "count": 8, "interval": 0.8 }, { "type": "orc", "count": 4, "interval": 1.2, "delay": 6.0 } ] },
+    { "groups": [ { "type": "wolf", "count": 14, "interval": 0.3 } ] },
+    { "groups": [ { "type": "skeleton", "count": 10, "interval": 0.6 }, { "type": "orc", "count": 5, "interval": 1.1, "delay": 5.0 } ] },
+    { "groups": [ { "type": "slime", "count": 10, "interval": 0.7 } ] },
+    { "groups": [ { "type": "orc", "count": 10, "interval": 0.9 }, { "type": "wolf", "count": 10, "interval": 0.35, "delay": 6.0 } ] },
+    { "groups": [ { "type": "skeleton", "count": 14, "interval": 0.55 } ] },
+    { "groups": [ { "type": "slime", "count": 10, "interval": 0.6 }, { "type": "skeleton", "count": 10, "interval": 0.6, "delay": 4.0 } ] },
+    { "groups": [ { "type": "orc", "count": 12, "interval": 0.8 } ] },
+    { "groups": [ { "type": "wolf", "count": 18, "interval": 0.28 }, { "type": "orc", "count": 8, "interval": 0.9, "delay": 5.0 } ] },
+    { "groups": [ { "type": "skeleton", "count": 12, "interval": 0.5 }, { "type": "slime", "count": 10, "interval": 0.7, "delay": 4.0 }, { "type": "orc", "count": 8, "interval": 1.0, "delay": 9.0 } ] },
+    { "boss": true, "groups": [ { "type": "ancient_dragon", "count": 1, "interval": 1.0 }, { "type": "orc", "count": 10, "interval": 0.9, "delay": 6.0 }, { "type": "skeleton", "count": 10, "interval": 0.6, "delay": 12.0 } ] }
+  ]
+}

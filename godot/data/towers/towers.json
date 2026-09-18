@@ -1,0 +1,267 @@
+{
+  "archer": {
+    "display_name": "Archer",
+    "cost": 100,
+    "color": "#8a7ab0",
+    "root": "archer_1",
+    "nodes": {
+      "archer_1": {
+        "name": "Archer",
+        "damage": 18,
+        "range": 185,
+        "attack_speed": 1.35,
+        "splash": 0,
+        "armor_pierce": 0.0,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 900,
+        "upgrade_cost": 0,
+        "next": [
+          "ranger",
+          "sniper"
+        ]
+      },
+      "ranger": {
+        "name": "Ranger",
+        "damage": 19,
+        "range": 200,
+        "attack_speed": 2.0,
+        "splash": 0,
+        "armor_pierce": 0.0,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 950,
+        "upgrade_cost": 140,
+        "next": [
+          "hunter"
+        ]
+      },
+      "hunter": {
+        "name": "Hunter",
+        "damage": 26,
+        "range": 220,
+        "attack_speed": 2.6,
+        "splash": 0,
+        "armor_pierce": 0.15,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 1000,
+        "upgrade_cost": 300,
+        "next": []
+      },
+      "sniper": {
+        "name": "Sniper",
+        "damage": 52,
+        "range": 320,
+        "attack_speed": 0.6,
+        "splash": 0,
+        "armor_pierce": 0.35,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 1400,
+        "upgrade_cost": 140,
+        "next": [
+          "assassin"
+        ]
+      },
+      "assassin": {
+        "name": "Assassin",
+        "damage": 115,
+        "range": 360,
+        "attack_speed": 0.62,
+        "splash": 0,
+        "armor_pierce": 0.6,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 1500,
+        "upgrade_cost": 300,
+        "next": []
+      }
+    }
+  },
+  "fire_mage": {
+    "display_name": "Fire Mage",
+    "cost": 140,
+    "color": "#c1703d",
+    "root": "fire_mage_1",
+    "nodes": {
+      "fire_mage_1": {
+        "name": "Fire Mage",
+        "damage": 18,
+        "range": 165,
+        "attack_speed": 0.8,
+        "splash": 55,
+        "armor_pierce": 0.0,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 520,
+        "upgrade_cost": 0,
+        "next": [
+          "inferno_mage",
+          "flame_warlock"
+        ]
+      },
+      "inferno_mage": {
+        "name": "Inferno Mage",
+        "damage": 24,
+        "range": 180,
+        "attack_speed": 0.9,
+        "splash": 85,
+        "armor_pierce": 0.0,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 540,
+        "upgrade_cost": 190,
+        "next": [
+          "dragon_mage"
+        ]
+      },
+      "dragon_mage": {
+        "name": "Dragon Mage",
+        "damage": 38,
+        "range": 200,
+        "attack_speed": 1.0,
+        "splash": 125,
+        "armor_pierce": 0.1,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 560,
+        "upgrade_cost": 380,
+        "next": []
+      },
+      "flame_warlock": {
+        "name": "Flame Warlock",
+        "damage": 46,
+        "range": 175,
+        "attack_speed": 0.7,
+        "splash": 30,
+        "armor_pierce": 0.25,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 700,
+        "upgrade_cost": 190,
+        "next": [
+          "demon_mage"
+        ]
+      },
+      "demon_mage": {
+        "name": "Demon Mage",
+        "damage": 88,
+        "range": 195,
+        "attack_speed": 0.75,
+        "splash": 40,
+        "armor_pierce": 0.45,
+        "targets": [
+          "ground",
+          "air"
+        ],
+        "projectile_speed": 760,
+        "upgrade_cost": 380,
+        "next": []
+      }
+    }
+  },
+  "guardian": {
+    "display_name": "Guardian",
+    "cost": 120,
+    "color": "#b7623b",
+    "root": "guardian_1",
+    "nodes": {
+      "guardian_1": {
+        "name": "Guardian",
+        "damage": 26,
+        "range": 95,
+        "attack_speed": 1.1,
+        "splash": 40,
+        "armor_pierce": 0.2,
+        "targets": [
+          "ground"
+        ],
+        "projectile_speed": 0,
+        "upgrade_cost": 0,
+        "next": [
+          "paladin",
+          "fortress"
+        ]
+      },
+      "paladin": {
+        "name": "Paladin",
+        "damage": 34,
+        "range": 110,
+        "attack_speed": 1.3,
+        "splash": 55,
+        "armor_pierce": 0.25,
+        "targets": [
+          "ground"
+        ],
+        "projectile_speed": 0,
+        "upgrade_cost": 160,
+        "next": [
+          "holy_knight"
+        ]
+      },
+      "holy_knight": {
+        "name": "Holy Knight",
+        "damage": 52,
+        "range": 125,
+        "attack_speed": 1.5,
+        "splash": 70,
+        "armor_pierce": 0.35,
+        "targets": [
+          "ground"
+        ],
+        "projectile_speed": 0,
+        "upgrade_cost": 320,
+        "next": []
+      },
+      "fortress": {
+        "name": "Fortress",
+        "damage": 44,
+        "range": 100,
+        "attack_speed": 0.9,
+        "splash": 75,
+        "armor_pierce": 0.5,
+        "targets": [
+          "ground"
+        ],
+        "projectile_speed": 0,
+        "upgrade_cost": 160,
+        "next": [
+          "iron_bastion"
+        ]
+      },
+      "iron_bastion": {
+        "name": "Iron Bastion",
+        "damage": 70,
+        "range": 115,
+        "attack_speed": 1.0,
+        "splash": 100,
+        "armor_pierce": 0.65,
+        "targets": [
+          "ground"
+        ],
+        "projectile_speed": 0,
+        "upgrade_cost": 320,
+        "next": []
+      }
+    }
+  }
+}

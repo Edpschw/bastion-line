@@ -1,0 +1,28 @@
+; Engine configuration file.
+; Fantasy Tower Defense — protótipo (GDD §40 Fase 1)
+
+config_version=5
+
+[application]
+
+config/name="Fantasy Tower Defense"
+run/main_scene="res://scenes/main/Main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[autoload]
+
+GameData="*res://scripts/core/GameData.gd"
+Economy="*res://scripts/core/EconomyManager.gd"
+Game="*res://scripts/core/GameManager.gd"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
