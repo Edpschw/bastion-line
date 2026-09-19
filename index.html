@@ -80,7 +80,25 @@ body{
   position:relative;flex:1 1 auto;display:flex;align-items:center;justify-content:center;
   overflow:hidden;padding:10px;min-height:0;
 }
-canvas{display:block;max-width:100%;max-height:100%;width:auto;height:auto;cursor:pointer;border-radius:8px;box-shadow:0 0 0 1px var(--border);}
+.viewport{
+  position:relative;flex:1 1 auto;width:100%;height:100%;min-height:0;
+  display:flex;align-items:center;justify-content:center;
+}
+#game{display:block;max-width:100%;max-height:100%;width:auto;height:auto;cursor:pointer;border-radius:8px;box-shadow:0 0 0 1px var(--border);}
+
+/* modo 3D: as telas WebGL ocupam todo o palco e o canvas 2D vira fallback oculto */
+.stage.is-3d{padding:0;}
+.viewport.is-3d{display:block;}
+.viewport.is-3d #game{display:none;}
+.viewport canvas.layer3d{position:absolute;inset:0;display:block;width:100%;height:100%;}
+.viewport canvas.layer3d.overlay{pointer-events:none;}
+.render-mode{
+  position:absolute;bottom:10px;right:12px;
+  font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-faint);background:rgba(18,21,14,.72);border:1px solid var(--border);
+  border-radius:99px;padding:3px 10px;pointer-events:none;opacity:.75;
+}
+.render-mode[hidden]{display:none;}
 
 .build-menu{
   position:absolute;left:16px;bottom:16px;width:224px;
@@ -191,7 +209,10 @@ canvas{display:block;max-width:100%;max-height:100%;width:auto;height:auto;curso
   </div>
 
   <div class="stage" id="stage">
-    <canvas id="game"></canvas>
+    <div class="viewport" id="viewport">
+      <canvas id="game"></canvas>
+    </div>
+    <div class="render-mode" id="renderMode" hidden></div>
 
     <div class="build-menu" id="buildMenu" hidden>
       <div class="build-menu-title">Mestre de Obras <span>— o que erguer?</span></div>
@@ -349,7 +370,12 @@ var goldVal=document.getElementById('goldVal'), livesVal=document.getElementById
     sellBtn=document.getElementById('sellBtn'), gameOverModal=document.getElementById('gameOverModal'),
     finalWaveEl=document.getElementById('finalWave'), modalBestEl=document.getElementById('modalBest'),
     restartBtn=document.getElementById('restartBtn'),
-    buildMenu=document.getElementById('buildMenu'), popupClose=document.getElementById('popupClose');
+    buildMenu=document.getElementById('buildMenu'), popupClose=document.getElementById('popupClose'),
+    stageEl=document.getElementById('stage'), viewport=document.getElementById('viewport'),
+    renderModeEl=document.getElementById('renderMode');
+
+// Renderer ativo. Enquanto for null o jogo desenha no canvas 2D (fallback).
+var renderer3d=null;
 
 function loadBest(){
   try{ return parseInt(localStorage.getItem('bastionline_best')||'0',10)||0; }catch(e){ return 0; }
@@ -451,6 +477,7 @@ function getBaseStats(u){
 function makeUnit(type, row, col){
   var b=UNIT_BASE[type];
   var u={
+    id:idCounter++,
     type:type, tier:1, branch:null, row:row, col:col,
     x:col*CELL+CELL/2, y:row*CELL+CELL/2, cd:0,
     cost:b.cost, shape:b.shape,
@@ -619,7 +646,7 @@ function commitBuild(row,col,type){
   grid[row][col]=u;
   units.push(u);
   log(u.name+' construída!');
-  attackFX.push({x1:u.x,y1:u.y,x2:u.x,y2:u.y,life:0.3,maxLife:0.3,color:'#f2c15a',splashR:18});
+  attackFX.push({kind:'build',x1:u.x,y1:u.y,x2:u.x,y2:u.y,life:0.3,maxLife:0.3,color:'#f2c15a',splashR:18});
   var next=findNearestEmptyCell(row,col);
   if(next){ builder.targetRow=next.row; builder.targetCol=next.col; builder.state='walking'; }
   else { builder.state='idle'; }
@@ -686,8 +713,8 @@ function update(dt, now){
           e2.lastHitBy=u;
           if(u.slowFactor){ e2.slowFactorActive=u.slowFactor; e2.slowUntil=now+u.slowDur*1000; }
         }
-        attackFX.push({x1:u.x,y1:u.y,x2:target.x,y2:target.y,life:0.12,maxLife:0.12,color:u.color, splashR:u.splash||0});
-        attackFX.push({x1:target.x,y1:target.y,x2:target.x,y2:target.y,life:0.14,maxLife:0.14,color:'#fff2cf',splashR:5,impact:true});
+        attackFX.push({kind:'shot',unitType:u.type,tier:u.tier,x1:u.x,y1:u.y,x2:target.x,y2:target.y,life:0.12,maxLife:0.12,color:u.color, splashR:u.splash||0});
+        attackFX.push({kind:'impact',unitType:u.type,x1:target.x,y1:target.y,x2:target.x,y2:target.y,life:0.14,maxLife:0.14,color:'#fff2cf',splashR:5,impact:true});
       }
     }
   }
@@ -714,7 +741,7 @@ function update(dt, now){
     if(e.hp<=0){
       gold+=e.bounty;
       floatingTexts.push(mkFloat(e.x,e.y,'+'+e.bounty,'#d9992f'));
-      attackFX.push({x1:e.x,y1:e.y,x2:e.x,y2:e.y,life:0.28,maxLife:0.28,color:'#e8e2c9',splashR:e.r*1.9});
+      attackFX.push({kind:'death',x1:e.x,y1:e.y,x2:e.x,y2:e.y,life:0.28,maxLife:0.28,color:'#e8e2c9',splashR:e.r*1.9});
       if(e.lastHitBy){ creditKill(e.lastHitBy); }
       continue;
     }
@@ -1053,6 +1080,19 @@ function drawBuilder(perfNow){
 
 function draw(){
   var perfNow=performance.now();
+  if(renderer3d){
+    try{
+      renderer3d.render(readState(), perfNow);
+      return;
+    }catch(err){
+      console.error('[Bastion Line] renderer 3D falhou, voltando para 2D:', err);
+      detachRenderer();
+    }
+  }
+  draw2D(perfNow);
+}
+
+function draw2D(perfNow){
   ctx.clearRect(0,0,LOGICAL_W,LOGICAL_H);
   ctx.fillStyle='#181d12'; ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
 
@@ -1265,7 +1305,7 @@ function updatePlacingUI(){
   document.querySelectorAll('.unit-card').forEach(function(btn){
     btn.classList.toggle('active', placing===btn.getAttribute('data-unit'));
   });
-  canvas.style.cursor = placing ? 'crosshair' : 'pointer';
+  viewport.style.cursor = placing ? 'crosshair' : 'pointer';
 }
 
 function handleUnitClick(u){
@@ -1273,19 +1313,35 @@ function handleUnitClick(u){
   refreshSelectedPanel();
 }
 
-canvas.addEventListener('mousemove', function(e){
+// Converte coordenadas de tela para o espaço lógico do tabuleiro (0..LOGICAL_W, 0..LOGICAL_H).
+// Em 3D quem resolve é o raycast do renderer; em 2D é a régua do próprio canvas.
+function screenToLogical(clientX, clientY){
+  if(renderer3d && renderer3d.screenToLogical){
+    return renderer3d.screenToLogical(clientX, clientY);
+  }
   var rect=canvas.getBoundingClientRect();
-  var scaleX=LOGICAL_W/rect.width, scaleY=LOGICAL_H/rect.height;
-  var mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
-  lastMouseX=mx; lastMouseY=my;
-  var col=Math.floor(mx/CELL), row=Math.floor(my/CELL);
-  if(row<0||row>=ROWS||col<0||col>=COLS){ hoverCell=null; return; }
-  hoverCell={row:row,col:col};
-});
-canvas.addEventListener('mouseleave', function(){ hoverCell=null; });
-canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); placing=null; updatePlacingUI(); });
-canvas.addEventListener('click', function(){
+  if(!rect.width || !rect.height) return null;
+  return {
+    x:(clientX-rect.left)*(LOGICAL_W/rect.width),
+    y:(clientY-rect.top)*(LOGICAL_H/rect.height)
+  };
+}
+
+function updatePointer(clientX, clientY){
+  var p=screenToLogical(clientX, clientY);
+  if(!p){ lastMouseX=lastMouseY=null; hoverCell=null; return; }
+  lastMouseX=p.x; lastMouseY=p.y;
+  var col=Math.floor(p.x/CELL), row=Math.floor(p.y/CELL);
+  hoverCell=(row<0||row>=ROWS||col<0||col>=COLS) ? null : {row:row,col:col};
+}
+
+viewport.addEventListener('pointermove', function(e){ updatePointer(e.clientX,e.clientY); });
+viewport.addEventListener('pointerdown', function(e){ updatePointer(e.clientX,e.clientY); });
+viewport.addEventListener('pointerleave', function(){ hoverCell=null; lastMouseX=lastMouseY=null; });
+viewport.addEventListener('contextmenu', function(e){ e.preventDefault(); placing=null; updatePlacingUI(); });
+viewport.addEventListener('click', function(e){
   if(phase==='over') return;
+  updatePointer(e.clientX, e.clientY);
   if(lastMouseX!==null){
     var db=Math.hypot(lastMouseX-builder.x, lastMouseY-builder.y);
     if(db<=20){
@@ -1341,6 +1397,59 @@ sendWaveBtn.addEventListener('click', function(){
 
 restartBtn.addEventListener('click', function(){ resetGame(); });
 
+// ---------------------------------------------------------------------------
+// Ponte para renderers externos (ver js/render3d.js).
+// O núcleo do jogo continua 100% em coordenadas lógicas 2D; o renderer só lê.
+// ---------------------------------------------------------------------------
+function readState(){
+  return {
+    units:units, enemies:enemies, builder:builder,
+    attackFX:attackFX, floatingTexts:floatingTexts, grid:grid,
+    placing:placing, hoverCell:hoverCell, selectedUnit:selectedUnit,
+    phase:phase, wave:wave, lives:lives, gold:gold
+  };
+}
+
+function detachRenderer(){
+  var r=renderer3d;
+  renderer3d=null;
+  viewport.classList.remove('is-3d');
+  stageEl.classList.remove('is-3d');
+  renderModeEl.hidden=true;
+  if(r && r.dispose){ try{ r.dispose(); }catch(e){} }
+}
+
+function attachRenderer(r){
+  try{
+    r.mount(viewport, GAME);
+  }catch(err){
+    console.warn('[Bastion Line] renderer 3D indisponível:', err);
+    if(r && r.dispose){ try{ r.dispose(); }catch(e){} }
+    return false;
+  }
+  renderer3d=r;
+  viewport.classList.add('is-3d');
+  stageEl.classList.add('is-3d');
+  renderModeEl.textContent='3D';
+  renderModeEl.hidden=false;
+  updatePlacingUI();
+  return true;
+}
+
+var GAME={
+  COLS:COLS, ROWS:ROWS, CELL:CELL, LOGICAL_W:LOGICAL_W, LOGICAL_H:LOGICAL_H,
+  UNIT_BASE:UNIT_BASE, ENEMY_BASE:ENEMY_BASE, BRANCHES:BRANCHES,
+  TYPE_NAMES:TYPE_NAMES, VET_TITLES:VET_TITLES,
+  readState:readState,
+  attachRenderer:attachRenderer,
+  detachRenderer:detachRenderer
+};
+window.BastionLine=GAME;
+
+window.addEventListener('resize', function(){
+  if(renderer3d && renderer3d.resize) renderer3d.resize();
+});
+
 var last=performance.now();
 function frame(ts){
   var dt=Math.min(0.05,(ts-last)/1000); last=ts;
@@ -1353,3 +1462,11 @@ resetGame();
 requestAnimationFrame(frame);
 })();
 </script>
+
+<!--
+  Renderer 3D (three.js). Carregado como módulo, ou seja, depois do núcleo do
+  jogo acima: ele se anexa sozinho via window.BastionLine.attachRenderer().
+  Se o navegador não suportar módulos ou WebGL, este script simplesmente não
+  roda e o jogo continua no canvas 2D.
+-->
+<script type="module" src="js/render3d/index.js"></script>

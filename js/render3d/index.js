@@ -1,0 +1,569 @@
+// -----------------------------------------------------------------------------
+// Bastion Line — renderer 3D (ponto de entrada)
+//
+// O núcleo do jogo (index.html) continua rodando inteiramente em coordenadas
+// lógicas 2D. Este módulo apenas *lê* esse estado a cada frame e mantém uma
+// cena three.js em sincronia. Se o WebGL não estiver disponível, nada é
+// anexado e o jogo segue no canvas 2D original.
+// -----------------------------------------------------------------------------
+import { THREE, PAL, makeMap, hexInt, glow } from './core.js';
+import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './world.js';
+import {
+  buildTower, buildEnemy, buildWorker,
+  animateTower, animateEnemy, animateWorker, pokeRecoil
+} from './actors.js';
+import { createEffects } from './fx.js';
+import { createOverlay } from './overlay.js';
+
+const PITCH = 50 * Math.PI / 180;      // inclinação da câmera acima do horizonte
+const FOV = 40;
+const FIT_MARGIN = 0.93;               // folga ao enquadrar o tabuleiro
+
+// Altura aproximada de cada inimigo em unidades locais (antes da escala do raio).
+const ENEMY_HEIGHT = {
+  grunt: 0.78, raider: 0.82, brute: 0.68,
+  swarmling: 0.62, reaver: 0.95, boss: 1.15
+};
+
+function createRenderer3D() {
+  let game, map, container;
+  let renderer, scene, camera, overlay;
+  let lights, board, environment, indicators, effects;
+
+  const towerMeshes = new Map();   // unit.id  -> { group, sig }
+  const enemyMeshes = new Map();   // enemy.id -> group
+  const ghostCache = new Map();    // tipo     -> grupo translúcido de pré-visualização
+  let worker = null;
+  let ghost = null;
+
+  const pickables = [];
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const tmp = new THREE.Vector3();
+  const tmp2 = new THREE.Vector3();
+  const seenFX = new WeakSet();
+
+  let lastTime = 0;
+  let resizeObserver = null;
+
+  // Qualidade adaptativa: em máquina fraca o renderer desce de degrau sozinho.
+  // Só desce, nunca sobe — subir de volta causaria oscilação visível.
+  const quality = { level: 0, warmup: 90, frames: 0, accum: 0 };
+
+  // -------------------------------------------------------------------------
+  // Montagem
+  // -------------------------------------------------------------------------
+  function mount(el, gameApi) {
+    container = el;
+    game = gameApi;
+    map = makeMap(game.COLS, game.ROWS, game.CELL);
+
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
+    // Lança se o contexto WebGL não puder ser criado — tratado por quem chama.
+    renderer.setPixelRatio(Math.min(1.6, window.devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.16;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.className = 'layer3d';
+    container.appendChild(renderer.domElement);
+
+    scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x93aec4, 20, 62);
+    scene.add(createSky());
+
+    camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 220);
+    scene.add(camera);
+
+    lights = createLights(scene, map);
+    board = createBoard(scene, map);
+    environment = createEnvironment(scene, map);
+    indicators = createIndicators(scene);
+    effects = createEffects(scene, map);
+
+    worker = buildWorker();
+    worker.scale.setScalar(1.12);
+    worker.userData.pickTarget = { x: 0, y: 0 };
+    scene.add(worker);
+    pickables.push(worker);
+
+    overlay = createOverlay(container);
+
+    resize();
+    if (window.ResizeObserver) {
+      resizeObserver = new ResizeObserver(function () { resize(); });
+      resizeObserver.observe(container);
+    }
+    lastTime = performance.now();
+  }
+
+  // -------------------------------------------------------------------------
+  // Câmera e viewport
+  // -------------------------------------------------------------------------
+
+  /**
+   * Afasta a câmera ao longo do eixo de visão até que todo o tabuleiro (mais
+   * uma faixa de cenário) caiba no enquadramento. Busca binária sobre a
+   * distância: funciona para qualquer proporção de tela.
+   */
+  function fitCamera() {
+    const dir = new THREE.Vector3(0, Math.sin(PITCH), Math.cos(PITCH)).normalize();
+    const target = new THREE.Vector3(0, 0.35, 0.55);
+
+    // Enquadra o tabuleiro mais a moldura de muros; as estruturas altas do
+    // portal e do bastião podem sangrar para fora — são cenário, não jogo.
+    const pts = [];
+    const ex = map.halfW + 0.7;
+    for (let sx = -1; sx <= 1; sx += 2) {
+      pts.push(new THREE.Vector3(sx * ex, 0, -(map.halfH + 0.8)));
+      pts.push(new THREE.Vector3(sx * ex, 1.1, -(map.halfH + 0.8)));
+      pts.push(new THREE.Vector3(sx * ex, 0, map.halfH + 2.1));
+      pts.push(new THREE.Vector3(sx * ex, 1.1, map.halfH + 0.8));
+    }
+
+    function fits(distance) {
+      camera.position.copy(target).addScaledVector(dir, distance);
+      camera.lookAt(target);
+      camera.updateMatrixWorld(true);
+      camera.updateProjectionMatrix();
+      for (let i = 0; i < pts.length; i++) {
+        tmp.copy(pts[i]).project(camera);
+        if (Math.abs(tmp.x) > FIT_MARGIN || Math.abs(tmp.y) > FIT_MARGIN) return false;
+      }
+      return true;
+    }
+
+    let lo = 5, hi = 90;
+    if (!fits(hi)) { lo = hi; } else {
+      for (let i = 0; i < 34; i++) {
+        const midDist = (lo + hi) / 2;
+        if (fits(midDist)) hi = midDist; else lo = midDist;
+      }
+    }
+    camera.position.copy(target).addScaledVector(dir, hi);
+    camera.lookAt(target);
+    camera.updateMatrixWorld(true);
+
+    // Mantém a sombra acompanhando o tabuleiro
+    lights.key.target.position.set(0, 0, 0);
+    lights.key.target.updateMatrixWorld();
+  }
+
+  function resize() {
+    if (!renderer || !container) return;
+    const w = Math.max(1, container.clientWidth);
+    const h = Math.max(1, container.clientHeight);
+    renderer.setSize(w, h, false);
+    renderer.domElement.style.width = w + 'px';
+    renderer.domElement.style.height = h + 'px';
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    fitCamera();
+    overlay.resize(w, h, Math.min(2, window.devicePixelRatio || 1));
+  }
+
+  /** Projeta um ponto de mundo para pixels CSS da viewport. */
+  function project(v) {
+    tmp2.copy(v).project(camera);
+    return {
+      x: (tmp2.x * 0.5 + 0.5) * container.clientWidth,
+      y: (-tmp2.y * 0.5 + 0.5) * container.clientHeight,
+      visible: tmp2.z < 1
+    };
+  }
+
+  /** Quantos pixels CSS vale 1 unidade de mundo na posição informada. */
+  function pixelsPerUnit(v) {
+    const a = project(v);
+    tmp.copy(v).add(tmp2.set(camera.matrixWorld.elements[0], camera.matrixWorld.elements[1], camera.matrixWorld.elements[2]));
+    const b = project(tmp);
+    return Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  }
+
+  // -------------------------------------------------------------------------
+  // Entrada: tela -> coordenadas lógicas do jogo
+  // -------------------------------------------------------------------------
+  function screenToLogical(clientX, clientY) {
+    if (!renderer) return null;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+
+    ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+
+    // Clicar numa torre ou no Mestre de Obras deve valer pela célula dele,
+    // não pelo chão que aparece atrás da malha.
+    const hits = raycaster.intersectObjects(pickables, true);
+    for (let i = 0; i < hits.length; i++) {
+      let o = hits[i].object;
+      while (o) {
+        if (o.userData && o.userData.pickTarget) {
+          return { x: o.userData.pickTarget.x, y: o.userData.pickTarget.y };
+        }
+        o = o.parent;
+      }
+    }
+
+    const p = raycaster.ray.intersectPlane(groundPlane, tmp);
+    if (!p) return null;
+    return { x: map.toLogicalX(p.x), y: map.toLogicalY(p.z) };
+  }
+
+  // -------------------------------------------------------------------------
+  // Sincronização de atores com o estado do jogo
+  // -------------------------------------------------------------------------
+  function removePickable(obj) {
+    const i = pickables.indexOf(obj);
+    if (i >= 0) pickables.splice(i, 1);
+  }
+
+  function towerSignature(u) {
+    return u.type + '|' + u.tier + '|' + (u.branch || '-') + '|' + u.color;
+  }
+
+  /** Dá recuo às torres que acabaram de disparar neste frame. */
+  function processNewShots(attackFX, units) {
+    for (let i = 0; i < attackFX.length; i++) {
+      const f = attackFX[i];
+      if (seenFX.has(f)) continue;
+      seenFX.add(f);
+      if (f.kind !== 'shot') continue;
+      for (let j = 0; j < units.length; j++) {
+        const u = units[j];
+        if (u.x === f.x1 && u.y === f.y1) {
+          const entry = towerMeshes.get(u.id);
+          if (entry) pokeRecoil(entry.group, 1);
+          break;
+        }
+      }
+    }
+  }
+
+  function syncTowers(units, enemies, t, dt) {
+    const alive = new Set();
+
+    for (let i = 0; i < units.length; i++) {
+      const u = units[i];
+      alive.add(u.id);
+
+      let entry = towerMeshes.get(u.id);
+      const sig = towerSignature(u);
+      if (!entry || entry.sig !== sig) {
+        if (entry) { scene.remove(entry.group); removePickable(entry.group); }
+        const g = buildTower(u.type, u.tier, u.branch, hexInt(u.color));
+        g.position.set(map.x(u.x), 0, map.z(u.y));
+        g.userData.pickTarget = { x: u.x, y: u.y };
+        scene.add(g);
+        pickables.push(g);
+        entry = { group: g, sig: sig };
+        towerMeshes.set(u.id, entry);
+      }
+
+      // Mira: inimigo mais próximo dentro do alcance
+      let bestD2 = Infinity, tx = null, tz = null;
+      const r2 = u.range * u.range;
+      for (let j = 0; j < enemies.length; j++) {
+        const e = enemies[j];
+        const dx = e.x - u.x, dy = e.y - u.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= r2 && d2 < bestD2) { bestD2 = d2; tx = e.x; tz = e.y; }
+      }
+      const gx = entry.group.position.x, gz = entry.group.position.z;
+      const yaw = tx === null
+        ? Math.PI                                   // em repouso, encara o portal
+        : Math.atan2(map.x(tx) - gx, map.z(tz) - gz);
+
+      animateTower(entry.group, { yaw: yaw }, t, dt);
+    }
+
+    towerMeshes.forEach(function (entry, id) {
+      if (!alive.has(id)) {
+        scene.remove(entry.group);
+        removePickable(entry.group);
+        towerMeshes.delete(id);
+      }
+    });
+  }
+
+  function syncEnemies(enemies, perfNow, t, dt) {
+    const alive = new Set();
+
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
+      alive.add(e.id);
+
+      let g = enemyMeshes.get(e.id);
+      if (!g) {
+        g = buildEnemy(e.type, hexInt(e.color), map.len(e.r));
+        g.userData.height = (ENEMY_HEIGHT[e.type] || 0.8) * g.scale.y;
+        scene.add(g);
+        enemyMeshes.set(e.id, g);
+      }
+
+      const wx = map.x(e.x), wz = map.z(e.y);
+      g.position.x = wx;
+      g.position.z = wz;
+
+      // Encara o próximo ponto do caminho
+      const wp = e.path[e.wpIndex];
+      let yaw = g.rotation.y;
+      if (wp) {
+        const dx = map.x(wp.x) - wx, dz = map.z(wp.y) - wz;
+        if (dx * dx + dz * dz > 1e-6) yaw = Math.atan2(dx, dz);
+      }
+
+      animateEnemy(g, {
+        yaw: yaw,
+        moving: true,
+        speed: e.speed,
+        slowed: perfNow < e.slowUntil
+      }, t, dt);
+    }
+
+    enemyMeshes.forEach(function (g, id) {
+      if (!alive.has(id)) {
+        scene.remove(g);
+        enemyMeshes.delete(id);
+      }
+    });
+  }
+
+  function syncWorker(builder, t, dt) {
+    const wx = map.x(builder.x), wz = map.z(builder.y);
+    worker.position.x = wx;
+    worker.position.z = wz;
+    worker.userData.pickTarget.x = builder.x;
+    worker.userData.pickTarget.y = builder.y;
+
+    let yaw = Math.PI;
+    if (builder.state === 'walking') {
+      const dx = map.colX(builder.targetCol) - wx;
+      const dz = map.rowZ(builder.targetRow) - wz;
+      if (dx * dx + dz * dz > 1e-5) yaw = Math.atan2(dx, dz);
+    } else if (builder.state === 'building') {
+      yaw = 0;
+    }
+
+    animateWorker(worker, {
+      yaw: yaw,
+      walking: builder.state === 'walking',
+      building: builder.state === 'building'
+    }, t, dt);
+  }
+
+  /** Pré-visualização translúcida da torre a construir, presa ao cursor. */
+  function syncGhost(state) {
+    const type = state.placing;
+    const cell = state.hoverCell;
+    const canShow = type && cell && cell.row > 0 && cell.row < game.ROWS - 1 &&
+      !state.grid[cell.row][cell.col];
+
+    if (ghost) ghost.visible = false;
+    if (!canShow) return;
+
+    let g = ghostCache.get(type);
+    if (!g) {
+      g = buildTower(type, 1, null, hexInt(game.UNIT_BASE[type].color));
+      const ghostMat = new THREE.MeshBasicMaterial({
+        color: hexInt(game.UNIT_BASE[type].color),
+        transparent: true, opacity: 0.42, depthWrite: false, toneMapped: false
+      });
+      g.traverse(function (o) {
+        if (o.isMesh) { o.material = ghostMat; o.castShadow = false; o.receiveShadow = false; }
+      });
+      scene.add(g);
+      ghostCache.set(type, g);
+    }
+    ghostCache.forEach(function (other) { other.visible = false; });
+    g.visible = true;
+    g.position.set(map.colX(cell.col), 0, map.rowZ(cell.row));
+    ghost = g;
+  }
+
+  // -------------------------------------------------------------------------
+  // Camada 2D: vida, dano e veterania
+  // -------------------------------------------------------------------------
+  function drawOverlay(state, perfNow) {
+    overlay.begin();
+    const ppuRef = pixelsPerUnit(tmp.set(0, 0.5, 0));
+
+    // Barras de vida acima dos inimigos
+    for (let i = 0; i < state.enemies.length; i++) {
+      const e = state.enemies[i];
+      const g = enemyMeshes.get(e.id);
+      if (!g) continue;
+      const top = (g.userData.height || 0.8) + 0.22;
+      const p = project(tmp.set(g.position.x, top, g.position.z));
+      if (!p.visible) continue;
+      const scale = pixelsPerUnit(tmp.set(g.position.x, top, g.position.z)) / ppuRef;
+      overlay.healthBar(p.x, p.y, Math.max(13, 26 * scale * g.scale.x), e.hp / e.maxHp);
+    }
+
+    // Galões de veterania sob as torres
+    for (let i = 0; i < state.units.length; i++) {
+      const u = state.units[i];
+      if (!u.vetLevel) continue;
+      const entry = towerMeshes.get(u.id);
+      if (!entry) continue;
+      const p = project(tmp.set(entry.group.position.x, 0.02, entry.group.position.z + 0.42));
+      if (!p.visible) continue;
+      const scale = pixelsPerUnit(tmp.set(entry.group.position.x, 0.02, entry.group.position.z)) / ppuRef;
+      overlay.chevrons(p.x, p.y, u.vetLevel, scale);
+    }
+
+    // Números flutuantes: sobem na vertical do mundo, não no plano do tabuleiro
+    for (let i = 0; i < state.floatingTexts.length; i++) {
+      const f = state.floatingTexts[i];
+      const rise = (0.9 - f.life) * (f.vy || 34);    // deslocamento já aplicado em 2D
+      const originY = f.y + rise;                    // posição original no tabuleiro
+      const p = project(tmp.set(map.x(f.x), 0.55 + map.len(rise), map.z(originY)));
+      if (!p.visible) continue;
+      const scale = pixelsPerUnit(tmp.set(map.x(f.x), 0.55, map.z(originY))) / ppuRef;
+      overlay.floatText(p.x, p.y, f.text, f.color, Math.max(0, Math.min(1, f.life / 0.9)), scale);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Frame
+  // -------------------------------------------------------------------------
+  function render(state, perfNow) {
+    const t = perfNow / 1000;
+    let dt = (perfNow - lastTime) / 1000;
+    if (!(dt > 0) || dt > 0.1) dt = 0.016;
+    lastTime = perfNow;
+
+    processNewShots(state.attackFX, state.units);
+    syncTowers(state.units, state.enemies, t, dt);
+    syncEnemies(state.enemies, perfNow, t, dt);
+    syncWorker(state.builder, t, dt);
+    syncGhost(state);
+
+    // Indicadores no chão
+    const cell = state.hoverCell;
+    let hoverInfo = null, rangeInfo = null, selInfo = null;
+    if (cell) {
+      const buildable = cell.row > 0 && cell.row < game.ROWS - 1;
+      hoverInfo = {
+        x: map.colX(cell.col),
+        z: map.rowZ(cell.row),
+        valid: buildable && !state.grid[cell.row][cell.col],
+        dim: !state.placing
+      };
+      if (state.placing && buildable) {
+        rangeInfo = {
+          x: map.colX(cell.col),
+          z: map.rowZ(cell.row),
+          radius: map.len(game.UNIT_BASE[state.placing].range),
+          color: hexInt(game.UNIT_BASE[state.placing].color)
+        };
+      }
+    }
+    const sel = state.selectedUnit;
+    if (sel) {
+      selInfo = { x: map.x(sel.x), z: map.z(sel.y) };
+      if (!rangeInfo) {
+        rangeInfo = {
+          x: map.x(sel.x), z: map.z(sel.y),
+          radius: map.len(sel.range),
+          color: hexInt(sel.color)
+        };
+      }
+    }
+    indicators.update(hoverInfo, rangeInfo, selInfo, t);
+
+    environment.update(t);
+    effects.update(state.attackFX, t);
+
+    renderer.render(scene, camera);
+    drawOverlay(state, perfNow);
+    adaptQuality(dt);
+  }
+
+  /**
+   * Observa o tempo médio de frame e reduz o custo quando o jogo não sustenta
+   * ~18 fps: primeiro a resolução e o mapa de sombra, depois as sombras.
+   */
+  function adaptQuality(dt) {
+    if (quality.level >= 2) return;
+    if (quality.warmup > 0) { quality.warmup--; return; }
+
+    quality.frames++;
+    quality.accum += dt;
+    if (quality.frames < 60) return;
+
+    const avg = quality.accum / quality.frames;
+    quality.frames = 0;
+    quality.accum = 0;
+    if (avg <= 0.055) return;   // ~18 fps ou melhor: mantém a qualidade
+
+    if (quality.level === 0) {
+      quality.level = 1;
+      renderer.setPixelRatio(1);
+      lights.key.shadow.mapSize.set(1024, 1024);
+      if (lights.key.shadow.map) {
+        lights.key.shadow.map.dispose();
+        lights.key.shadow.map = null;
+      }
+      resize();
+      console.info('[Bastion Line] desempenho baixo: resolução e sombras reduzidas.');
+    } else {
+      quality.level = 2;
+      renderer.shadowMap.enabled = false;
+      scene.traverse(function (o) { if (o.isMesh && o.material) o.material.needsUpdate = true; });
+      console.info('[Bastion Line] desempenho baixo: sombras desativadas.');
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  function dispose() {
+    if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
+    if (overlay) overlay.dispose();
+    if (renderer) {
+      renderer.dispose();
+      if (renderer.domElement.parentNode) {
+        renderer.domElement.parentNode.removeChild(renderer.domElement);
+      }
+    }
+    towerMeshes.clear();
+    enemyMeshes.clear();
+    ghostCache.clear();
+    pickables.length = 0;
+  }
+
+  return {
+    mount: mount,
+    render: render,
+    resize: resize,
+    screenToLogical: screenToLogical,
+    dispose: dispose
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Auto-anexo: só assume o desenho se o núcleo do jogo estiver pronto e o
+// WebGL funcionar. Qualquer falha mantém o canvas 2D original no comando.
+// -----------------------------------------------------------------------------
+function boot() {
+  const game = window.BastionLine;
+  if (!game || !game.attachRenderer) {
+    console.warn('[Bastion Line] núcleo do jogo não encontrado; seguindo em 2D.');
+    return;
+  }
+  const ok = game.attachRenderer(createRenderer3D());
+  if (ok) console.info('[Bastion Line] renderer 3D ativo (three.js).');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
+
+export { createRenderer3D };
