@@ -41,6 +41,18 @@ index.html  ──readState()──▶  js/render3d/index.js  ──▶  cena th
 Nenhum modelo externo é carregado: torres, inimigos e cenário são montados a
 partir de primitivas (caixas, cones, octaedros) com *flat shading*.
 
+### Câmera
+
+Calcada na de *Warcraft III*, cujos padrões são ângulo de ataque **304**, campo
+de visão **70** e distância ao alvo **1650** (≈ 12,9 tiles de 128 unidades). Em
+WC3, 360° é a horizontal e 270° aponta direto para baixo — então 304° equivale a
+**56° acima do horizonte**, que é a inclinação usada aqui.
+
+O que dá o "olhar de RTS" não é a inclinação, e sim o **campo de visão largo com
+a câmera perto**: a perspectiva diverge e o tabuleiro deixa de parecer maquete.
+`fitCamera()` faz busca binária pela distância que enquadra o tabuleiro na tela
+atual, e chega sozinha a ~10 células — mesma ordem de grandeza do WC3.
+
 ### Desempenho
 
 A cena mede o tempo médio de frame e desce de degrau sozinha quando o aparelho

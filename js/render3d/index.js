@@ -6,7 +6,7 @@
 // cena three.js em sincronia. Se o WebGL não estiver disponível, nada é
 // anexado e o jogo segue no canvas 2D original.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, makeMap, hexInt, glow } from './core.js';
+import { THREE, PAL, HORIZON, makeMap, hexInt, glow } from './core.js';
 import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './world.js';
 import {
   buildTower, buildEnemy, buildWorker,
@@ -15,9 +15,14 @@ import {
 import { createEffects } from './fx.js';
 import { createOverlay } from './overlay.js';
 
-const PITCH = 50 * Math.PI / 180;      // inclinação da câmera acima do horizonte
-const FOV = 40;
-const FIT_MARGIN = 0.93;               // folga ao enquadrar o tabuleiro
+// Câmera calcada na de Warcraft III, cujos padrões são ângulo de ataque 304,
+// campo de visão 70 e distância ao alvo 1650. Em WC3, 360 grau é a horizontal e
+// 270 aponta direto para baixo, então 304 equivale a 56 graus acima do horizonte.
+// O que dá o "olhar de RTS" não é a inclinação — é o campo de visão largo com a
+// câmera perto: a perspectiva diverge, e o tabuleiro deixa de parecer maquete.
+const PITCH = 56 * Math.PI / 180;
+const FOV = 70;
+const FIT_MARGIN = 0.95;               // folga ao enquadrar o tabuleiro
 
 // Altura aproximada de cada inimigo em unidades locais (antes da escala do raio).
 const ENEMY_HEIGHT = {
@@ -75,7 +80,10 @@ function createRenderer3D() {
     container.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x93aec4, 20, 62);
+    // O tabuleiro fica entre ~9 e ~15 unidades da câmera e o chão visível acaba
+    // por volta de 25: a névoa precisa caber nessa janela estreita para o cenário
+    // distante chegar saturado ao horizonte sem tocar na área de jogo.
+    scene.fog = new THREE.Fog(HORIZON, 16.5, 30);
     scene.add(createSky());
 
     camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 220);
@@ -116,15 +124,17 @@ function createRenderer3D() {
     const dir = new THREE.Vector3(0, Math.sin(PITCH), Math.cos(PITCH)).normalize();
     const target = new THREE.Vector3(0, 0.35, 0.55);
 
-    // Enquadra o tabuleiro mais a moldura de muros; as estruturas altas do
-    // portal e do bastião podem sangrar para fora — são cenário, não jogo.
+    // Com campo de visão largo, cada unidade de folga em volta do tabuleiro sai
+    // cara: a câmera recua muito para acomodá-la. Por isso os pontos abraçam o
+    // tabuleiro e só o muro lateral — portal e bastião podem sangrar para fora
+    // da moldura, já que são cenário e não área de jogo.
     const pts = [];
-    const ex = map.halfW + 0.7;
+    const ex = map.halfW + 0.55;
     for (let sx = -1; sx <= 1; sx += 2) {
-      pts.push(new THREE.Vector3(sx * ex, 0, -(map.halfH + 0.8)));
-      pts.push(new THREE.Vector3(sx * ex, 1.1, -(map.halfH + 0.8)));
-      pts.push(new THREE.Vector3(sx * ex, 0, map.halfH + 2.1));
-      pts.push(new THREE.Vector3(sx * ex, 1.1, map.halfH + 0.8));
+      pts.push(new THREE.Vector3(sx * ex, 0, -(map.halfH + 0.55)));
+      pts.push(new THREE.Vector3(sx * ex, 0.9, -(map.halfH + 0.55)));
+      pts.push(new THREE.Vector3(sx * ex, 0, map.halfH + 0.6));
+      pts.push(new THREE.Vector3(sx * ex, 0.9, map.halfH + 0.55));
     }
 
     function fits(distance) {

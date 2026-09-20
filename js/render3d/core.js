@@ -8,6 +8,10 @@ export { THREE };
 // 1 célula do tabuleiro = 1 unidade de mundo.
 export const CELL_WORLD = 1;
 
+// Cor do céu na linha do horizonte. A névoa usa exatamente esta cor, para que
+// o cenário distante se dissolva no céu sem costura visível.
+export const HORIZON = 0x9fb6c4;
+
 export const PAL = {
   grass:     0x6d9440,
   grassAlt:  0x5e8636,

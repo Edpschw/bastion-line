@@ -2,7 +2,7 @@
 // Bastion Line — cenário 3D
 // Céu, luzes, tabuleiro, ambientação e indicadores de construção.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, geo, std, glow, mesh, rng, lerp } from './core.js';
+import { THREE, PAL, HORIZON, geo, std, glow, mesh, rng, lerp } from './core.js';
 
 const SKY_VERT = [
   'varying vec3 vPos;',
@@ -32,9 +32,9 @@ export function createSky() {
     depthWrite: false,
     fog: false,
     uniforms: {
-      topColor: { value: new THREE.Color(0x1d3050) },
-      midColor: { value: new THREE.Color(0x5a7893) },
-      botColor: { value: new THREE.Color(0xc98a4e) }
+      topColor: { value: new THREE.Color(0x2f5480) },
+      midColor: { value: new THREE.Color(HORIZON) },
+      botColor: { value: new THREE.Color(0xd8a877) }
     },
     vertexShader: SKY_VERT,
     fragmentShader: SKY_FRAG
@@ -346,7 +346,7 @@ function buildScenery(map) {
 
   // Chão externo: disco amplo de grama escura sob o cenário.
   const apron = new THREE.Mesh(
-    geo('apron', function () { return new THREE.CircleGeometry(58, 48); }),
+    geo('apron', function () { return new THREE.CircleGeometry(95, 56); }),
     std(PAL.grassDark, { roughness: 1 })
   );
   apron.rotation.x = -Math.PI / 2;
@@ -430,11 +430,11 @@ function buildScenery(map) {
   // --- montanhas do horizonte (sem sombra, só silhueta) ---
   const peaks = new THREE.InstancedMesh(
     geo('peak', function () { return new THREE.ConeGeometry(4.5, 9, 5); }),
-    std(0xffffff, { roughness: 1 }), 26);
-  for (let i = 0; i < 26; i++) {
-    const a = (i / 26) * Math.PI * 2 + rand() * 0.12;
-    const rad = 38 + rand() * 12;
-    const s = 0.8 + rand() * 1.5;
+    std(0xffffff, { roughness: 1 }), 44);
+  for (let i = 0; i < 44; i++) {
+    const a = (i / 44) * Math.PI * 2 + rand() * 0.16;
+    const rad = 34 + rand() * 14;
+    const s = 1.1 + rand() * 1.7;
     dummy.position.set(Math.cos(a) * rad, -0.9 + 4.5 * s, Math.sin(a) * rad);
     dummy.rotation.set(0, rand() * Math.PI, 0);
     dummy.scale.set(s, s, s);
