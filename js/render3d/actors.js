@@ -4,7 +4,7 @@
 // Tudo é montado a partir de primitivas com flat shading: nada de assets
 // externos, e o visual fica coerente entre as peças.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, geo, std, glow, mesh, rng, lerpAngle, damp, shade } from './core.js';
+import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js';
 
 const BOX = function (w, h, d) {
   return geo('box:' + w + ':' + h + ':' + d, function () { return new THREE.BoxGeometry(w, h, d); });
@@ -147,7 +147,7 @@ function buildArcher(tier, branch, color) {
   for (let i = 0; i < 4; i++) {
     const a = i * Math.PI / 2;
     const rail = mesh(BOX(0.6, 0.05, 0.05), legMat, Math.cos(a) * 0.3, 0.26 + h, Math.sin(a) * 0.3);
-    rail.rotation.y = -a;
+    rail.rotation.y = Math.PI / 2 - a;
     g.add(rail);
   }
 
@@ -184,13 +184,13 @@ function buildArcher(tier, branch, color) {
 
   if (tier >= 3) {
     // Telhado cônico com estandarte, na linha das torres de guarda humanas
-    const roof = mesh(CONE(0.52, 0.34, 6), std(0x4a5a7a, { roughness: 0.85 }), 0, 0.85 + h, 0);
+    const roof = mesh(CONE(0.4, 0.3, 6), std(0x4a5a7a, { roughness: 0.85 }), 0, 0.82 + h, 0);
     g.add(roof);
-    g.add(mesh(CYL(0.012, 0.012, 0.3, 5), std(PAL.woodDark), 0, 1.15 + h, 0));
+    g.add(mesh(CYL(0.012, 0.012, 0.26, 5), std(PAL.woodDark), 0, 1.08 + h, 0));
     const banner = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.13), std(0x2f5fa8, {
       roughness: 0.9, side: THREE.DoubleSide
     }));
-    banner.position.set(0.1, 1.24 + h, 0);
+    banner.position.set(0.1, 1.15 + h, 0);
     banner.castShadow = false;
     g.add(banner);
   }
@@ -208,7 +208,7 @@ function buildMage(tier, branch, color) {
   g.add(pillar);
   const runeRing = new THREE.Mesh(
     geo('rune-ring', function () { return new THREE.TorusGeometry(0.3, 0.018, 6, 24); }),
-    glow(color, 0.7)
+    glow(color, 0.38).clone()
   );
   runeRing.rotation.x = Math.PI / 2;
   runeRing.position.y = 0.2;
@@ -238,7 +238,11 @@ function buildMage(tier, branch, color) {
   orb.position.set(0.17, 0.62, 0.04);
   orb.castShadow = false;
   turret.add(orb);
-  const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), glow(orbColor, 0.45));
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTexture(), color: orbColor, transparent: true, opacity: 0.45,
+    blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+  }));
+  halo.scale.setScalar(0.46);
   halo.position.copy(orb.position);
   turret.add(halo);
 
@@ -295,7 +299,7 @@ function buildFrost(tier, branch, color) {
   }
 
   // Névoa gelada no chão
-  const mist = new THREE.Mesh(new THREE.CircleGeometry(0.46, 24), glow(PAL.frost, 0.16));
+  const mist = new THREE.Mesh(new THREE.CircleGeometry(0.46, 24), glow(PAL.frost, 0.16).clone());
   mist.rotation.x = -Math.PI / 2;
   mist.position.y = 0.16;
   g.add(mist);
@@ -320,11 +324,15 @@ export function buildTower(type, tier, branch, color) {
   // Auréola dourada das evoluções, lida de longe.
   if (tier >= 2) {
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.44, 0.5, 28),
-      glow(tier >= 3 ? PAL.goldLight : PAL.gold, tier >= 3 ? 0.55 : 0.35)
+      new THREE.RingGeometry(0.35, 0.42, 28),
+      new THREE.MeshBasicMaterial({
+        color: tier >= 3 ? PAL.goldLight : PAL.gold,
+        transparent: true, opacity: tier >= 3 ? 0.85 : 0.6,
+        depthWrite: false, side: THREE.DoubleSide, toneMapped: false
+      })
     );
     ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.055;
+    ring.position.y = 0.145;
     g.add(ring);
     g.userData.tierRing = ring;
   }
@@ -630,7 +638,7 @@ function buildDragon(color) {
   }
 
   // Aura do chefe
-  const aura = new THREE.Mesh(new THREE.CircleGeometry(0.85, 28), glow(0x6fd0ff, 0.22));
+  const aura = new THREE.Mesh(new THREE.CircleGeometry(0.85, 28), glow(0x6fd0ff, 0.22).clone());
   aura.rotation.x = -Math.PI / 2;
   aura.position.y = 0.02;
   g.add(aura);
@@ -654,7 +662,7 @@ export function buildEnemy(type, color, radiusWorld) {
   const inner = build(color);
 
   // Casca de gelo (exibida enquanto o inimigo está lento)
-  const frost = new THREE.Mesh(ICO(0.46, 0), glow(PAL.frost, 0.3));
+  const frost = new THREE.Mesh(ICO(0.46, 0), glow(PAL.frost, 0.3).clone());
   frost.visible = false;
   frost.castShadow = false;
   inner.add(frost);
@@ -755,7 +763,7 @@ export function animateTower(g, info, t, dt) {
   }
   if (d.runeRing) {
     d.runeRing.rotation.z = t * 0.6;
-    d.runeRing.material.opacity = 0.45 + Math.sin(t * 2.6) * 0.18;
+    d.runeRing.material.opacity = 0.28 + Math.sin(t * 2.6) * 0.1;
   }
   if (d.sats) {
     if (d.turret) d.turret.rotation.y = t * 0.35;

@@ -90,6 +90,24 @@ export function glow(color, opacity) {
   return m;
 }
 
+/** Textura radial suave, para brilhos que não podem virar quadrados. */
+let _glowTex = null;
+export function glowTexture() {
+  if (_glowTex) return _glowTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.3, 'rgba(255,255,255,0.5)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  _glowTex = new THREE.CanvasTexture(c);
+  _glowTex.colorSpace = THREE.SRGBColorSpace;
+  return _glowTex;
+}
+
 // ---- helpers ---------------------------------------------------------------
 /** Mesh posicionado, com sombras ligadas por padrão. */
 export function mesh(g, m, x, y, z) {
