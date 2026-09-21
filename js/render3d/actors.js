@@ -56,13 +56,13 @@ function humanoid(cloth, skin, scale) {
   const clothMat = std(cloth, { roughness: 0.8 });
   const skinMat = std(skin || PAL.skin, { roughness: 0.75 });
 
-  const legL = mesh(BOX(0.075, 0.2, 0.09), std(PAL.woodDark), -0.055 * s, 0.1 * s, 0);
-  const legR = mesh(BOX(0.075, 0.2, 0.09), std(PAL.woodDark), 0.055 * s, 0.1 * s, 0);
+  const legL = mesh(BOX(0.075, 0.2, 0.09), std(PAL.woodDark), -0.055, 0.1, 0);
+  const legR = mesh(BOX(0.075, 0.2, 0.09), std(PAL.woodDark), 0.055, 0.1, 0);
   g.add(legL, legR);
 
-  const torso = mesh(BOX(0.2, 0.24, 0.14), clothMat, 0, 0.32 * s, 0);
+  const torso = mesh(BOX(0.2, 0.24, 0.14), clothMat, 0, 0.32, 0);
   g.add(torso);
-  const head = mesh(SPH(0.088), skinMat, 0, 0.5 * s, 0);
+  const head = mesh(SPH(0.088), skinMat, 0, 0.5, 0);
   g.add(head);
 
   g.scale.setScalar(s);
@@ -82,11 +82,14 @@ function buildMilitia(tier, branch, color) {
   // Elmo
   const helm = mesh(SPH(0.1, 10, 6), std(PAL.iron, { metalness: 0.45, roughness: 0.5 }), 0, 0.52, 0);
   helm.scale.set(1, 0.72, 1);
-  turret.add(helm);
+  body.add(helm);
   if (tier >= 2) {
-    const crest = mesh(BOX(0.03, 0.09, 0.22), std(PAL.gold, { metalness: 0.5, roughness: 0.4 }), 0, 0.61, 0);
-    turret.add(crest);
+    body.add(mesh(BOX(0.03, 0.09, 0.22), std(PAL.gold, { metalness: 0.5, roughness: 0.4 }), 0, 0.61, 0));
   }
+
+  // Tabardo sobre o peitoral
+  body.add(mesh(BOX(0.12, 0.2, 0.025), std(shade(color, 0.7), { roughness: 0.9 }), 0, 0.31, 0.078));
+  body.add(mesh(BOX(0.12, 0.028, 0.03), std(PAL.gold, { metalness: 0.55, roughness: 0.4 }), 0, 0.39, 0.08));
 
   const arms = new THREE.Group();
   arms.position.y = 0.34;
@@ -107,7 +110,7 @@ function buildMilitia(tier, branch, color) {
     sword.rotation.z = -0.35;
     arms.add(sword);
   }
-  turret.add(arms);
+  body.add(arms);
 
   if (tier >= 3) {
     // Paliçada de pedra ao redor: "Muralha Viva"
@@ -153,8 +156,7 @@ function buildArcher(tier, branch, color) {
   const body = humanoid(color, PAL.skin, 0.92 + (tier - 1) * 0.08);
   turret.add(body);
   // Capuz
-  const hood = mesh(CONE(0.11, 0.16, 6), std(color, { roughness: 0.85 }), 0, 0.54, 0);
-  turret.add(hood);
+  body.add(mesh(CONE(0.11, 0.16, 6), std(color, { roughness: 0.85 }), 0, 0.54, 0));
 
   const arms = new THREE.Group();
   arms.position.y = 0.33;
@@ -177,13 +179,20 @@ function buildArcher(tier, branch, color) {
     const string = mesh(BOX(0.008, 0.36, 0.008), std(PAL.cloth), 0.02, 0.03, 0.15);
     arms.add(string);
   }
-  turret.add(arms);
+  body.add(arms);
   g.add(turret);
 
   if (tier >= 3) {
-    // Telhado cônico
+    // Telhado cônico com estandarte, na linha das torres de guarda humanas
     const roof = mesh(CONE(0.52, 0.34, 6), std(0x4a5a7a, { roughness: 0.85 }), 0, 0.85 + h, 0);
     g.add(roof);
+    g.add(mesh(CYL(0.012, 0.012, 0.3, 5), std(PAL.woodDark), 0, 1.15 + h, 0));
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.13), std(0x2f5fa8, {
+      roughness: 0.9, side: THREE.DoubleSide
+    }));
+    banner.position.set(0.1, 1.24 + h, 0);
+    banner.castShadow = false;
+    g.add(banner);
   }
 
   g.userData = { turret: turret, body: body, arms: arms, recoil: 0, kind: 'archer' };
@@ -362,6 +371,27 @@ function buildGoblin(color, scout) {
     g.add(eye);
   }
 
+  // Presas, elmo e capa: a silhueta lê como orc, não como duende genérico
+  for (let side = -1; side <= 1; side += 2) {
+    const tusk = mesh(CONE(0.026, 0.1, 4), std(PAL.bone, { roughness: 0.7 }), side * 0.055, 0.47, 0.12);
+    tusk.rotation.x = -0.25;
+    tusk.castShadow = false;
+    g.add(tusk);
+  }
+  if (!scout) {
+    const helm = mesh(SPH(0.145, 10, 6), std(PAL.stoneDark, { metalness: 0.35, roughness: 0.55 }), 0, 0.58, 0.01);
+    helm.scale.set(1, 0.58, 1);
+    g.add(helm);
+    for (let side = -1; side <= 1; side += 2) {
+      const horn = mesh(CONE(0.035, 0.15, 4), std(PAL.bone, { roughness: 0.7 }), side * 0.13, 0.62, 0);
+      horn.rotation.z = side * -0.85;
+      g.add(horn);
+    }
+  }
+  const shoulderCape = mesh(BOX(0.26, 0.22, 0.03), std(scout ? 0x4a6b33 : 0x9c3a2c, { roughness: 0.9 }), 0, 0.3, -0.11);
+  shoulderCape.rotation.x = -0.14;
+  g.add(shoulderCape);
+
   // Arma
   const armR = new THREE.Group();
   armR.position.set(0.16, 0.36, 0.02);
@@ -371,9 +401,13 @@ function buildGoblin(color, scout) {
     dagger.rotation.x = 0.4;
     armR.add(dagger);
   } else {
-    const club = mesh(CYL(0.05, 0.035, 0.3, 6), std(PAL.woodDark), 0.03, -0.2, 0.05);
-    club.rotation.x = 0.35;
-    armR.add(club);
+    // Machado tosco
+    const haft = mesh(CYL(0.025, 0.025, 0.32, 6), std(PAL.woodDark), 0.03, -0.2, 0.05);
+    haft.rotation.x = 0.35;
+    armR.add(haft);
+    const axeHead = mesh(BOX(0.045, 0.17, 0.13), std(PAL.iron, { metalness: 0.5, roughness: 0.45 }), 0.03, -0.33, 0.11);
+    axeHead.rotation.x = 0.35;
+    armR.add(axeHead);
   }
   g.add(armR);
   const armL = mesh(BOX(0.07, 0.16, 0.07), skin, -0.16, 0.28, 0.02);
@@ -455,7 +489,15 @@ function buildSkeletonKnight(color) {
     const pauldron = mesh(SPH(0.1, 8, 6), steel, side * 0.17, 0.56, 0);
     pauldron.scale.set(1, 0.7, 1);
     g.add(pauldron);
+    for (let i = 0; i < 2; i++) {
+      const spike = mesh(CONE(0.026, 0.13, 4), std(PAL.stoneDark, { metalness: 0.4, roughness: 0.5 }),
+        side * (0.14 + i * 0.07), 0.62, -0.03 + i * 0.06);
+      spike.rotation.z = side * -0.5;
+      spike.castShadow = false;
+      g.add(spike);
+    }
   }
+  g.add(mesh(BOX(0.27, 0.03, 0.18), std(PAL.gold, { metalness: 0.6, roughness: 0.35 }), 0, 0.39, 0.02));
 
   // Crânio e elmo
   const head = mesh(BOX(0.16, 0.17, 0.16), bone, 0, 0.72, 0.01);

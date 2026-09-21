@@ -6,7 +6,7 @@
 // cena three.js em sincronia. Se o WebGL não estiver disponível, nada é
 // anexado e o jogo segue no canvas 2D original.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, HORIZON, makeMap, hexInt, glow } from './core.js';
+import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js';
 import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './world.js';
 import {
   buildTower, buildEnemy, buildWorker,
@@ -22,7 +22,15 @@ import { createOverlay } from './overlay.js';
 // câmera perto: a perspectiva diverge, e o tabuleiro deixa de parecer maquete.
 const PITCH = 56 * Math.PI / 180;
 const FOV = 70;
-const FIT_MARGIN = 0.95;               // folga ao enquadrar o tabuleiro
+const FIT_MARGIN = 0.95;               // folga ao enquadrar a janela de visão
+
+// A câmera não precisa mais mostrar o tabuleiro (7×14) inteiro: enquadra uma
+// janela de VIEW_ROWS linhas por vez, do tamanho do WC3 real, e o jogador anda
+// por ela com a roda do mouse ou as setas/WASD.
+const VIEW_ROWS = 7;
+const PAN_SPEED = 4.4;                 // unidades de mundo por segundo (teclado)
+const PAN_WHEEL = 0.0026;              // unidades de mundo por "tick" de roda
+const PAN_SMOOTH = 0.00002;            // suavização do damp() por segundo
 
 // Altura aproximada de cada inimigo em unidades locais (antes da escala do raio).
 const ENEMY_HEIGHT = {
@@ -48,6 +56,14 @@ function createRenderer3D() {
   const tmp = new THREE.Vector3();
   const tmp2 = new THREE.Vector3();
   const seenFX = new WeakSet();
+  const camDir = new THREE.Vector3(0, Math.sin(PITCH), Math.cos(PITCH)).normalize();
+
+  // Câmera: distância fixa (recalculada só quando a tela muda de tamanho) e
+  // deslocamento ao longo do corredor (linhas), que o jogador controla.
+  let camDistance = 12;
+  let panLimit = 0;
+  let panZ = 0, panZTarget = 0;
+  const keys = { up: false, down: false };
 
   let lastTime = 0;
   let resizeObserver = null;
@@ -102,6 +118,7 @@ function createRenderer3D() {
     pickables.push(worker);
 
     overlay = createOverlay(container);
+    setupCameraControls();
 
     resize();
     if (window.ResizeObserver) {
@@ -116,29 +133,29 @@ function createRenderer3D() {
   // -------------------------------------------------------------------------
 
   /**
-   * Afasta a câmera ao longo do eixo de visão até que todo o tabuleiro (mais
-   * uma faixa de cenário) caiba no enquadramento. Busca binária sobre a
-   * distância: funciona para qualquer proporção de tela.
+   * Calcula a distância que enquadra uma janela de VIEW_ROWS linhas — não o
+   * tabuleiro inteiro (14 linhas). Busca binária sobre a distância: funciona
+   * para qualquer proporção de tela. Recalculada só no resize; o passeio pelo
+   * corredor é feito ajustando panZ, sem repetir essa busca a cada frame.
    */
-  function fitCamera() {
-    const dir = new THREE.Vector3(0, Math.sin(PITCH), Math.cos(PITCH)).normalize();
-    const target = new THREE.Vector3(0, 0.35, 0.55);
+  function fitCameraDistance() {
+    const halfView = VIEW_ROWS / 2;
+    const target = new THREE.Vector3(0, 0.35, 0);
 
-    // Com campo de visão largo, cada unidade de folga em volta do tabuleiro sai
-    // cara: a câmera recua muito para acomodá-la. Por isso os pontos abraçam o
-    // tabuleiro e só o muro lateral — portal e bastião podem sangrar para fora
-    // da moldura, já que são cenário e não área de jogo.
+    // Com campo de visão largo, cada unidade de folga em volta da janela sai
+    // cara: a câmera recua muito para acomodá-la. Por isso os pontos abraçam
+    // só a largura do tabuleiro e a altura da janela visível.
     const pts = [];
     const ex = map.halfW + 0.55;
     for (let sx = -1; sx <= 1; sx += 2) {
-      pts.push(new THREE.Vector3(sx * ex, 0, -(map.halfH + 0.55)));
-      pts.push(new THREE.Vector3(sx * ex, 0.9, -(map.halfH + 0.55)));
-      pts.push(new THREE.Vector3(sx * ex, 0, map.halfH + 0.6));
-      pts.push(new THREE.Vector3(sx * ex, 0.9, map.halfH + 0.55));
+      pts.push(new THREE.Vector3(sx * ex, 0, -halfView));
+      pts.push(new THREE.Vector3(sx * ex, 0.9, -halfView));
+      pts.push(new THREE.Vector3(sx * ex, 0, halfView));
+      pts.push(new THREE.Vector3(sx * ex, 0.9, halfView));
     }
 
     function fits(distance) {
-      camera.position.copy(target).addScaledVector(dir, distance);
+      camera.position.copy(target).addScaledVector(camDir, distance);
       camera.lookAt(target);
       camera.updateMatrixWorld(true);
       camera.updateProjectionMatrix();
@@ -149,20 +166,51 @@ function createRenderer3D() {
       return true;
     }
 
-    let lo = 5, hi = 90;
+    let lo = 4, hi = 60;
     if (!fits(hi)) { lo = hi; } else {
       for (let i = 0; i < 34; i++) {
         const midDist = (lo + hi) / 2;
         if (fits(midDist)) hi = midDist; else lo = midDist;
       }
     }
-    camera.position.copy(target).addScaledVector(dir, hi);
-    camera.lookAt(target);
-    camera.updateMatrixWorld(true);
+    camDistance = hi;
 
-    // Mantém a sombra acompanhando o tabuleiro
+    // Até onde dá para passear: a janela não pode sair da área jogável.
+    panLimit = Math.max(0, map.halfH - halfView + 0.4);
+    panZTarget = Math.min(panLimit, Math.max(-panLimit, panZTarget));
+
+    // A sombra acompanha o tabuleiro inteiro, não a janela visível.
     lights.key.target.position.set(0, 0, 0);
     lights.key.target.updateMatrixWorld();
+  }
+
+  /** Aplica a posição de câmera atual (distância fixa + passeio suavizado). */
+  function updateCameraPosition(dt) {
+    panZ = dt === null ? panZTarget : damp(panZ, panZTarget, PAN_SMOOTH, dt);
+    const target = new THREE.Vector3(0, 0.35, 0.55 + panZ);
+    camera.position.copy(target).addScaledVector(camDir, camDistance);
+    camera.lookAt(target);
+    camera.updateMatrixWorld(true);
+  }
+
+  /** Roda do mouse e setas/WASD passeiam a câmera pelo corredor (eixo das linhas). */
+  function setupCameraControls() {
+    renderer.domElement.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      panZTarget += e.deltaY * PAN_WHEEL;
+      panZTarget = Math.min(panLimit, Math.max(-panLimit, panZTarget));
+    }, { passive: false });
+
+    window.addEventListener('keydown', function (e) {
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = true;
+      else if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = true;
+      else return;
+      e.preventDefault();
+    });
+    window.addEventListener('keyup', function (e) {
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+      else if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
+    });
   }
 
   function resize() {
@@ -174,7 +222,8 @@ function createRenderer3D() {
     renderer.domElement.style.height = h + 'px';
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    fitCamera();
+    fitCameraDistance();
+    updateCameraPosition(null);
     overlay.resize(w, h, Math.min(2, window.devicePixelRatio || 1));
   }
 
@@ -448,6 +497,11 @@ function createRenderer3D() {
     let dt = (perfNow - lastTime) / 1000;
     if (!(dt > 0) || dt > 0.1) dt = 0.016;
     lastTime = perfNow;
+
+    if (keys.up) panZTarget -= PAN_SPEED * dt;
+    if (keys.down) panZTarget += PAN_SPEED * dt;
+    if (keys.up || keys.down) panZTarget = Math.min(panLimit, Math.max(-panLimit, panZTarget));
+    updateCameraPosition(dt);
 
     processNewShots(state.attackFX, state.units);
     syncTowers(state.units, state.enemies, t, dt);
