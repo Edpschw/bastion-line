@@ -15,3 +15,10 @@ tar xzf three.tgz package/build/three.module.min.js package/LICENSE
 cp package/build/three.module.min.js vendor/three/three.module.min.js
 cp package/LICENSE vendor/three/LICENSE
 ```
+
+## GLTFLoader
+
+- `GLTFLoader.js` e `utils/BufferGeometryUtils.js` vêm do mesmo pacote `three@0.169.0`
+  (`examples/jsm/loaders/GLTFLoader.js` e `examples/jsm/utils/BufferGeometryUtils.js`),
+  com o único ajuste de trocar o import `'three'` pelo caminho relativo do build local.
+- Licença: MIT, mesma do restante do three.js.

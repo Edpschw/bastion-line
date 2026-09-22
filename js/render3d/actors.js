@@ -5,6 +5,7 @@
 // externos, e o visual fica coerente entre as peças.
 // -----------------------------------------------------------------------------
 import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js';
+import { piece, stackPieces } from './towerKit.js';
 
 const BOX = function (w, h, d) {
   return geo('box:' + w + ':' + h + ':' + d, function () { return new THREE.BoxGeometry(w, h, d); });
@@ -28,28 +29,20 @@ const ICO = function (r, d) {
 // ---------------------------------------------------------------------------
 // Torres
 // ---------------------------------------------------------------------------
+// A arquitetura vem do Castle Kit (Kenney, CC0): peças empilháveis de pedra,
+// madeira e telhado. Quem ocupa a torre continua procedural — o soldado, a
+// arqueira, o orbe do mago e os cristais são o que se mexe, e é por eles que
+// se lê o tipo e a evolução à distância.
 
-/** Plataforma de pedra comum a todas as torres; cresce com o tier. */
-function towerBase(tier) {
-  const g = new THREE.Group();
-  const s = 1 + (tier - 1) * 0.12;
-  const slab = mesh(BOX(0.84, 0.14, 0.84), std(PAL.stoneMid, { roughness: 0.95 }), 0, 0.07, 0);
-  slab.scale.set(s, 1, s);
-  g.add(slab);
-  const rim = mesh(BOX(0.94, 0.07, 0.94), std(PAL.stoneDark, { roughness: 1 }), 0, 0.025, 0);
-  rim.scale.set(s, 1, s);
-  g.add(rim);
-  if (tier >= 2) {
-    // Cantoneiras de pedra marcando a evolução
-    for (let i = 0; i < 4; i++) {
-      const a = i * Math.PI / 2 + Math.PI / 4;
-      g.add(mesh(BOX(0.16, 0.2, 0.16), std(PAL.stone), Math.cos(a) * 0.38 * s, 0.17, Math.sin(a) * 0.38 * s));
-    }
-  }
-  return g;
-}
+// Uma peça do kit nasce como um cubo de ~1 unidade, do tamanho de uma casa do
+// tabuleiro. Reduzir por igual deixaria a torre fina demais para a casa; a
+// altura encolhe mais que a largura, e o torreão fica atarracado — o que
+// também evita que uma torre alta esconda os inimigos atrás dela.
+const KIT_W = 0.62;
+const KIT_H = 0.4;
+const OCCUPANT_SCALE = 0.62;
 
-/** Corpo humanoide genérico reutilizado pelas torres (pernas, tronco, cabeça). */
+/** Corpo humanoide genérico usado pelos ocupantes (pernas, tronco, cabeça). */
 function humanoid(cloth, skin, scale) {
   const g = new THREE.Group();
   const s = scale || 1;
@@ -70,16 +63,10 @@ function humanoid(cloth, skin, scale) {
   return g;
 }
 
-function buildMilitia(tier, branch, color) {
-  const g = new THREE.Group();
-  g.add(towerBase(tier));
-  const turret = new THREE.Group();
-  turret.position.y = 0.14;
+/** Soldado da Milícia: elmo, tabardo e o par de armas do ramo escolhido. */
+function militiaOccupant(tier, branch, color) {
+  const body = humanoid(color, PAL.skin, 1 + (tier - 1) * 0.1);
 
-  const body = humanoid(color, PAL.skin, 1 + (tier - 1) * 0.16);
-  turret.add(body);
-
-  // Elmo
   const helm = mesh(SPH(0.1, 10, 6), std(PAL.iron, { metalness: 0.45, roughness: 0.5 }), 0, 0.52, 0);
   helm.scale.set(1, 0.72, 1);
   body.add(helm);
@@ -103,7 +90,7 @@ function buildMilitia(tier, branch, color) {
     }
   } else {
     // Escudo + espada: defensivo
-    const shield = mesh(BOX(0.05, 0.32 + tier * 0.06, 0.28 + tier * 0.05), std(PAL.wood, { roughness: 0.8 }), -0.18, 0.02, 0.05);
+    const shield = mesh(BOX(0.05, 0.32 + tier * 0.04, 0.26 + tier * 0.04), std(PAL.wood, { roughness: 0.8 }), -0.18, 0.02, 0.05);
     arms.add(shield);
     arms.add(mesh(BOX(0.02, 0.12, 0.12), std(PAL.gold, { metalness: 0.5, roughness: 0.4 }), -0.21, 0.02, 0.05));
     const sword = mesh(BOX(0.045, 0.38, 0.015), std(PAL.iron, { metalness: 0.6, roughness: 0.35 }), 0.19, 0.14, 0.04);
@@ -112,60 +99,20 @@ function buildMilitia(tier, branch, color) {
   }
   body.add(arms);
 
-  if (tier >= 3) {
-    // Paliçada de pedra ao redor: "Muralha Viva"
-    for (let i = 0; i < 4; i++) {
-      const a = i * Math.PI / 2 + Math.PI / 4;
-      const bl = mesh(BOX(0.22, 0.26, 0.12), std(PAL.stone), Math.cos(a) * 0.4, 0.13, Math.sin(a) * 0.4);
-      bl.rotation.y = -a;
-      g.add(bl);
-    }
-  }
-
-  g.add(turret);
-  g.userData = { turret: turret, body: body, arms: arms, recoil: 0, kind: 'militia' };
-  return g;
+  return { root: body, body: body, arms: arms };
 }
 
-function buildArcher(tier, branch, color) {
-  const g = new THREE.Group();
-  g.add(towerBase(tier));
-
-  // Torre de madeira: quatro pernas + plataforma
-  const h = 0.42 + (tier - 1) * 0.12;
-  const legMat = std(PAL.wood, { roughness: 0.9 });
-  for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2 + Math.PI / 4;
-    const leg = mesh(BOX(0.06, h, 0.06), legMat, Math.cos(a) * 0.27, 0.14 + h / 2, Math.sin(a) * 0.27);
-    leg.rotation.y = -a;
-    leg.rotation.x = Math.sin(a) * 0.08;
-    leg.rotation.z = -Math.cos(a) * 0.08;
-    g.add(leg);
-  }
-  g.add(mesh(BOX(0.66, 0.06, 0.66), std(PAL.woodDark, { roughness: 0.9 }), 0, 0.14 + h, 0));
-  // Guarda-corpo
-  for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2;
-    const rail = mesh(BOX(0.6, 0.05, 0.05), legMat, Math.cos(a) * 0.3, 0.26 + h, Math.sin(a) * 0.3);
-    rail.rotation.y = Math.PI / 2 - a;
-    g.add(rail);
-  }
-
-  const turret = new THREE.Group();
-  turret.position.y = 0.17 + h;
-  const body = humanoid(color, PAL.skin, 0.92 + (tier - 1) * 0.08);
-  turret.add(body);
-  // Capuz
+/** Arqueira encapuzada: arco longo ou besta pesada, conforme o ramo. */
+function archerOccupant(tier, branch, color) {
+  const body = humanoid(color, PAL.skin, 0.92 + (tier - 1) * 0.06);
   body.add(mesh(CONE(0.11, 0.16, 6), std(color, { roughness: 0.85 }), 0, 0.54, 0));
 
   const arms = new THREE.Group();
   arms.position.y = 0.33;
   if (branch === 'francoatiradora') {
     // Besta pesada
-    const stock = mesh(BOX(0.07, 0.07, 0.42), std(PAL.woodDark), 0, 0.02, 0.14);
-    arms.add(stock);
-    arms.add(mesh(BOX(0.36, 0.035, 0.035), std(PAL.iron, { metalness: 0.5, roughness: 0.4 }), 0, 0.04, 0.3));
-    if (tier >= 3) arms.add(mesh(CYL(0.03, 0.03, 0.14, 6), std(PAL.gold, { metalness: 0.6, roughness: 0.3 }), 0.05, 0.09, 0.16));
+    arms.add(mesh(BOX(0.07, 0.07, 0.36), std(PAL.woodDark), 0, 0.02, 0.12));
+    arms.add(mesh(BOX(0.32, 0.035, 0.035), std(PAL.iron, { metalness: 0.5, roughness: 0.4 }), 0, 0.04, 0.26));
   } else {
     // Arco longo
     const bow = new THREE.Mesh(
@@ -176,155 +123,169 @@ function buildArcher(tier, branch, color) {
     bow.rotation.set(0, Math.PI / 2, Math.PI / 2 + 0.58);
     bow.castShadow = true;
     arms.add(bow);
-    const string = mesh(BOX(0.008, 0.36, 0.008), std(PAL.cloth), 0.02, 0.03, 0.15);
-    arms.add(string);
+    arms.add(mesh(BOX(0.008, 0.36, 0.008), std(PAL.cloth), 0.02, 0.03, 0.15));
   }
   body.add(arms);
-  g.add(turret);
 
-  if (tier >= 3) {
-    // Telhado cônico com estandarte, na linha das torres de guarda humanas
-    const roof = mesh(CONE(0.4, 0.3, 6), std(0x4a5a7a, { roughness: 0.85 }), 0, 0.82 + h, 0);
-    g.add(roof);
-    g.add(mesh(CYL(0.012, 0.012, 0.26, 5), std(PAL.woodDark), 0, 1.08 + h, 0));
-    const banner = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.13), std(0x2f5fa8, {
-      roughness: 0.9, side: THREE.DoubleSide
-    }));
-    banner.position.set(0.1, 1.15 + h, 0);
-    banner.castShadow = false;
-    g.add(banner);
-  }
-
-  g.userData = { turret: turret, body: body, arms: arms, recoil: 0, kind: 'archer' };
-  return g;
+  return { root: body, body: body, arms: arms };
 }
 
-function buildMage(tier, branch, color) {
-  const g = new THREE.Group();
-  g.add(towerBase(tier));
-
-  // Pilar rúnico
-  const pillar = mesh(CYL(0.2, 0.26, 0.42 + tier * 0.06, 8), std(PAL.stone, { roughness: 0.9 }), 0, 0.14 + (0.42 + tier * 0.06) / 2, 0);
-  g.add(pillar);
-  const runeRing = new THREE.Mesh(
-    geo('rune-ring', function () { return new THREE.TorusGeometry(0.3, 0.018, 6, 24); }),
-    glow(color, 0.38).clone()
-  );
-  runeRing.rotation.x = Math.PI / 2;
-  runeRing.position.y = 0.2;
-  g.add(runeRing);
-
-  const turret = new THREE.Group();
-  turret.position.y = 0.16 + 0.42 + tier * 0.06;
-
-  // Manto cônico + capuz
-  const robe = mesh(CONE(0.19, 0.4, 8), std(color, { roughness: 0.85 }), 0, 0.2, 0);
-  turret.add(robe);
-  const head = mesh(SPH(0.085), std(PAL.skin), 0, 0.44, 0);
-  turret.add(head);
-  const hood = mesh(CONE(0.115, 0.2, 7), std(color, { roughness: 0.85 }), 0, 0.5, -0.01);
-  turret.add(hood);
-
-  // Cajado
-  const staff = mesh(CYL(0.016, 0.02, 0.56, 6), std(PAL.woodDark), 0.17, 0.3, 0.04);
-  staff.rotation.z = -0.12;
-  turret.add(staff);
-
-  // Orbe flutuante — girando e pulsando
+/** Orbe do Mago: o que pulsa, gira e denuncia o ramo pela cor. */
+function mageOccupant(tier, branch, color) {
+  const root = new THREE.Group();
   const orbColor = branch === 'piromante' ? PAL.ember : color;
+
   const orb = new THREE.Mesh(ICO(0.1, 0), std(orbColor, {
     emissive: orbColor, emissiveIntensity: 1.5, roughness: 0.3
   }));
-  orb.position.set(0.17, 0.62, 0.04);
+  orb.position.set(0, 0.16, 0);
   orb.castShadow = false;
-  turret.add(orb);
+  root.add(orb);
+
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTexture(), color: orbColor, transparent: true, opacity: 0.45,
     blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
   }));
   halo.scale.setScalar(0.46);
   halo.position.copy(orb.position);
-  turret.add(halo);
+  root.add(halo);
 
-  // Fragmentos orbitando (mais numerosos nos tiers altos)
   const shards = [];
   const shardCount = tier >= 3 ? 5 : tier >= 2 ? 3 : 0;
   for (let i = 0; i < shardCount; i++) {
     const sh = mesh(OCT(0.045), std(orbColor, { emissive: orbColor, emissiveIntensity: 0.9, roughness: 0.35 }));
     sh.castShadow = false;
     sh.userData.angle = (i / shardCount) * Math.PI * 2;
-    turret.add(sh);
+    root.add(sh);
     shards.push(sh);
   }
 
-  g.add(turret);
-  g.userData = { turret: turret, orb: orb, halo: halo, shards: shards, runeRing: runeRing, recoil: 0, kind: 'mage' };
-  return g;
+  return { root: root, orb: orb, halo: halo, shards: shards, orbY: 0.16 };
 }
 
-function buildFrost(tier, branch, color) {
-  const g = new THREE.Group();
-  g.add(towerBase(tier));
-
-  // Base congelada
-  const ice = mesh(CYL(0.34, 0.4, 0.12, 8), std(0xbfe6e2, { roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.85 }), 0, 0.2, 0);
-  g.add(ice);
-
-  const turret = new THREE.Group();
-  turret.position.y = 0.26;
-
+/** Cristais da Gélida: crescem em número com o tier e giram devagar. */
+function frostOccupant(tier, branch, color) {
+  const root = new THREE.Group();
   const crystalMat = std(color, {
     emissive: color, emissiveIntensity: 0.55,
     roughness: 0.15, metalness: 0.15, transparent: true, opacity: 0.9
   });
 
-  // Espinha central
-  const spireH = 0.45 + tier * 0.14;
-  const spire = mesh(OCT(0.17), crystalMat, 0, spireH * 0.55, 0);
-  spire.scale.set(0.8, spireH * 3.0, 0.8);
-  turret.add(spire);
+  const spireH = 0.34 + tier * 0.1;
+  const spire = mesh(OCT(0.13), crystalMat, 0, spireH * 0.5, 0);
+  spire.scale.set(0.8, spireH * 3.2, 0.8);
+  root.add(spire);
 
-  // Cristais satélites
   const sats = [];
-  const satCount = branch === 'cristalina' ? 5 + tier : 3 + tier;
+  const satCount = branch === 'cristalina' ? 4 + tier : 2 + tier;
   for (let i = 0; i < satCount; i++) {
     const a = (i / satCount) * Math.PI * 2;
-    const rad = 0.24 + (i % 2) * 0.06;
-    const sc = 0.5 + (i % 3) * 0.16;
-    const c = mesh(OCT(0.11), crystalMat, Math.cos(a) * rad, 0.16 + sc * 0.2, Math.sin(a) * rad);
+    const rad = 0.16 + (i % 2) * 0.04;
+    const sc = 0.42 + (i % 3) * 0.13;
+    const c = mesh(OCT(0.1), crystalMat, Math.cos(a) * rad, 0.1 + sc * 0.18, Math.sin(a) * rad);
     c.scale.set(sc, sc * 2.1, sc);
-    c.rotation.set((Math.random() - 0.5) * 0.3, a, (Math.random() - 0.5) * 0.3);
-    turret.add(c);
+    c.rotation.set(0, a, 0);
+    c.userData.baseY = c.position.y;
+    root.add(c);
     sats.push(c);
   }
 
-  // Névoa gelada no chão
-  const mist = new THREE.Mesh(new THREE.CircleGeometry(0.46, 24), glow(PAL.frost, 0.16).clone());
+  const mist = new THREE.Mesh(new THREE.CircleGeometry(0.34, 24), glow(PAL.frost, 0.16).clone());
   mist.rotation.x = -Math.PI / 2;
-  mist.position.y = 0.16;
-  g.add(mist);
+  mist.position.y = 0.02;
+  root.add(mist);
 
-  g.add(turret);
-  g.userData = { turret: turret, sats: sats, mist: mist, recoil: 0, kind: 'frost' };
-  return g;
+  return { root: root, sats: sats, mist: mist };
 }
 
-const TOWER_BUILDERS = {
-  militia: buildMilitia,
-  archer: buildArcher,
-  mage: buildMage,
-  frost: buildFrost
+/**
+ * Peças do kit para cada torre. A silhueta separa os quatro tipos mesmo de
+ * longe: quadrada para a Milícia, plataforma de madeira para a Arqueira,
+ * hexagonal com pináculo para o Mago, tambor redondo para a Gélida.
+ */
+const RECIPES = {
+  militia: function (tier, branch) {
+    const wall = branch === 'guerreiro' ? 'tower-square-mid-windows' : 'tower-square-mid';
+    if (tier <= 1) return { stack: ['tower-square-base', 'tower-square-top'] };
+    if (tier === 2) return { stack: ['tower-square-base', wall, 'tower-square-top'] };
+    return {
+      stack: ['tower-square-base', wall, wall, 'tower-square-top'],
+      flag: branch === 'guerreiro' ? 'flag-pennant' : 'flag-banner-short'
+    };
+  },
+  archer: function (tier, branch) {
+    const mount = branch === 'francoatiradora' ? 'siege-ballista' : null;
+    if (tier <= 1) return { stack: ['tower-square-base', 'tower-square-mid-open-simple'] };
+    if (tier === 2) {
+      return { stack: ['tower-square-base', 'tower-square-mid', 'tower-square-mid-open'], mount: mount };
+    }
+    return {
+      stack: ['tower-square-base', 'tower-square-mid', 'tower-square-mid', 'tower-square-mid-open'],
+      mount: mount,
+      flag: 'flag-pennant'
+    };
+  },
+  mage: function (tier) {
+    if (tier <= 1) return { stack: ['tower-hexagon-base', 'tower-hexagon-mid'] };
+    if (tier === 2) {
+      return { stack: ['tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-top', 'tower-hexagon-roof'] };
+    }
+    return {
+      stack: ['tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-mid', 'tower-hexagon-top', 'tower-hexagon-roof-secondary']
+    };
+  },
+  frost: function (tier) {
+    if (tier <= 1) return { stack: ['tower-base'] };
+    if (tier === 2) return { stack: ['tower-base', 'tower-top'] };
+    return { stack: ['tower-base', 'tower-base', 'tower-top'] };
+  }
+};
+
+const OCCUPANTS = {
+  militia: militiaOccupant,
+  archer: archerOccupant,
+  mage: mageOccupant,
+  frost: frostOccupant
 };
 
 /** Monta a malha de uma torre a partir do tipo, tier, ramo e cor do núcleo 2D. */
 export function buildTower(type, tier, branch, color) {
-  const build = TOWER_BUILDERS[type] || buildMilitia;
-  const g = build(tier, branch, color);
+  const recipe = (RECIPES[type] || RECIPES.militia)(tier, branch);
+  const g = new THREE.Group();
+
+  const shell = stackPieces(recipe.stack);
+  shell.group.scale.set(KIT_W, KIT_H, KIT_W);
+  g.add(shell.group);
+
+  // O casco fica parado; só o que ocupa o topo gira para mirar. O ocupante
+  // fica fora do grupo achatado, para não sair esticado junto com a pedra.
+  const turret = new THREE.Group();
+  turret.position.y = shell.lastBase * KIT_H;
+  g.add(turret);
+
+  const occupant = (OCCUPANTS[type] || OCCUPANTS.militia)(tier, branch, color);
+  occupant.root.scale.multiplyScalar(OCCUPANT_SCALE);
+  // Orbe e cristais coroam a torre; soldado e arqueira ficam no piso da ameia.
+  if (type === 'mage' || type === 'frost') turret.position.y = shell.top * KIT_H;
+  turret.add(occupant.root);
+
+  if (recipe.mount) {
+    const mount = piece(recipe.mount);
+    mount.scale.setScalar(KIT_W * 0.62);
+    mount.position.set(0, 0, 0.06);
+    turret.add(mount);
+  }
+  if (recipe.flag) {
+    const flag = piece(recipe.flag);
+    flag.scale.setScalar(KIT_W * 0.8);
+    flag.position.set(0.21, shell.lastBase * KIT_H, -0.21);
+    g.add(flag);
+  }
 
   // Auréola dourada das evoluções, lida de longe.
   if (tier >= 2) {
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.35, 0.42, 28),
+      new THREE.RingGeometry(0.33, 0.4, 28),
       new THREE.MeshBasicMaterial({
         color: tier >= 3 ? PAL.goldLight : PAL.gold,
         transparent: true, opacity: tier >= 3 ? 0.85 : 0.6,
@@ -332,13 +293,23 @@ export function buildTower(type, tier, branch, color) {
       })
     );
     ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.145;
+    ring.position.y = 0.05;
     g.add(ring);
     g.userData.tierRing = ring;
   }
+
+  g.userData.turret = turret;
+  g.userData.body = occupant.body || null;
+  g.userData.arms = occupant.arms || null;
+  g.userData.orb = occupant.orb || null;
+  g.userData.halo = occupant.halo || null;
+  g.userData.shards = occupant.shards || null;
+  g.userData.sats = occupant.sats || null;
+  g.userData.mist = occupant.mist || null;
+  g.userData.orbY = occupant.orbY || 0;
+  g.userData.recoil = 0;
   g.userData.tier = tier;
   g.userData.type = type;
-  g.scale.setScalar(1.2);
   return g;
 }
 
@@ -727,7 +698,7 @@ export function animateTower(g, info, t, dt) {
   const anim = d.anim || (d.anim = { yaw: info.yaw, recoil: 0, phase: Math.random() * 6.28 });
 
   anim.yaw = lerpAngle(anim.yaw, info.yaw, 1 - Math.pow(0.0005, dt));
-  g.rotation.y = anim.yaw;
+  if (d.turret) d.turret.rotation.y = anim.yaw;
 
   anim.recoil = Math.max(0, anim.recoil - dt * 4.5);
   const breathe = Math.sin(t * 1.9 + anim.phase) * 0.012;
@@ -743,7 +714,7 @@ export function animateTower(g, info, t, dt) {
   if (d.turret) d.turret.position.z = -anim.recoil * 0.05;
 
   if (d.orb) {
-    d.orb.position.y = 0.62 + Math.sin(t * 2.4 + anim.phase) * 0.045;
+    d.orb.position.y = d.orbY + Math.sin(t * 2.4 + anim.phase) * 0.045;
     d.orb.rotation.set(t * 0.8, t * 1.3, 0);
     const pulse = 1 + Math.sin(t * 3.4) * 0.12 + anim.recoil * 0.6;
     d.orb.scale.setScalar(pulse);
@@ -757,18 +728,16 @@ export function animateTower(g, info, t, dt) {
     for (let i = 0; i < d.shards.length; i++) {
       const sh = d.shards[i];
       const a = sh.userData.angle + t * 1.4;
-      sh.position.set(Math.cos(a) * 0.26, 0.6 + Math.sin(a * 2) * 0.05, Math.sin(a) * 0.26);
+      sh.position.set(Math.cos(a) * 0.2, d.orbY + Math.sin(a * 2) * 0.05, Math.sin(a) * 0.2);
       sh.rotation.set(t * 1.7, a, 0);
     }
   }
-  if (d.runeRing) {
-    d.runeRing.rotation.z = t * 0.6;
-    d.runeRing.material.opacity = 0.28 + Math.sin(t * 2.6) * 0.1;
-  }
   if (d.sats) {
+    // A Gélida não mira: os cristais giram devagar o tempo todo.
     if (d.turret) d.turret.rotation.y = t * 0.35;
     for (let i = 0; i < d.sats.length; i++) {
-      d.sats[i].position.y = 0.16 + Math.sin(t * 1.7 + i) * 0.02;
+      const c = d.sats[i];
+      c.position.y = c.userData.baseY + Math.sin(t * 1.7 + i) * 0.015;
     }
   }
   if (d.mist) {
