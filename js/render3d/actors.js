@@ -682,18 +682,287 @@ function buildHarpy(color) {
   return g;
 }
 
+/**
+ * Orc: o goblin daqui já tem presas e elmo, então o Orc não pode se distinguir
+ * por adereço — se distingue por massa e postura. Tronco curvado para a frente,
+ * ombros largos, braços que quase raspam o chão.
+ */
+function buildOrc(color) {
+  const g = new THREE.Group();
+  const skin = std(color, { roughness: 0.88 });
+  const skinLight = std(shade(color, 1.22), { roughness: 0.88 });
+  const leather = std(0x5a4526, { roughness: 0.92 });
+
+  const legL = mesh(BOX(0.14, 0.2, 0.15), leather, -0.11, 0.1, 0);
+  const legR = mesh(BOX(0.14, 0.2, 0.15), leather, 0.11, 0.1, 0);
+  g.add(legL, legR);
+
+  // Tronco inclinado: a curvatura é o que lê de cima
+  const torso = new THREE.Group();
+  torso.position.set(0, 0.28, 0);
+  torso.rotation.x = 0.22;
+  torso.add(mesh(BOX(0.44, 0.34, 0.28), skin, 0, 0.1, 0));
+  torso.add(mesh(BOX(0.46, 0.1, 0.3), leather, 0, -0.04, 0));
+  for (let side = -1; side <= 1; side += 2) {
+    const pauldron = mesh(SPH(0.15, 8, 6), std(PAL.stoneDark, { metalness: 0.3, roughness: 0.6 }), side * 0.24, 0.24, 0);
+    pauldron.scale.set(1, 0.7, 1);
+    torso.add(pauldron);
+  }
+  g.add(torso);
+
+  const head = mesh(SPH(0.13, 10, 8), skinLight, 0, 0.55, 0.07);
+  head.scale.set(1, 0.9, 1.05);
+  g.add(head);
+  for (let side = -1; side <= 1; side += 2) {
+    const tusk = mesh(CONE(0.032, 0.14, 4), std(PAL.bone, { roughness: 0.7 }), side * 0.06, 0.5, 0.15);
+    tusk.rotation.x = -2.7;
+    tusk.castShadow = false;
+    g.add(tusk);
+    const eye = mesh(SPH(0.026, 6, 6), std(0xffd07a, { emissive: 0xff9a3d, emissiveIntensity: 1.1 }), side * 0.055, 0.58, 0.16);
+    eye.castShadow = false;
+    g.add(eye);
+  }
+
+  // Braços longos; o direito carrega um cutelo pesado
+  const armR = new THREE.Group();
+  armR.position.set(0.26, 0.44, 0.02);
+  armR.add(mesh(BOX(0.11, 0.26, 0.11), skin, 0, -0.11, 0));
+  const cleaver = mesh(BOX(0.07, 0.3, 0.2), std(PAL.iron, { metalness: 0.45, roughness: 0.5 }), 0.02, -0.34, 0.08);
+  cleaver.rotation.x = 0.3;
+  armR.add(cleaver);
+  g.add(armR);
+
+  const armL = mesh(BOX(0.11, 0.26, 0.11), skin, -0.26, 0.33, 0.02);
+  g.add(armL);
+
+  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, body: torso };
+  return g;
+}
+
+/**
+ * Lobo: único quadrúpede do elenco. A silhueta horizontal é o que o separa de
+ * tudo o mais visto de cima — nenhuma outra criatura é mais comprida que alta.
+ */
+function buildWolf(color) {
+  const g = new THREE.Group();
+  const fur = std(color, { roughness: 0.92 });
+  const furDark = std(shade(color, 0.7), { roughness: 0.92 });
+
+  const body = mesh(BOX(0.22, 0.2, 0.52), fur, 0, 0.26, -0.02);
+  g.add(body);
+  g.add(mesh(BOX(0.2, 0.14, 0.2), furDark, 0, 0.34, -0.12));   // cernelha
+
+  // Cabeça baixa, à frente do corpo
+  const head = new THREE.Group();
+  head.position.set(0, 0.28, 0.3);
+  head.add(mesh(BOX(0.16, 0.15, 0.2), fur, 0, 0, 0));
+  head.add(mesh(BOX(0.1, 0.09, 0.15), furDark, 0, -0.03, 0.15));  // focinho
+  for (let side = -1; side <= 1; side += 2) {
+    const ear = mesh(CONE(0.05, 0.12, 4), furDark, side * 0.07, 0.11, -0.03);
+    head.add(ear);
+    const eye = mesh(SPH(0.024, 6, 6), std(0xffe08a, { emissive: 0xffb43d, emissiveIntensity: 1.4 }), side * 0.055, 0.03, 0.1);
+    eye.castShadow = false;
+    head.add(eye);
+  }
+  g.add(head);
+
+  // Quatro patas: dianteiras e traseiras batem em contratempo
+  const legs = [];
+  for (let sx = -1; sx <= 1; sx += 2) {
+    for (let sz = -1; sz <= 1; sz += 2) {
+      const leg = mesh(BOX(0.07, 0.22, 0.08), furDark, sx * 0.09, 0.11, sz * 0.18);
+      g.add(leg);
+      legs.push(leg);
+    }
+  }
+
+  const tail = mesh(BOX(0.07, 0.07, 0.26), fur, 0, 0.3, -0.36);
+  tail.rotation.x = -0.5;
+  g.add(tail);
+
+  g.userData = {
+    legL: legs[0], legR: legs[1], legL2: legs[2], legR2: legs[3],
+    head: head, body: body, tail: tail
+  };
+  return g;
+}
+
+/** Troll: alto e curvado, braços até o chão. Brilha enquanto se regenera. */
+function buildTroll(color) {
+  const g = new THREE.Group();
+  const hide = std(color, { roughness: 0.95 });
+  const hideDark = std(shade(color, 0.72), { roughness: 0.95 });
+
+  const legL = mesh(BOX(0.13, 0.24, 0.14), hideDark, -0.1, 0.12, 0);
+  const legR = mesh(BOX(0.13, 0.24, 0.14), hideDark, 0.1, 0.12, 0);
+  g.add(legL, legR);
+
+  const torso = new THREE.Group();
+  torso.position.set(0, 0.34, 0);
+  torso.rotation.x = 0.3;
+  torso.add(mesh(BOX(0.34, 0.42, 0.26), hide, 0, 0.14, 0));
+  g.add(torso);
+
+  // Cabeça pequena e adiantada, acentuando a corcunda
+  const head = mesh(SPH(0.115, 10, 8), hide, 0, 0.66, 0.12);
+  head.scale.set(1, 1.1, 0.95);
+  g.add(head);
+  g.add(mesh(BOX(0.1, 0.06, 0.09), hideDark, 0, 0.62, 0.2));
+  for (let side = -1; side <= 1; side += 2) {
+    const eye = mesh(SPH(0.022, 6, 6), std(0xd8ffb0, { emissive: 0x9ade4a, emissiveIntensity: 1.2 }), side * 0.045, 0.69, 0.19);
+    eye.castShadow = false;
+    g.add(eye);
+  }
+
+  // Braços compridos que quase raspam o chão
+  const armR = new THREE.Group();
+  armR.position.set(0.22, 0.56, 0.02);
+  armR.add(mesh(BOX(0.11, 0.38, 0.11), hide, 0, -0.18, 0));
+  armR.add(mesh(SPH(0.09, 8, 6), hideDark, 0, -0.38, 0.02));
+  g.add(armR);
+  const armL = new THREE.Group();
+  armL.position.set(-0.22, 0.56, 0.02);
+  armL.add(mesh(BOX(0.11, 0.38, 0.11), hide, 0, -0.18, 0));
+  armL.add(mesh(SPH(0.09, 8, 6), hideDark, 0, -0.38, 0.02));
+  g.add(armL);
+
+  // Brilho de regeneração, ligado por info.healing
+  const glowShell = new THREE.Mesh(ICO(0.42, 0), glow(0x8ade5a, 0.3));
+  glowShell.position.y = 0.38;
+  glowShell.visible = false;
+  glowShell.castShadow = false;
+  g.add(glowShell);
+
+  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, body: torso, healGlow: glowShell };
+  return g;
+}
+
+/** Golem: blocos empilhados, sem pescoço. Massa angular e fendas acesas. */
+function buildGolem(color) {
+  const g = new THREE.Group();
+  const rock = std(color, { roughness: 1, flatShading: true });
+  const rockDark = std(shade(color, 0.72), { roughness: 1 });
+  const coreMat = std(0xff9a3d, { emissive: 0xff7a1d, emissiveIntensity: 1.6, roughness: 0.4 });
+
+  const legL = mesh(BOX(0.17, 0.2, 0.18), rockDark, -0.13, 0.1, 0);
+  const legR = mesh(BOX(0.17, 0.2, 0.18), rockDark, 0.13, 0.1, 0);
+  g.add(legL, legR);
+
+  // Tronco: três blocos desalinhados, para não ler como uma caixa só
+  const torso = new THREE.Group();
+  torso.position.set(0, 0.22, 0);
+  const b1 = mesh(BOX(0.46, 0.2, 0.32), rock, 0, 0.1, 0);
+  b1.rotation.y = 0.12;
+  const b2 = mesh(BOX(0.42, 0.18, 0.3), rock, 0.02, 0.28, 0);
+  b2.rotation.y = -0.16;
+  const b3 = mesh(BOX(0.34, 0.14, 0.26), rockDark, -0.02, 0.43, 0);
+  b3.rotation.y = 0.2;
+  torso.add(b1, b2, b3);
+  // Fenda acesa no peito
+  const core = mesh(ICO(0.09, 0), coreMat, 0, 0.26, 0.15);
+  core.castShadow = false;
+  torso.add(core);
+  g.add(torso);
+
+  // Cabeça encaixada nos ombros, sem pescoço
+  const head = mesh(BOX(0.22, 0.18, 0.2), rock, 0, 0.74, 0.02);
+  g.add(head);
+  for (let side = -1; side <= 1; side += 2) {
+    const eye = mesh(BOX(0.04, 0.03, 0.02), coreMat, side * 0.055, 0.76, 0.11);
+    eye.castShadow = false;
+    g.add(eye);
+    const shard = mesh(OCT(0.07), rockDark, side * 0.26, 0.62, -0.04);
+    shard.scale.set(1, 1.5, 1);
+    g.add(shard);
+  }
+
+  const armR = new THREE.Group();
+  armR.position.set(0.3, 0.55, 0);
+  armR.add(mesh(BOX(0.16, 0.3, 0.16), rock, 0, -0.14, 0));
+  armR.add(mesh(BOX(0.22, 0.2, 0.22), rockDark, 0, -0.33, 0));
+  g.add(armR);
+  const armL = new THREE.Group();
+  armL.position.set(-0.3, 0.55, 0);
+  armL.add(mesh(BOX(0.16, 0.3, 0.16), rock, 0, -0.14, 0));
+  armL.add(mesh(BOX(0.22, 0.2, 0.22), rockDark, 0, -0.33, 0));
+  g.add(armL);
+
+  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, body: torso };
+  return g;
+}
+
+/** Xamã: manto cônico e cajado aceso, com o anel da maldição no chão. */
+function buildShaman(color) {
+  const g = new THREE.Group();
+  const robe = std(color, { roughness: 0.88 });
+  const robeDark = std(shade(color, 0.7), { roughness: 0.88 });
+  const bone = std(PAL.bone, { roughness: 0.7 });
+
+  // O manto cônico substitui pernas: silhueta de vela, única no elenco
+  const skirt = mesh(CONE(0.22, 0.42, 8), robe, 0, 0.21, 0);
+  g.add(skirt);
+  g.add(mesh(BOX(0.26, 0.12, 0.2), robeDark, 0, 0.42, 0));
+
+  const head = mesh(SPH(0.1, 10, 8), std(shade(color, 1.3), { roughness: 0.85 }), 0, 0.56, 0.02);
+  g.add(head);
+  // Máscara ritual de osso
+  const mask = mesh(BOX(0.13, 0.15, 0.04), bone, 0, 0.56, 0.1);
+  g.add(mask);
+  for (let side = -1; side <= 1; side += 2) {
+    const eye = mesh(BOX(0.03, 0.025, 0.02), std(0xd8a0ff, { emissive: 0xb060ff, emissiveIntensity: 1.8 }), side * 0.035, 0.58, 0.13);
+    eye.castShadow = false;
+    g.add(eye);
+    const horn = mesh(CONE(0.03, 0.16, 4), bone, side * 0.09, 0.66, 0);
+    horn.rotation.z = side * -0.6;
+    g.add(horn);
+  }
+
+  // Cajado com orbe acesa
+  const armR = new THREE.Group();
+  armR.position.set(0.18, 0.44, 0.02);
+  armR.add(mesh(CYL(0.02, 0.025, 0.5, 6), std(PAL.woodDark), 0, -0.12, 0.02));
+  const orb = mesh(OCT(0.07), std(0xc79aff, { emissive: 0xa050ff, emissiveIntensity: 1.7, roughness: 0.3 }), 0, 0.16, 0.02);
+  orb.castShadow = false;
+  armR.add(orb);
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), glow(0xb060ff, 0.5));
+  halo.position.copy(orb.position);
+  armR.add(halo);
+  g.add(armR);
+  const armL = mesh(BOX(0.06, 0.16, 0.06), robe, -0.18, 0.4, 0.02);
+  g.add(armL);
+
+  // Anel da maldição: mostra o alcance da aura no chão
+  const auraRing = new THREE.Mesh(new THREE.RingGeometry(0.88, 1.0, 32), glow(0xb060ff, 0.28));
+  auraRing.rotation.x = -Math.PI / 2;
+  auraRing.position.y = 0.01;
+  auraRing.castShadow = false;
+  g.add(auraRing);
+
+  g.userData = { armR: armR, armL: armL, head: head, orb: orb, halo: halo, auraRing: auraRing, glide: true };
+  return g;
+}
+
 const ENEMY_BUILDERS = {
   grunt: function (c) { return buildGoblin(c, false); },
   raider: function (c) { return buildGoblin(c, true); },
   brute: function (c) { return buildSlime(c, false); },
   swarmling: function (c) { return buildSlime(c, true); },
   reaver: function (c) { return buildSkeletonKnight(c); },
+  orc: function (c) { return buildOrc(c); },
+  wolf: function (c) { return buildWolf(c); },
+  troll: function (c) { return buildTroll(c); },
+  golem: function (c) { return buildGolem(c); },
+  shaman: function (c) { return buildShaman(c); },
   harpy: function (c) { return buildHarpy(c); },
   boss: function (c) { return buildDragon(c); }
 };
 
-/** Malha de inimigo, já escalada para o raio lógico usado pelo núcleo do jogo. */
-export function buildEnemy(type, color, radiusWorld) {
+/**
+ * Malha de inimigo, já escalada para o raio lógico usado pelo núcleo do jogo.
+ * auraWorld, quando houver, é o alcance real da aura em células — o anel no
+ * chão precisa dele para não mentir sobre até onde a maldição pega.
+ */
+export function buildEnemy(type, color, radiusWorld, auraWorld) {
   const build = ENEMY_BUILDERS[type] || ENEMY_BUILDERS.grunt;
   const inner = build(color);
 
@@ -707,7 +976,14 @@ export function buildEnemy(type, color, radiusWorld) {
   const holder = new THREE.Group();
   holder.add(inner);
   // Raio de referência das malhas acima ≈ 0.34 unidades de mundo.
-  holder.scale.setScalar(Math.max(0.68, radiusWorld / 0.25));
+  const holderScale = Math.max(0.68, radiusWorld / 0.25);
+  holder.scale.setScalar(holderScale);
+
+  // O anel vive dentro do holder, então precisa desfazer a escala dele para
+  // desenhar o alcance verdadeiro no chão.
+  if (inner.userData.auraRing && auraWorld > 0) {
+    inner.userData.auraRing.scale.setScalar(auraWorld / holderScale);
+  }
   holder.userData = { inner: inner, parts: inner.userData, type: type };
   return holder;
 }
@@ -839,9 +1115,40 @@ export function animateEnemy(holder, info, t, dt) {
     p.legR.rotation.x = -Math.sin(gait) * 0.62 * stride;
     inner.position.y = Math.abs(Math.sin(gait)) * 0.035 * stride;
   }
+  // Quadrúpede: as patas traseiras batem em contratempo com as dianteiras.
+  if (p.legL2 && p.legR2) {
+    p.legL2.rotation.x = -Math.sin(gait) * 0.62 * stride;
+    p.legR2.rotation.x = Math.sin(gait) * 0.62 * stride;
+    if (p.tail) p.tail.rotation.y = Math.sin(gait * 0.5) * 0.3 * stride;
+  }
   if (p.armR) p.armR.rotation.x = -Math.sin(gait) * 0.42 * stride - 0.1;
   if (p.armL) p.armL.rotation.x = Math.sin(gait) * 0.42 * stride;
   if (p.head) p.head.rotation.z = Math.sin(gait * 0.5) * 0.06;
+
+  // O Xamã plana em vez de andar: sobe e desce sem passada.
+  if (p.glide) {
+    inner.position.y = 0.06 + Math.sin(t * 2.2 + anim.phase) * 0.035;
+    if (p.orb) {
+      const pulse = 1 + Math.sin(t * 4 + anim.phase) * 0.15;
+      p.orb.scale.setScalar(pulse);
+      p.orb.rotation.set(t * 0.9, t * 1.4, 0);
+      if (p.halo) p.halo.scale.setScalar(pulse * 1.1);
+    }
+    if (p.auraRing) {
+      p.auraRing.position.y = -inner.position.y + 0.01;
+      p.auraRing.rotation.z = t * 0.5;
+      p.auraRing.material.opacity = 0.2 + Math.sin(t * 2.6) * 0.09;
+    }
+  }
+
+  // Troll: casca luminosa enquanto a carne se refaz.
+  if (p.healGlow) {
+    p.healGlow.visible = !!info.healing;
+    if (info.healing) {
+      p.healGlow.scale.setScalar(1 + Math.sin(t * 6 + anim.phase) * 0.07);
+      p.healGlow.material.opacity = 0.18 + Math.sin(t * 8) * 0.1;
+    }
+  }
   if (p.cape) p.cape.rotation.x = 0.16 + Math.sin(gait * 0.5) * 0.12 * stride;
 
   // Gosmas: saltitam e achatam

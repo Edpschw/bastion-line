@@ -12,7 +12,27 @@ Jogue abrindo `index.html` — é um único arquivo estático, sem build.
 | **Status** | `applyStatus` / `tickStatus` | `e.status[tipo] = {fim, poder, stacks, fonte}`. `refresh` renova e mantém o mais forte; `add` empilha até um teto. Produtores hoje: Gélida (slow), Piromante (burn). `stun`, `poison`, `bleed` e `armorBreak` já funcionam, à espera das torres que os produzem. |
 | **Terra / ar** | `canHit`, `UNIT_BASE[].targets` | Voadores traçam rota reta e ignoram o labirinto. A Milícia é corpo a corpo e não alcança o ar — a loja e a ficha da torre dizem isso, porque é regra de balanceamento e não pode ser invisível. |
 | **Inimigos atacantes** | `ENEMY_BASE[].attacker` | Só criaturas marcadas param a marcha para destruir torres. O resto corre para o bastião. Torres sobreviventes são reparadas entre ondas: a pressão vale dentro da onda, sem virar bola de neve. |
+| **Criaturas** | `ENEMY_BASE` | Cada uma carrega uma função estratégica (GDD §18), declarada como dado e não como código especial: `flying`, `attacker`, `splitInto`, `regen`, `immune`, `aura`. `shape2d` diz qual desenho o renderer 2D reaproveita — sem ele, tipo novo cai no `else` e aparece como o chefe. |
 | **Composição de ondas** | `WAVE_THEMES` | Receitas com pesos e onda mínima, em vez de um tipo em destaque mais goblins. É o que permite expressar "incursão aérea" ou "coluna blindada". |
+
+### Elenco
+
+| Criatura | Função | Como se distingue de cima |
+|---|---|---|
+| Goblin / Batedor | básico / rápido | pequeno, cabeça clara |
+| Lobo | extremamente rápido, em matilha | único quadrúpede: silhueta horizontal |
+| Gosma → Gosminha | divide-se ao morrer | gel translúcido que saltita |
+| Orc | muita vida, ataca torres | massa e tronco curvado |
+| Cavaleiro Esqueleto | armadura, ataca torres | osso e aço, capa |
+| Troll | regenera fora de combate | alto, corcunda, braços até o chão |
+| Golem | armadura alta, imune a slow, ataca torres | blocos empilhados, fendas acesas |
+| Xamã | amaldiçoa torres por perto | manto cônico, anel roxo no chão |
+| Harpia | voadora barata | asas longas, sombra deslocada |
+| Dragão de Cristal | chefe voador | maior, asas batendo |
+
+O Xamã não bate em torre: a maldição é um efeito de presença recalculado por
+frame, então sai de cena e o efeito some junto — não precisa de status com
+duração. O anel no chão desenha o alcance verdadeiro da aura.
 
 Ao remover uma torre — vendida ou destruída — use sempre `removeUnit()`: quem
 a estivesse atacando precisa soltar o alvo, senão o inimigo fica parado batendo

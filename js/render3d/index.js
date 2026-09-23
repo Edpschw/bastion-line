@@ -35,8 +35,9 @@ const PAN_SMOOTH = 0.00002;            // suavização do damp() por segundo
 
 // Altura aproximada de cada inimigo em unidades locais (antes da escala do raio).
 const ENEMY_HEIGHT = {
-  grunt: 0.78, raider: 0.82, brute: 0.68,
-  swarmling: 0.62, reaver: 0.95, harpy: 0.8, boss: 1.15
+  grunt: 0.78, raider: 0.82, brute: 0.68, swarmling: 0.62,
+  reaver: 0.95, orc: 0.85, wolf: 0.55, troll: 0.95,
+  golem: 0.95, shaman: 0.85, harpy: 0.8, boss: 1.15
 };
 
 // Altura de voo, em células. Alta o bastante para ler como "acima do alcance
@@ -365,7 +366,8 @@ function createRenderer3D() {
 
       let g = enemyMeshes.get(e.id);
       if (!g) {
-        g = buildEnemy(e.type, hexInt(e.color), map.len(e.r));
+        g = buildEnemy(e.type, hexInt(e.color), map.len(e.r),
+                       e.aura ? map.len(e.aura.range) : 0);
         g.userData.height = (ENEMY_HEIGHT[e.type] || 0.8) * g.scale.y;
         scene.add(g);
         enemyMeshes.set(e.id, g);
@@ -390,7 +392,8 @@ function createRenderer3D() {
         yaw: yaw,
         moving: !e.fx.fighting,
         speed: e.speed,
-        slowed: e.fx.slowed
+        slowed: e.fx.slowed,
+        healing: e.fx.healing
       }, t, dt);
     }
 

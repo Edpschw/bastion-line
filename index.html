@@ -317,25 +317,48 @@ var BRANCHES={
   }
 };
 
-// flying: ignora o labirinto e só é atingido por torres com alcance aéreo.
-// attacker: para no caminho para destruir torres em vez de só correr.
+// Cada criatura carrega uma função estratégica, conforme a seção 18 do GDD:
+//   flying    ignora o labirinto; só cai para torres com alcance aéreo
+//   attacker  para a marcha para destruir torres
+//   splitInto morre em filhotes que seguem o mesmo caminho
+//   regen     recupera vida quando passa um tempo sem levar dano
+//   immune    ignora os status listados
+//   aura      enfraquece as torres por perto, em vez de atacá-las
+// shape2d é a criatura existente cujo desenho o renderer 2D reaproveita.
 var ENEMY_BASE={
   grunt:{hp:16,speed:44,armor:0,bounty:3,leak:1,color:'#6a8a3a',r:11},
   raider:{hp:11,speed:76,armor:0,bounty:4,leak:1,color:'#7a9a4a',r:9},
-  brute:{hp:52,speed:32,armor:3,bounty:8,leak:2,color:'#52b04a',r:14},
+  wolf:{hp:12,speed:112,armor:0,bounty:3,leak:1,color:'#8a7f6e',r:10,shape2d:'raider'},
+  brute:{hp:52,speed:32,armor:3,bounty:8,leak:2,color:'#52b04a',r:14,
+         splitInto:{type:'swarmling',count:2}},
+  orc:{hp:44,speed:34,armor:1,bounty:7,leak:2,color:'#4e7a3c',r:14,shape2d:'grunt',
+       attacker:{dmg:6,range:54,atkSpd:0.6}},
   reaver:{hp:72,speed:26,armor:6,bounty:11,leak:3,color:'#8a8a96',r:15,
           attacker:{dmg:5,range:54,atkSpd:0.5}},
+  troll:{hp:62,speed:30,armor:2,bounty:12,leak:3,color:'#6f8f7a',r:15,shape2d:'brute',
+         regen:{rate:5,delay:2.5}},
+  golem:{hp:58,speed:24,armor:9,bounty:14,leak:3,color:'#8e8272',r:16,shape2d:'reaver',
+         immune:['slow'], attacker:{dmg:9,range:56,atkSpd:0.35}},
+  shaman:{hp:26,speed:40,armor:0,bounty:10,leak:2,color:'#9a6ec4',r:12,shape2d:'grunt',
+          aura:{range:112,atkSlow:0.4}},
   swarmling:{hp:7,speed:95,armor:0,bounty:2,leak:1,color:'#6ec46a',r:7},
   harpy:{hp:15,speed:66,armor:1,bounty:5,leak:1,color:'#b07ac4',r:10,flying:true},
   boss:{hp:130,speed:28,armor:5,bounty:45,leak:5,color:'#3a7ac4',r:20,flying:true}
 };
-var TYPE_NAMES={grunt:'Goblin',raider:'Goblin Batedor',brute:'Gosma Ácida',reaver:'Cavaleiro Esqueleto',swarmling:'Gosminha',harpy:'Harpia',boss:'Dragão de Cristal'};
+var TYPE_NAMES={grunt:'Goblin',raider:'Goblin Batedor',wolf:'Lobo',brute:'Gosma Ácida',
+  orc:'Orc',reaver:'Cavaleiro Esqueleto',troll:'Troll',golem:'Golem',shaman:'Xamã',
+  swarmling:'Gosminha',harpy:'Harpia',boss:'Dragão de Cristal'};
 
 var SPRITE_DEFS={
   grunt:{src:'sprites/goblin.png',scale:3.2},
   raider:{src:'sprites/goblin.png',scale:2.8},
   brute:{src:'sprites/slime.png',scale:2.9},
   reaver:{src:'sprites/skeleton.png',scale:3.1},
+  wolf:{src:'sprites/goblin.png',scale:2.4},
+  orc:{src:'sprites/goblin.png',scale:3.8},
+  troll:{src:'sprites/slime.png',scale:3.4},
+  golem:{src:'sprites/skeleton.png',scale:3.3},
+  shaman:{src:'sprites/goblin.png',scale:3.0},
   swarmling:{src:'sprites/slime.png',scale:3.4},
   harpy:{src:'sprites/dragon.png',scale:2.4},
   boss:{src:'sprites/dragon.png',scale:3.6}
@@ -365,6 +388,7 @@ var builder={x:0,y:0,row:0,col:0,state:'idle',targetRow:0,targetCol:0,buildType:
 var grid, units, enemies, floatingTexts, attackFX;
 var gold, lives, wave, best, phase, buildTimer, phaseStartTime, waveStartTime, spawnQueue, spawnedIdx, incomeTimer;
 var selectedUnit=null, placing=null, hoverCell=null, lastMouseX=null, lastMouseY=null;
+var recentThemes=[];
 var idCounter=0;
 var BUILD_BASE=18;
 
@@ -411,6 +435,7 @@ function resetGame(){
   gold=40; lives=20; wave=1; phase='build';
   buildTimer=BUILD_BASE+2; phaseStartTime=performance.now(); incomeTimer=0;
   selectedUnit=null; placing=null; hoverCell=null;
+  recentThemes=[];
   best=loadBest();
   toastStack.innerHTML='';
   buildMenu.hidden=true;
@@ -600,16 +625,41 @@ function scaledEnemy(type, w){
 // criaturas e não sabe expressar "onda aérea" ou "coluna blindada".
 // ---------------------------------------------------------------------------
 var WAVE_THEMES=[
-  {key:'horda',     label:'horda de goblins',  minWave:1,  weights:{grunt:3, raider:1}},
-  {key:'batedores', label:'batedores',         minWave:3,  weights:{raider:3, grunt:1}},
-  {key:'acida',     label:'maré ácida',        minWave:6,  weights:{brute:2, grunt:1}},
-  {key:'aerea',     label:'incursão aérea',    minWave:7,  weights:{harpy:2, raider:2}},
-  {key:'blindada',  label:'coluna blindada',   minWave:9,  weights:{reaver:1, grunt:2}},
-  {key:'enxame',    label:'enxame',            minWave:12, weights:{swarmling:5, raider:1}, countBonus:8}
+  {key:'horda',     label:'horda de goblins',   minWave:1,  weights:{grunt:3, raider:1}},
+  {key:'batedores', label:'batedores',          minWave:3,  weights:{raider:3, grunt:1}},
+  {key:'matilha',   label:'matilha de lobos',   minWave:5,  weights:{wolf:4, raider:1}, countBonus:4},
+  {key:'acida',     label:'maré ácida',         minWave:6,  weights:{brute:2, grunt:1}},
+  {key:'aerea',     label:'incursão aérea',     minWave:7,  weights:{harpy:2, raider:2}},
+  {key:'bruta',     label:'força bruta',        minWave:8,  weights:{orc:1, grunt:2}},
+  {key:'blindada',  label:'coluna blindada',    minWave:9,  weights:{reaver:1, grunt:2}},
+  {key:'pedra',     label:'marcha de pedra',    minWave:11, weights:{golem:1, orc:1, grunt:2}},
+  {key:'enxame',    label:'enxame',             minWave:12, weights:{swarmling:5, raider:1}, countBonus:8},
+  {key:'ritual',    label:'ritual sombrio',     minWave:14, weights:{shaman:1, reaver:1, grunt:2}},
+  {key:'pantano',   label:'gente do pântano',   minWave:16, weights:{troll:1, orc:1, brute:1}}
 ];
 
 function availableThemes(w){
   return WAVE_THEMES.filter(function(t){ return w>=t.minWave; });
+}
+
+/**
+ * Escolhe o tema da onda.
+ *
+ * Antes era themes[w % themes.length], que degenera: cada tema novo desloca o
+ * índice e o resto trava no mesmo valor por várias ondas seguidas — nas ondas 5
+ * a 9 saíam cinco matilhas em sequência, e o tema do pântano não aparecia uma
+ * vez sequer em vinte ondas.
+ *
+ * Agora: um tema estreia na onda exata em que é liberado, para a criatura nova
+ * se apresentar num momento previsível; fora isso, sorteio que evita repetir os
+ * dois últimos.
+ */
+function pickTheme(w){
+  var avail=availableThemes(w);
+  for(var i=0;i<avail.length;i++){ if(avail[i].minWave===w) return avail[i]; }
+  var pool=avail.filter(function(t){ return recentThemes.indexOf(t.key)<0; });
+  if(!pool.length) pool=avail;
+  return pool[Math.floor(Math.random()*pool.length)];
 }
 
 /** Sorteia um tipo respeitando os pesos da receita. */
@@ -623,8 +673,9 @@ function pickWeighted(weights){
 
 function generateWave(w){
   var isBoss=(w%5===0);
-  var themes=availableThemes(w);
-  var theme=themes[w % themes.length];
+  var theme=pickTheme(w);
+  recentThemes.push(theme.key);
+  while(recentThemes.length>2) recentThemes.shift();
 
   var count=Math.min(6+Math.floor(w*0.9), 30)+(theme.countBonus||0);
   var seq=[];
@@ -637,8 +688,27 @@ function generateWave(w){
   return {entries:entries, theme:theme};
 }
 
-function spawnOne(type){
+/**
+ * Cria um inimigo numa posição e caminho dados. A divisão da Gosma usa isto
+ * para os filhotes continuarem de onde o pai parou, em vez de renascerem no
+ * portal.
+ */
+function makeEnemy(type, x, y, path, wpIndex, traveled){
   var stats=scaledEnemy(type, wave);
+  var base=ENEMY_BASE[type];
+  return {
+    id:idCounter++, type:type, x:x, y:y, path:path, wpIndex:wpIndex, traveled:traveled||0,
+    hp:stats.hp, maxHp:stats.maxHp, speed:stats.speed, armor:stats.armor, bounty:stats.bounty,
+    leak:stats.leak, color:stats.color, r:stats.r, leaked:false, lastHitBy:null,
+    flying:!!base.flying, attacker:base.attacker||null, atkCd:0, target:null,
+    splitInto:base.splitInto||null, regen:base.regen||null, immune:base.immune||null,
+    aura:base.aura||null, lastDamageAt:0,
+    status:{}, dotCarry:0,
+    fx:{slowed:false, stunned:false, burning:false, poisoned:false, fighting:false, healing:false}
+  };
+}
+
+function spawnOne(type){
   var base=ENEMY_BASE[type];
   var cols=[]; for(var i=0;i<COLS;i++) cols.push(i);
   for(var i=cols.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var tmp=cols[i]; cols[i]=cols[j]; cols[j]=tmp; }
@@ -655,14 +725,7 @@ function spawnOne(type){
     wp=path.map(function(cell){ return {x:cell[1]*CELL+CELL/2, y:cell[0]*CELL+CELL/2}; });
   }
 
-  enemies.push({
-    id:idCounter++, type:type, x:wp[0].x, y:wp[0].y, path:wp, wpIndex:1, traveled:0,
-    hp:stats.hp, maxHp:stats.maxHp, speed:stats.speed, armor:stats.armor, bounty:stats.bounty,
-    leak:stats.leak, color:stats.color, r:stats.r, leaked:false, lastHitBy:null,
-    flying:!!base.flying, attacker:base.attacker||null, atkCd:0, target:null,
-    status:{}, dotCarry:0,
-    fx:{slowed:false, stunned:false, burning:false, poisoned:false, fighting:false}
-  });
+  enemies.push(makeEnemy(type, wp[0].x, wp[0].y, wp, 1, 0));
 }
 
 function startWave(now){
@@ -722,6 +785,7 @@ var STATUS_DEFS={
 function applyStatus(e, kind, power, durSec, source, now){
   var def=STATUS_DEFS[kind];
   if(!def || !(durSec>0)) return;
+  if(e.immune && e.immune.indexOf(kind)>=0) return;
   var cur=e.status[kind];
   var until=now+durSec*1000;
   if(!cur){
@@ -776,6 +840,13 @@ function tickStatus(e, dt, now){
       e.dotCarry-=whole;
       floatingTexts.push(mkFloat(e.x, e.y-e.r, '-'+whole, '#8ad24a'));
     }
+  }
+  // Regenera só depois de um tempo sem apanhar: força dano concentrado em vez
+  // de arranhões espalhados, que é o ponto estratégico do Troll.
+  e.fx.healing=false;
+  if(e.regen && e.hp>0 && e.hp<e.maxHp && now-e.lastDamageAt>=e.regen.delay*1000 && dot===0){
+    e.hp=Math.min(e.maxHp, e.hp+e.regen.rate*dt);
+    e.fx.healing=true;
   }
   e.fx.slowed=hasStatus(e,'slow',now);
   e.fx.stunned=hasStatus(e,'stun',now);
@@ -863,6 +934,19 @@ function update(dt, now){
     }
   }
 
+  // O Xamã não bate nas torres: enfraquece as que estão por perto. Como é um
+  // efeito de presença, é recalculado por frame em vez de virar status com
+  // duração — sai de cena, o efeito some junto.
+  for(var i=0;i<units.length;i++) units[i].hexed=0;
+  for(var i=0;i<enemies.length;i++){
+    var ae=enemies[i];
+    if(!ae.aura || ae.hp<=0) continue;
+    for(var j=0;j<units.length;j++){
+      var au=units[j];
+      if(dist(ae,au)<=ae.aura.range) au.hexed=Math.max(au.hexed, ae.aura.atkSlow);
+    }
+  }
+
   for(var i=0;i<units.length;i++){
     var u=units[i];
     u.cd=Math.max(0, u.cd-dt);
@@ -875,7 +959,9 @@ function update(dt, now){
         if(dx*dx+dy*dy<=u.range*u.range && e.traveled>bestProg){ bestProg=e.traveled; target=e; }
       }
       if(target){
-        u.cd=1/u.atkSpd;
+        // Limite de 0.85: uma aura de 100% zeraria a cadência e a torre ficaria
+        // travada para sempre, já que o tempo de recarga nunca mais desceria.
+        u.cd=1/(u.atkSpd*(1-Math.min(0.85, u.hexed||0)));
         var hitList=[target];
         if(u.splash){
           // O respingo não alcança o que a torre não conseguiria mirar.
@@ -887,6 +973,7 @@ function update(dt, now){
           var dmg=Math.max(1, Math.round(u.dmg-effArmor));
           e2.hp-=dmg;
           e2.lastHitBy=u;
+          e2.lastDamageAt=now;
           if(u.slowFactor){ applyStatus(e2,'slow',u.slowFactor,u.slowDur,u,now); }
           if(u.burn){ applyStatus(e2,'burn',u.burn.dps,u.burn.dur,u,now); }
         }
@@ -938,7 +1025,7 @@ function update(dt, now){
     }
   }
 
-  var survivors=[];
+  var survivors=[], spawned=[];
   for(var i=0;i<enemies.length;i++){
     var e=enemies[i];
     if(e.hp<=0){
@@ -946,6 +1033,16 @@ function update(dt, now){
       floatingTexts.push(mkFloat(e.x,e.y,'+'+e.bounty,'#d9992f'));
       attackFX.push({kind:'death',x1:e.x,y1:e.y,x2:e.x,y2:e.y,life:0.28,maxLife:0.28,color:'#e8e2c9',splashR:e.r*1.9});
       if(e.lastHitBy){ creditKill(e.lastHitBy); }
+      // Filhotes continuam de onde o pai caiu. Vão para uma lista à parte
+      // porque 'enemies' é reatribuído no fim deste laço.
+      if(e.splitInto){
+        for(var sp=0; sp<e.splitInto.count; sp++){
+          var ang=(sp/e.splitInto.count)*Math.PI*2;
+          spawned.push(makeEnemy(e.splitInto.type,
+            e.x+Math.cos(ang)*e.r*0.7, e.y+Math.sin(ang)*e.r*0.7,
+            e.path, e.wpIndex, e.traveled));
+        }
+      }
       continue;
     }
     if(e.leaked){
@@ -955,7 +1052,7 @@ function update(dt, now){
     }
     survivors.push(e);
   }
-  enemies=survivors;
+  enemies=survivors.concat(spawned);
 
   if(phase==='wave' && spawnedIdx>=spawnQueue.length && enemies.length===0){
     completeWave(now);
@@ -1225,11 +1322,13 @@ function drawEnemySprite(e, perfNow){
     return h;
   }
 
-  if(e.type==='grunt') drawGrunt(e.x,ey,e.r,e.color);
-  else if(e.type==='raider') drawRaider(e.x,ey,e.r,e.color);
-  else if(e.type==='brute') drawBrute(e.x,ey,e.r,e.color);
-  else if(e.type==='reaver') drawReaver(e.x,ey,e.r,e.color);
-  else if(e.type==='swarmling') drawSwarmling(e.x,ey,e.r,e.color,perfNow,e.id);
+  var shape=(ENEMY_BASE[e.type] && ENEMY_BASE[e.type].shape2d) || e.type;
+  if(shape==='grunt') drawGrunt(e.x,ey,e.r,e.color);
+  else if(shape==='raider') drawRaider(e.x,ey,e.r,e.color);
+  else if(shape==='brute') drawBrute(e.x,ey,e.r,e.color);
+  else if(shape==='reaver') drawReaver(e.x,ey,e.r,e.color);
+  else if(shape==='swarmling') drawSwarmling(e.x,ey,e.r,e.color,perfNow,e.id);
+  else if(shape==='harpy') drawRaider(e.x,ey,e.r,e.color);
   else drawBoss(e.x,ey,e.r,e.color,perfNow);
   return e.r*2;
 }
@@ -1509,7 +1608,8 @@ function refreshSelectedPanel(){
     '<div class="sel-row"><span>Dano</span><b>'+u.dmg+'</b></div>'+
     '<div class="sel-row"><span>Alcance</span><b>'+Math.round(u.range)+'</b></div>'+
     '<div class="sel-row"><span>Ataques/s</span><b>'+u.atkSpd+'</b></div>'+
-    (u.burn ? '<div class="sel-row"><span>Queimadura</span><b>'+u.burn.dps+'/s · '+u.burn.dur+'s</b></div>' : '');
+    (u.burn ? '<div class="sel-row"><span>Queimadura</span><b>'+u.burn.dps+'/s · '+u.burn.dur+'s</b></div>' : '')+
+    (u.hexed ? '<div class="sel-row"><span>Maldição</span><b>-'+Math.round(u.hexed*100)+'% cadência</b></div>' : '');
   refreshEvolveButtons();
 }
 
