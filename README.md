@@ -160,6 +160,35 @@ a câmera perto**: a perspectiva diverge e o tabuleiro deixa de parecer maquete.
 `fitCamera()` faz busca binária pela distância que enquadra o tabuleiro na tela
 atual, e chega sozinha a ~10 células — mesma ordem de grandeza do WC3.
 
+### Controles de câmera
+
+No arranjo que Warcraft III e Age of Empires usam: **a roda dá zoom**, e quem
+anda pelo mapa são teclas e arrasto.
+
+| Gesto | Ação |
+|---|---|
+| Roda do mouse / pinça | zoom, mantendo sob o cursor o ponto que já estava lá (como o AoE) |
+| Setas ou WASD | mover |
+| Arrastar com botão direito ou do meio | mover |
+| Dois dedos | mover e dar zoom |
+| `Home` | reenquadrar o tabuleiro inteiro |
+| `+` / `−` | zoom pelo teclado |
+
+O WC3 clássico vai de 1250 a 1650 de distância — só 0,76× para dentro, e o
+padrão já é o mais afastado. Aqui a visão inicial também é a mais afastada, mas
+a faixa é mais generosa à moda do AoE. O limite de afastamento não é um número
+escolhido a dedo: é a distância em que o tabuleiro inteiro cabe, dividida pela
+da janela padrão, o que mantém o limite certo em qualquer proporção de tela.
+
+Não há rolagem de borda, que os dois jogos têm. Neles a interface é uma barra
+sólida que barra o ponteiro; aqui os painéis flutuam sobre o tabuleiro, e a
+câmera sairia andando toda vez que o jogador fosse até a loja.
+
+O botão direito serve a duas coisas: parado, cancela a construção; arrastando, é
+câmera. No Chrome o `contextmenu` dispara no *pressionar*, antes de existir
+qualquer arrasto, então o menu é sempre engolido e quem decide é o soltar — o
+renderer avisa o jogo via `cancelPlacing()`.
+
 ### Desempenho
 
 A cena mede o tempo médio de frame e desce de degrau sozinha quando o aparelho

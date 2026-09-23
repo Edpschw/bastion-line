@@ -25,13 +25,22 @@ const PITCH = 56 * Math.PI / 180;
 const FOV = 70;
 const FIT_MARGIN = 0.95;               // folga ao enquadrar a janela de visão
 
-// A câmera não precisa mais mostrar o tabuleiro (7×14) inteiro: enquadra uma
-// janela de VIEW_ROWS linhas por vez, do tamanho do WC3 real, e o jogador anda
-// por ela com a roda do mouse ou as setas/WASD.
+// A câmera enquadra uma janela de VIEW_ROWS linhas por vez, não o tabuleiro
+// (7×14) inteiro, e o jogador anda por ela.
 const VIEW_ROWS = 7;
+
+// Zoom e deslocamento seguem Warcraft III e Age of Empires: a RODA DÁ ZOOM nos
+// dois, e quem anda pelo mapa são teclas e arrasto. O WC3 clássico vai de 1250
+// a 1650 de distância — ou seja, apenas 0,76× para dentro, e o padrão já é o
+// mais afastado. Aqui a faixa é mais generosa, à moda do AoE: entra bem mais
+// perto, e o limite de saída é calculado para caber o tabuleiro inteiro, que é
+// a visão que um tower defense exige para planejar.
+const ZOOM_MIN = 0.5;                  // multiplicador da distância de enquadre
+const ZOOM_WHEEL = 0.0016;             // por "tick" de roda
+const ZOOM_KEY = 0.9;                  // por segundo, nas teclas +/-
 const PAN_SPEED = 4.4;                 // unidades de mundo por segundo (teclado)
-const PAN_WHEEL = 0.0026;              // unidades de mundo por "tick" de roda
 const PAN_SMOOTH = 0.00002;            // suavização do damp() por segundo
+const DRAG_THRESHOLD = 4;              // pixels antes de um clique virar arrasto
 
 // Altura aproximada de cada inimigo em unidades locais (antes da escala do raio).
 const ENEMY_HEIGHT = {
@@ -71,7 +80,11 @@ function createRenderer3D() {
   let camDistance = 12;
   let panLimit = 0;
   let panZ = 0, panZTarget = 0;
-  const keys = { up: false, down: false };
+  let panX = 0, panXTarget = 0;
+  let zoom = 1, zoomTarget = 1, zoomMax = 1;
+  let panLimitX = 0;
+  const drag = { ativo: false, botao: -1, x: 0, y: 0, andou: 0 };
+  const keys = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
 
   let lastTime = 0;
   let resizeObserver = null;
@@ -129,6 +142,10 @@ function createRenderer3D() {
     setupCameraControls();
 
     resize();
+    // Como no WC3, a visão inicial já é a mais afastada: o jogador vê o campo
+    // inteiro e aproxima quando quiser.
+    reenquadrar();
+    updateCameraPosition(null);
     if (window.ResizeObserver) {
       resizeObserver = new ResizeObserver(function () { resize(); });
       resizeObserver.observe(container);
@@ -147,20 +164,23 @@ function createRenderer3D() {
    * corredor é feito ajustando panZ, sem repetir essa busca a cada frame.
    */
   function fitCameraDistance() {
-    const halfView = VIEW_ROWS / 2;
     const target = new THREE.Vector3(0, 0.35, 0);
 
     // Com campo de visão largo, cada unidade de folga em volta da janela sai
     // cara: a câmera recua muito para acomodá-la. Por isso os pontos abraçam
     // só a largura do tabuleiro e a altura da janela visível.
-    const pts = [];
     const ex = map.halfW + 0.55;
-    for (let sx = -1; sx <= 1; sx += 2) {
-      pts.push(new THREE.Vector3(sx * ex, 0, -halfView));
-      pts.push(new THREE.Vector3(sx * ex, 0.9, -halfView));
-      pts.push(new THREE.Vector3(sx * ex, 0, halfView));
-      pts.push(new THREE.Vector3(sx * ex, 0.9, halfView));
+    function pontos(halfRows) {
+      const out = [];
+      for (let sx = -1; sx <= 1; sx += 2) {
+        out.push(new THREE.Vector3(sx * ex, 0, -halfRows));
+        out.push(new THREE.Vector3(sx * ex, 0.9, -halfRows));
+        out.push(new THREE.Vector3(sx * ex, 0, halfRows));
+        out.push(new THREE.Vector3(sx * ex, 0.9, halfRows));
+      }
+      return out;
     }
+    let pts = pontos(VIEW_ROWS / 2);
 
     function fits(distance) {
       camera.position.copy(target).addScaledVector(camDir, distance);
@@ -174,18 +194,26 @@ function createRenderer3D() {
       return true;
     }
 
-    let lo = 4, hi = 60;
-    if (!fits(hi)) { lo = hi; } else {
+    function busca() {
+      let lo = 4, hi = 90;
+      if (!fits(hi)) return hi;
       for (let i = 0; i < 34; i++) {
         const midDist = (lo + hi) / 2;
         if (fits(midDist)) hi = midDist; else lo = midDist;
       }
+      return hi;
     }
-    camDistance = hi;
 
-    // Até onde dá para passear: a janela não pode sair da área jogável.
-    panLimit = Math.max(0, map.halfH - halfView + 0.4);
-    panZTarget = Math.min(panLimit, Math.max(-panLimit, panZTarget));
+    camDistance = busca();
+
+    // O limite de afastamento não é um número escolhido a dedo: é a distância
+    // em que o tabuleiro inteiro cabe, dividida pela da janela. Assim continua
+    // certo em qualquer proporção de tela.
+    pts = pontos(map.halfH + 0.5);
+    zoomMax = Math.max(1.05, busca() / camDistance);
+    zoomTarget = Math.min(zoomMax, Math.max(ZOOM_MIN, zoomTarget));
+
+    aplicarLimitesDePasseio();
 
     // A sombra acompanha o tabuleiro inteiro, não a janela visível.
     lights.key.target.position.set(0, 0, 0);
@@ -193,32 +221,180 @@ function createRenderer3D() {
   }
 
   /** Aplica a posição de câmera atual (distância fixa + passeio suavizado). */
+  /**
+   * Quanto dá para passear depende do zoom: afastado até o tabuleiro inteiro
+   * caber, não há para onde ir; aproximado, sobra mapa dos dois lados. Calcular
+   * a partir da janela visível evita o passeio para o vazio.
+   */
+  function aplicarLimitesDePasseio() {
+    const linhasVisiveis = VIEW_ROWS * zoomTarget;
+    panLimit = Math.max(0, map.halfH - linhasVisiveis / 2 + 0.4);
+    // Na largura só há o que percorrer quando a janela fica menor que o tabuleiro.
+    const colunasVisiveis = (map.COLS + 1.1) * zoomTarget;
+    panLimitX = Math.max(0, map.halfW - colunasVisiveis / 2 + 0.3);
+    panZTarget = Math.min(panLimit, Math.max(-panLimit, panZTarget));
+    panXTarget = Math.min(panLimitX, Math.max(-panLimitX, panXTarget));
+  }
+
   function updateCameraPosition(dt) {
-    panZ = dt === null ? panZTarget : damp(panZ, panZTarget, PAN_SMOOTH, dt);
-    const target = new THREE.Vector3(0, 0.35, 0.55 + panZ);
-    camera.position.copy(target).addScaledVector(camDir, camDistance);
+    if (dt === null) {
+      panZ = panZTarget; panX = panXTarget; zoom = zoomTarget;
+    } else {
+      panZ = damp(panZ, panZTarget, PAN_SMOOTH, dt);
+      panX = damp(panX, panXTarget, PAN_SMOOTH, dt);
+      zoom = damp(zoom, zoomTarget, PAN_SMOOTH, dt);
+    }
+    const target = new THREE.Vector3(panX, 0.35, 0.55 + panZ);
+    camera.position.copy(target).addScaledVector(camDir, camDistance * zoom);
     camera.lookAt(target);
     camera.updateMatrixWorld(true);
   }
 
-  /** Roda do mouse e setas/WASD passeiam a câmera pelo corredor (eixo das linhas). */
+  /** Ponto do chão sob um pixel da tela, ou null se o raio não encontrar o plano. */
+  function pontoNoChao(clientX, clientY) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    return raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3());
+  }
+
+  /**
+   * Zoom mantendo sob o cursor o ponto que já estava lá — é como o Age of
+   * Empires se comporta, e sem isso aproximar joga o alvo para fora da tela.
+   */
+  function aplicarZoom(delta, clientX, clientY) {
+    const antes = zoomTarget;
+    zoomTarget = Math.min(zoomMax, Math.max(ZOOM_MIN, zoomTarget + delta));
+    if (zoomTarget === antes) return;
+
+    if (clientX !== undefined) {
+      const p = pontoNoChao(clientX, clientY);
+      if (p) {
+        const f = 1 - zoomTarget / antes;
+        panXTarget += (p.x - panXTarget) * f;
+        panZTarget += (p.z - 0.55 - panZTarget) * f;
+      }
+    }
+    aplicarLimitesDePasseio();
+  }
+
+  function reenquadrar() {
+    zoomTarget = zoomMax;
+    panXTarget = 0;
+    panZTarget = 0;
+    aplicarLimitesDePasseio();
+  }
+
+  /**
+   * Controles de câmera, no arranjo que Warcraft III e Age of Empires usam: a
+   * roda dá zoom, e quem anda pelo mapa são as teclas e o arrasto.
+   *
+   * Não há rolagem de borda, que os dois têm. Neles a interface é uma barra
+   * sólida que barra o ponteiro; aqui os painéis flutuam sobre o tabuleiro, e
+   * a câmera sairia andando toda vez que o jogador fosse até a loja.
+   */
   function setupCameraControls() {
-    renderer.domElement.addEventListener('wheel', function (e) {
+    const el = renderer.domElement;
+
+    el.addEventListener('wheel', function (e) {
       e.preventDefault();
-      panZTarget += e.deltaY * PAN_WHEEL;
-      panZTarget = Math.min(panLimit, Math.max(-panLimit, panZTarget));
+      aplicarZoom(e.deltaY * ZOOM_WHEEL, e.clientX, e.clientY);
     }, { passive: false });
+
+    // Botão do meio ou direito arrastam. O esquerdo fica livre para o jogo.
+    el.addEventListener('pointerdown', function (e) {
+      if (e.button !== 1 && e.button !== 2) return;
+      drag.ativo = true; drag.botao = e.button;
+      drag.x = e.clientX; drag.y = e.clientY; drag.andou = 0;
+      el.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    el.addEventListener('pointermove', function (e) {
+      if (!drag.ativo) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag.x = e.clientX; drag.y = e.clientY;
+      drag.andou += Math.abs(dx) + Math.abs(dy);
+      // Converte pixels em unidades de mundo pela escala atual da cena.
+      const escala = camDistance * zoom / Math.max(1, container.clientHeight) * 1.9;
+      panXTarget -= dx * escala;
+      panZTarget -= dy * escala / Math.sin(PITCH);
+      aplicarLimitesDePasseio();
+    });
+    function soltar(e) {
+      if (!drag.ativo) return;
+      const eraDireito = drag.botao === 2;
+      const andou = drag.andou;
+      drag.ativo = false;
+      try { el.releasePointerCapture(e.pointerId); } catch (err) { /* já solto */ }
+      // Clique direito parado cancela a construção; com arrasto, era câmera.
+      if (eraDireito && andou <= DRAG_THRESHOLD && game.cancelPlacing) game.cancelPlacing();
+    }
+    el.addEventListener('pointerup', soltar);
+    el.addEventListener('pointercancel', soltar);
+
+    // O menu de contexto é sempre engolido: no Chrome ele dispara no PRESSIONAR,
+    // antes de existir qualquer arrasto, então não dá para decidir aqui se o
+    // gesto era câmera ou cancelamento. Quem decide é o soltar, acima.
+    el.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+
+    // Toque: um dedo é do jogo, dois dedos são da câmera (pinça e arrasto).
+    const toques = new Map();
+    let pinca = 0, centro = null;
+    el.addEventListener('touchstart', function (e) {
+      for (const t of e.changedTouches) toques.set(t.identifier, t);
+      if (toques.size === 2) { pinca = distTouches(e.touches); centro = centroTouches(e.touches); }
+    }, { passive: true });
+    el.addEventListener('touchmove', function (e) {
+      if (e.touches.length !== 2) return;
+      e.preventDefault();
+      const d = distTouches(e.touches), c = centroTouches(e.touches);
+      if (pinca > 0 && d > 0) aplicarZoom((pinca - d) * 0.004, c.x, c.y);
+      if (centro) {
+        const escala = camDistance * zoom / Math.max(1, container.clientHeight) * 1.9;
+        panXTarget -= (c.x - centro.x) * escala;
+        panZTarget -= (c.y - centro.y) * escala / Math.sin(PITCH);
+        aplicarLimitesDePasseio();
+      }
+      pinca = d; centro = c;
+    }, { passive: false });
+    function fimToque(e) {
+      for (const t of e.changedTouches) toques.delete(t.identifier);
+      if (toques.size < 2) { pinca = 0; centro = null; }
+    }
+    el.addEventListener('touchend', fimToque, { passive: true });
+    el.addEventListener('touchcancel', fimToque, { passive: true });
 
     window.addEventListener('keydown', function (e) {
       if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = true;
       else if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = true;
+      else if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+      else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+      else if (e.code === 'Equal' || e.code === 'NumpadAdd') keys.zoomIn = true;
+      else if (e.code === 'Minus' || e.code === 'NumpadSubtract') keys.zoomOut = true;
+      else if (e.code === 'Home') { reenquadrar(); }
       else return;
       e.preventDefault();
     });
     window.addEventListener('keyup', function (e) {
       if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
       else if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
+      else if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+      else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+      else if (e.code === 'Equal' || e.code === 'NumpadAdd') keys.zoomIn = false;
+      else if (e.code === 'Minus' || e.code === 'NumpadSubtract') keys.zoomOut = false;
     });
+  }
+
+  function distTouches(t) {
+    return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  }
+  function centroTouches(t) {
+    return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 };
   }
 
   function resize() {
@@ -559,12 +735,23 @@ function createRenderer3D() {
   function render(state, perfNow) {
     const t = perfNow / 1000;
     let dt = (perfNow - lastTime) / 1000;
-    if (!(dt > 0) || dt > 0.1) dt = 0.016;
+    // Limita o passo em vez de substituí-lo: trocar um frame longo por 0,016
+    // fazia a câmera arrastar quase parada em máquina lenta, já que o passo do
+    // teclado é proporcional a dt.
+    if (!(dt > 0)) dt = 0.016;
+    else if (dt > 0.05) dt = 0.05;
     lastTime = perfNow;
 
-    if (keys.up) panZTarget -= PAN_SPEED * dt;
-    if (keys.down) panZTarget += PAN_SPEED * dt;
-    if (keys.up || keys.down) panZTarget = Math.min(panLimit, Math.max(-panLimit, panZTarget));
+    // O passo do teclado acompanha o zoom: aproximado, andar depressa demais
+    // desorienta; afastado, andar devagar demais arrasta.
+    const passo = PAN_SPEED * dt * zoom;
+    if (keys.up) panZTarget -= passo;
+    if (keys.down) panZTarget += passo;
+    if (keys.left) panXTarget -= passo;
+    if (keys.right) panXTarget += passo;
+    if (keys.zoomIn) aplicarZoom(-ZOOM_KEY * dt);
+    if (keys.zoomOut) aplicarZoom(ZOOM_KEY * dt);
+    if (keys.up || keys.down || keys.left || keys.right) aplicarLimitesDePasseio();
     updateCameraPosition(dt);
 
     processNewShots(state.attackFX, state.units);

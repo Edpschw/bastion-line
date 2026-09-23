@@ -99,6 +99,16 @@ body{
   border-radius:99px;padding:3px 10px;pointer-events:none;opacity:.75;
 }
 .render-mode[hidden]{display:none;}
+.cam-hint{
+  position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  font-size:.62rem;color:var(--ink-faint);background:rgba(18,21,14,.72);
+  border:1px solid var(--border);border-radius:99px;padding:4px 12px;
+  pointer-events:none;opacity:0;transition:opacity .6s ease;white-space:nowrap;
+  max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;
+}
+.cam-hint.show{opacity:.8;}
+.cam-hint[hidden]{display:none;}
+@media (max-width:620px){ .cam-hint{font-size:.56rem;padding:3px 9px;} }
 
 .build-menu{
   position:absolute;left:16px;bottom:16px;width:224px;
@@ -236,6 +246,7 @@ body{
       <canvas id="game"></canvas>
     </div>
     <div class="render-mode" id="renderMode" hidden></div>
+    <div class="cam-hint" id="camHint" hidden>roda ou pinça: zoom · setas/WASD, arrastar com o botão direito ou dois dedos: mover · Home: reenquadrar</div>
 
     <div class="build-menu" id="buildMenu" hidden>
       <div class="build-menu-title">Mestre de Obras <span>— o que erguer?</span></div>
@@ -537,7 +548,8 @@ var goldVal=document.getElementById('goldVal'), livesVal=document.getElementById
     relicModal=document.getElementById('relicModal'), relicCards=document.getElementById('relicCards'),
     relicStrip=document.getElementById('relicStrip'),
     stageEl=document.getElementById('stage'), viewport=document.getElementById('viewport'),
-    renderModeEl=document.getElementById('renderMode');
+    renderModeEl=document.getElementById('renderMode'),
+    camHintEl=document.getElementById('camHint');
 
 // Renderer ativo. Enquanto for null o jogo desenha no canvas 2D (fallback).
 var renderer3d=null;
@@ -2259,12 +2271,23 @@ function attachRenderer(r){
   stageEl.classList.add('is-3d');
   renderModeEl.textContent='3D';
   renderModeEl.hidden=false;
+  // A dica aparece um instante e some: arrasto e Home não se descobrem sozinhos,
+  // mas também não precisam ficar ocupando a tela a partida inteira.
+  camHintEl.hidden=false;
+  requestAnimationFrame(function(){ camHintEl.classList.add('show'); });
+  setTimeout(function(){
+    camHintEl.classList.remove('show');
+    setTimeout(function(){ camHintEl.hidden=true; }, 700);
+  }, 9000);
   updatePlacingUI();
   return true;
 }
 
 var GAME={
   COLS:COLS, ROWS:ROWS, CELL:CELL, LOGICAL_W:LOGICAL_W, LOGICAL_H:LOGICAL_H,
+  // O renderer 3D engole o menu de contexto para poder usar o botão direito
+  // como arrasto de câmera, então é ele quem avisa quando o clique foi parado.
+  cancelPlacing:function(){ placing=null; updatePlacingUI(); },
   UNIT_BASE:UNIT_BASE, ENEMY_BASE:ENEMY_BASE, BRANCHES:BRANCHES,
   TYPE_NAMES:TYPE_NAMES, VET_TITLES:VET_TITLES,
   readState:readState,
