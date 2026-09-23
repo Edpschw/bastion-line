@@ -60,6 +60,27 @@ e duplicar isso era como as duas versões iriam divergir.
 | Harpia | voadora barata | asas longas, sombra deslocada |
 | Dragão de Cristal | chefe voador | maior, asas batendo |
 
+### Relíquias
+
+Seis bênçãos globais (GDD §23). A cada onda de chefe vencida o jogo oferece três
+ainda não tomadas, e o relógio da construção fica suspenso enquanto a escolha
+está aberta — recompensa não pode custar tempo de preparo.
+
+| Relíquia | Efeito |
+|---|---|
+| Flechas Ardentes | +20% de dano das torres físicas (Milícia, Arqueira, Armadilha) |
+| Cristal Arcano | +15% de dano mágico (Mago, Gélida, Bobina, Druida, Necromante) |
+| Núcleo Gélido | +15% de duração da lentidão |
+| Livro do Necromante | +1 esqueleto invocado |
+| Tesouro do Rei | +10% de ouro recebido |
+| Coração de Ferro | +20% de vida da Milícia |
+
+Não são casos especiais espalhados pelo código: viram multiplicadores que os
+cálculos existentes consultam, e por isso uma relíquia nova é uma linha em
+`RELICS` mais um caso em `relicMult()`. Todo ouro passa por `ganharOuro()`, para
+o Tesouro do Rei valer em abate, renda passiva, bônus de onda e chamada
+antecipada — sem isso ele pegaria só em algumas fontes.
+
 ### Chefes
 
 Um a cada cinco ondas, em rodízio fixo, para o jogador poder se preparar.

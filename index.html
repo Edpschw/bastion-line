@@ -162,6 +162,24 @@ body{
 .btn-ghost:hover{background:rgba(193,80,61,.12);}
 .hint{font-size:.66rem;color:var(--ink-faint);}
 
+.relic-strip{display:flex;gap:4px;flex:0 0 auto;align-items:center;}
+.relic-strip[hidden]{display:none;}
+.relic-pip{
+  width:10px;height:10px;border-radius:50%;display:block;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.35), 0 0 6px currentColor;
+}
+.relic-choice h2{color:var(--accent);}
+.relic-cards{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;justify-content:center;}
+.relic-card{
+  flex:1 1 150px;max-width:190px;min-width:140px;
+  background:var(--panel-2);border:1px solid var(--border);border-left-width:3px;
+  border-radius:8px;padding:11px 12px;cursor:pointer;color:var(--ink);
+  font-family:inherit;text-align:left;display:flex;flex-direction:column;gap:5px;
+}
+.relic-card:hover{background:var(--panel);}
+.relic-card b{font-family:'Cinzel',serif;font-size:.82rem;letter-spacing:.02em;}
+.relic-card span{font-size:.72rem;color:var(--ink-dim);line-height:1.4;}
+
 .toast-stack{
   position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
   display:flex;flex-direction:column-reverse;gap:6px;pointer-events:none;max-width:78%;
@@ -205,6 +223,7 @@ body{
   </header>
 
   <div class="phase-strip">
+    <span class="relic-strip" id="relicStrip" hidden></span>
     <span id="phaseText">Construção</span>
     <div class="phase-bar"><div class="phase-bar-fill" id="phaseFill"></div></div>
     <button id="sendWaveBtn" class="btn-send">Enviar onda ▸</button>
@@ -271,6 +290,14 @@ body{
 
     <div class="toast-stack" id="toastStack"></div>
 
+    <div class="modal" id="relicModal" hidden>
+      <div class="modal-card relic-choice">
+        <h2>Relíquia</h2>
+        <p>O bastião resistiu ao chefe. Escolha uma bênção.</p>
+        <div class="relic-cards" id="relicCards"></div>
+      </div>
+    </div>
+
     <div class="modal" id="gameOverModal" hidden>
       <div class="modal-card">
         <h2>A linha caiu</h2>
@@ -295,19 +322,19 @@ ctx.scale(DPR,DPR);
 
 // targets: quem a torre consegue acertar. Corpo a corpo não alcança o ar.
 var UNIT_BASE={
-  militia:{name:'Milícia',cost:10,hp:42,dmg:5,range:46,atkSpd:1.3,shape:'square',color:'#b7623b',targets:'ground'},
-  archer:{name:'Arqueira',cost:14,hp:18,dmg:6,range:150,atkSpd:1.15,shape:'triangle',color:'#8a7ab0',targets:'both'},
-  mage:{name:'Mago',cost:20,hp:16,dmg:7,range:112,atkSpd:0.78,shape:'diamond',color:'#5f8fc9',splash:34,targets:'both'},
-  frost:{name:'Gélida',cost:16,hp:20,dmg:3,range:96,atkSpd:1.0,shape:'hex',color:'#6fc7bd',slowFactor:0.5,slowDur:1.4,targets:'both'},
-  lightning:{name:'Bobina',cost:24,hp:20,dmg:7,range:118,atkSpd:0.85,shape:'diamond',color:'#6fd0ff',shape2d:'mage',targets:'both',
+  militia:{name:'Milícia',cost:10,hp:42,dmg:5,range:46,atkSpd:1.3,shape:'square',color:'#b7623b',dmgType:'fisico',targets:'ground'},
+  archer:{name:'Arqueira',cost:14,hp:18,dmg:6,range:150,atkSpd:1.15,shape:'triangle',color:'#8a7ab0',dmgType:'fisico',targets:'both'},
+  mage:{name:'Mago',cost:20,hp:16,dmg:7,range:112,atkSpd:0.78,shape:'diamond',color:'#5f8fc9',splash:34,dmgType:'magico',targets:'both'},
+  frost:{name:'Gélida',cost:16,hp:20,dmg:3,range:96,atkSpd:1.0,shape:'hex',color:'#6fc7bd',slowFactor:0.5,slowDur:1.4,dmgType:'magico',targets:'both'},
+  lightning:{name:'Bobina',cost:24,hp:20,dmg:7,range:118,atkSpd:0.85,shape:'diamond',color:'#6fd0ff',shape2d:'mage',dmgType:'magico',targets:'both',
              chain:{jumps:1,range:72,falloff:0.6}},
-  nature:{name:'Druida',cost:18,hp:26,dmg:3,range:104,atkSpd:0.9,shape:'hex',color:'#7fc45a',shape2d:'frost',targets:'ground',
+  nature:{name:'Druida',cost:18,hp:26,dmg:3,range:104,atkSpd:0.9,shape:'hex',color:'#7fc45a',shape2d:'frost',dmgType:'magico',targets:'ground',
           heal:{rate:3,range:112}},
   // walkable: ocupa a célula mas não fecha a rota. É o que separa armadilha de
   // muro — o inimigo passa por cima, e é justamente aí que ela dispara.
-  trap:{name:'Armadilha',cost:14,hp:30,dmg:11,range:34,atkSpd:0.55,shape:'square',color:'#9a8256',shape2d:'militia',targets:'ground',
+  trap:{name:'Armadilha',cost:14,hp:30,dmg:11,range:34,atkSpd:0.55,shape:'square',color:'#9a8256',shape2d:'militia',dmgType:'fisico',targets:'ground',
         walkable:true, splash:30, ignoresCloak:true},
-  necro:{name:'Necromante',cost:28,hp:22,dmg:6,range:108,atkSpd:0.7,shape:'diamond',color:'#8f7ab8',shape2d:'mage',targets:'both',
+  necro:{name:'Necromante',cost:28,hp:22,dmg:6,range:108,atkSpd:0.7,shape:'diamond',color:'#8f7ab8',shape2d:'mage',dmgType:'magico',targets:'both',
          summon:{max:1,interval:6,hp:18,dmg:4,atkSpd:0.8,range:42,leash:96}}
 };
 
@@ -491,6 +518,7 @@ var grid, units, enemies, minions, fallen, floatingTexts, attackFX;
 var gold, lives, wave, best, phase, buildTimer, phaseStartTime, waveStartTime, spawnQueue, spawnedIdx, incomeTimer;
 var selectedUnit=null, placing=null, hoverCell=null, lastMouseX=null, lastMouseY=null;
 var recentThemes=[];
+var relics={}, relicOffer=null;
 var idCounter=0;
 var BUILD_BASE=18;
 
@@ -504,6 +532,8 @@ var goldVal=document.getElementById('goldVal'), livesVal=document.getElementById
     finalWaveEl=document.getElementById('finalWave'), modalBestEl=document.getElementById('modalBest'),
     restartBtn=document.getElementById('restartBtn'),
     buildMenu=document.getElementById('buildMenu'), popupClose=document.getElementById('popupClose'),
+    relicModal=document.getElementById('relicModal'), relicCards=document.getElementById('relicCards'),
+    relicStrip=document.getElementById('relicStrip'),
     stageEl=document.getElementById('stage'), viewport=document.getElementById('viewport'),
     renderModeEl=document.getElementById('renderMode');
 
@@ -538,6 +568,8 @@ function resetGame(){
   buildTimer=BUILD_BASE+2; phaseStartTime=performance.now(); incomeTimer=0;
   selectedUnit=null; placing=null; hoverCell=null;
   recentThemes=[];
+  relics={}; relicOffer=null; goldCarry=0; relicModal.hidden=true;
+  refreshRelicStrip();
   best=loadBest();
   toastStack.innerHTML='';
   buildMenu.hidden=true;
@@ -632,16 +664,18 @@ function recomputeUnitStats(u){
   var dmgMult=1+lvl*0.10, hpMult=1+lvl*0.06, spdMult=1+lvl*0.05;
   u.name=base.name;
   u.color=base.color;
-  u.dmg=+(base.dmg*dmgMult).toFixed(1);
+  var tipoDano=UNIT_BASE[u.type].dmgType||'fisico';
+  u.dmg=+(base.dmg*dmgMult*relicMult(tipoDano)).toFixed(1);
   // Recalcular não pode curar: subir de patente ou evoluir no meio da onda
   // mantém a mesma fração de dano. Na criação não há proporção anterior.
   var hpRatio=(u.maxHp>0) ? u.hp/u.maxHp : 1;
-  u.maxHp=Math.round(base.hp*hpMult);
+  u.maxHp=Math.round(base.hp*hpMult*(u.type==='militia' ? relicMult('vidaMilicia') : 1));
   u.hp=Math.max(1, Math.round(u.maxHp*hpRatio));
   u.range=base.range+lvl*5;
   u.atkSpd=+(base.atkSpd*spdMult).toFixed(2);
   u.splash= base.splash ? +(base.splash*(1+lvl*0.05)).toFixed(1) : 0;
-  u.slowFactor=base.slowFactor||0; u.slowDur=base.slowDur||0;
+  u.slowFactor=base.slowFactor||0;
+  u.slowDur=(base.slowDur||0)*relicMult('slowDur');
   u.armorPierce=base.armorPierce||0;
   u.targets=UNIT_BASE[u.type].targets||'ground';
   // Queimadura escala com a veterania, como o dano direto.
@@ -651,7 +685,10 @@ function recomputeUnitStats(u){
   u.stun = base.stun || null;
   u.armorBreak = base.armorBreak || null;
   u.heal = base.heal ? {rate:+(base.heal.rate*dmgMult).toFixed(1), range:base.heal.range} : null;
-  u.summon = base.summon || null;
+  // O Livro do Necromante soma um esqueleto ao teto de qualquer invocador.
+  u.summon = base.summon
+    ? Object.assign({}, base.summon, {max: base.summon.max + (relics.livro ? 1 : 0)})
+    : null;
   u.walkable = !!UNIT_BASE[u.type].walkable;
   u.ignoresCloak = !!UNIT_BASE[u.type].ignoresCloak;
 }
@@ -890,6 +927,50 @@ function scaledEnemy(type, w){
 // destaque e enchia o resto de goblins, o que satura assim que existem muitas
 // criaturas e não sabe expressar "onda aérea" ou "coluna blindada".
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Relíquias (GDD §23)
+//
+// Modificadores globais escolhidos ao longo da partida. Não são casos especiais
+// espalhados pelo código: viram multiplicadores que os cálculos já existentes
+// consultam, e por isso uma relíquia nova é uma linha aqui.
+// ---------------------------------------------------------------------------
+var RELICS={
+  flechas:{name:'Flechas Ardentes', desc:'+20% de dano das torres físicas', tint:'#d9992f'},
+  nucleo: {name:'Núcleo Gélido',    desc:'+15% de duração da lentidão',     tint:'#6fc7bd'},
+  livro:  {name:'Livro do Necromante', desc:'+1 esqueleto invocado',        tint:'#a98fd0'},
+  tesouro:{name:'Tesouro do Rei',   desc:'+10% de ouro recebido',           tint:'#f2c15a'},
+  cristal:{name:'Cristal Arcano',   desc:'+15% de dano mágico',             tint:'#5f8fc9'},
+  ferro:  {name:'Coração de Ferro', desc:'+20% de vida da Milícia',         tint:'#b7623b'}
+};
+
+/** Multiplicador da relíquia sobre um aspecto do jogo. 1 = sem relíquia. */
+function relicMult(chave){
+  switch(chave){
+    case 'fisico': return relics.flechas ? 1.20 : 1;
+    case 'magico': return relics.cristal ? 1.15 : 1;
+    case 'slowDur': return relics.nucleo ? 1.15 : 1;
+    case 'ouro': return relics.tesouro ? 1.10 : 1;
+    case 'vidaMilicia': return relics.ferro ? 1.20 : 1;
+    default: return 1;
+  }
+}
+
+/**
+ * Ouro sempre entra por aqui, para o Tesouro do Rei valer em toda fonte.
+ *
+ * A fração é acumulada em vez de arredondada por transação: a renda passiva é
+ * de 2 por vez, e Math.round(2 * 1.1) devolve 2 — o bônus de 10% sumiria
+ * inteiro justamente na fonte que mais se repete.
+ */
+var goldCarry=0;
+function ganharOuro(v){
+  var exato=v*relicMult('ouro')+goldCarry;
+  var inteiro=Math.floor(exato);
+  goldCarry=exato-inteiro;
+  gold+=inteiro;
+  return inteiro;
+}
+
 // Rodízio de chefes: um a cada cinco ondas, sempre em ordem, para o jogador
 // poder se preparar para o que vem.
 var BOSS_ORDER=['warlord','boss','deathking'];
@@ -1026,14 +1107,66 @@ function completeWave(now){
     if(units[i].hp<units[i].maxHp){ units[i].hp=units[i].maxHp; repaired++; }
   }
   if(repaired){ log(repaired+' torre(s) reparada(s).'); }
-  var bonus=6+wave*1;
-  gold+=bonus;
+  var bonus=ganharOuro(6+wave*1);
   log('Onda '+wave+' concluída! +'+bonus+'g');
   wave+=1;
   if(wave-1>best){ best=wave-1; saveBest(best); }
   phase='build';
   buildTimer=Math.max(10, BUILD_BASE-Math.floor(wave/6));
   phaseStartTime=now;
+
+  // Recompensa de chefe: a cada cinco ondas vencidas, escolha uma relíquia.
+  if((wave-1)%5===0) offerRelic();
+}
+
+/**
+ * Oferece três relíquias ainda não tomadas. O relógio da construção fica
+ * suspenso enquanto a escolha está aberta, senão a recompensa custaria tempo
+ * de preparo.
+ */
+function offerRelic(){
+  var livres=Object.keys(RELICS).filter(function(k){ return !relics[k]; });
+  if(!livres.length) return;
+  for(var i=livres.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1)), t=livres[i]; livres[i]=livres[j]; livres[j]=t;
+  }
+  relicOffer=livres.slice(0,3);
+
+  relicCards.innerHTML='';
+  relicOffer.forEach(function(k){
+    var r=RELICS[k];
+    var btn=document.createElement('button');
+    btn.className='relic-card';
+    btn.style.borderColor=r.tint;
+    btn.innerHTML='<b style="color:'+r.tint+'">'+r.name+'</b><span>'+r.desc+'</span>';
+    btn.addEventListener('click', function(){ takeRelic(k); });
+    relicCards.appendChild(btn);
+  });
+  relicModal.hidden=false;
+}
+
+function takeRelic(k){
+  relics[k]=true;
+  relicOffer=null;
+  relicModal.hidden=true;
+  // Os atributos derivam das relíquias, então tudo que já está em campo recalcula.
+  for(var i=0;i<units.length;i++) recomputeUnitStats(units[i]);
+  log('Relíquia obtida: '+RELICS[k].name+'.');
+  refreshRelicStrip();
+  refreshSelectedPanel();
+}
+
+function refreshRelicStrip(){
+  var tomadas=Object.keys(relics);
+  relicStrip.innerHTML='';
+  relicStrip.hidden=!tomadas.length;
+  tomadas.forEach(function(k){
+    var el=document.createElement('span');
+    el.className='relic-pip';
+    el.style.background=RELICS[k].tint;
+    el.title=RELICS[k].name+' — '+RELICS[k].desc;
+    relicStrip.appendChild(el);
+  });
 }
 function showGameOver(){
   if(wave>best){ best=wave; saveBest(best); }
@@ -1229,9 +1362,12 @@ function update(dt, now){
   updateBuilder(dt);
 
   incomeTimer+=dt;
-  if(incomeTimer>=3){ incomeTimer-=3; gold+=2; }
+  if(incomeTimer>=3){ incomeTimer-=3; ganharOuro(2); }
 
   if(phase==='build'){
+    // Escolha aberta: empurra o marco inicial junto com o relógio, o que
+    // congela o tempo restante sem mexer no resto do laço.
+    if(relicOffer){ phaseStartTime+=dt*1000; }
     var remaining=buildTimer-(now-phaseStartTime)/1000;
     if(remaining<=0){ startWave(now); }
   } else if(phase==='wave'){
@@ -1387,8 +1523,8 @@ function update(dt, now){
   for(var i=0;i<enemies.length;i++){
     var e=enemies[i];
     if(e.hp<=0){
-      gold+=e.bounty;
-      floatingTexts.push(mkFloat(e.x,e.y,'+'+e.bounty,'#d9992f'));
+      var premio=ganharOuro(e.bounty);
+      floatingTexts.push(mkFloat(e.x,e.y,'+'+premio,'#d9992f'));
       attackFX.push({kind:'death',x1:e.x,y1:e.y,x2:e.x,y2:e.y,life:0.28,maxLife:0.28,color:'#e8e2c9',splashR:e.r*1.9});
       if(e.lastHitBy){ creditKill(e.lastHitBy); }
       // Guarda o caído: o Rei da Morte pode querer trazê-lo de volta.
@@ -2075,11 +2211,10 @@ sellBtn.addEventListener('click', function(){
 });
 
 sendWaveBtn.addEventListener('click', function(){
-  if(phase!=='build') return;
+  if(phase!=='build' || relicOffer) return;
   var now=performance.now();
   var remaining=Math.max(0, buildTimer-(now-phaseStartTime)/1000);
-  var bonus=Math.round(remaining*1.4);
-  gold+=bonus;
+  var bonus=ganharOuro(Math.round(remaining*1.4));
   log('Onda chamada antecipadamente! +'+bonus+'g');
   startWave(now);
 });
