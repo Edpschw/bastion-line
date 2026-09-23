@@ -36,8 +36,12 @@ const PAN_SMOOTH = 0.00002;            // suavização do damp() por segundo
 // Altura aproximada de cada inimigo em unidades locais (antes da escala do raio).
 const ENEMY_HEIGHT = {
   grunt: 0.78, raider: 0.82, brute: 0.68,
-  swarmling: 0.62, reaver: 0.95, boss: 1.15
+  swarmling: 0.62, reaver: 0.95, harpy: 0.8, boss: 1.15
 };
+
+// Altura de voo, em células. Alta o bastante para ler como "acima do alcance
+// corpo a corpo" sem sair da moldura da câmera.
+const FLIGHT_ALTITUDE = 1.15;
 
 function createRenderer3D() {
   let game, map, container;
@@ -370,6 +374,9 @@ function createRenderer3D() {
       const wx = map.x(e.x), wz = map.z(e.y);
       g.position.x = wx;
       g.position.z = wz;
+      // Voadores pairam acima do tabuleiro; o resto anda no chão.
+      const alt = e.flying ? FLIGHT_ALTITUDE : 0;
+      g.position.y = damp(g.position.y, alt, 0.002, dt);
 
       // Encara o próximo ponto do caminho
       const wp = e.path[e.wpIndex];
@@ -381,9 +388,9 @@ function createRenderer3D() {
 
       animateEnemy(g, {
         yaw: yaw,
-        moving: true,
+        moving: !e.fx.fighting,
         speed: e.speed,
-        slowed: perfNow < e.slowUntil
+        slowed: e.fx.slowed
       }, t, dt);
     }
 
@@ -459,11 +466,23 @@ function createRenderer3D() {
       const e = state.enemies[i];
       const g = enemyMeshes.get(e.id);
       if (!g) continue;
-      const top = (g.userData.height || 0.8) + 0.22;
+      const top = (g.userData.height || 0.8) + 0.22 + (e.flying ? FLIGHT_ALTITUDE : 0);
       const p = project(tmp.set(g.position.x, top, g.position.z));
       if (!p.visible) continue;
       const scale = pixelsPerUnit(tmp.set(g.position.x, top, g.position.z)) / ppuRef;
       overlay.healthBar(p.x, p.y, Math.max(13, 26 * scale * g.scale.x), e.hp / e.maxHp);
+    }
+
+    // Vida das torres feridas (só aparece quando há dano a mostrar)
+    for (let i = 0; i < state.units.length; i++) {
+      const u = state.units[i];
+      if (u.hp >= u.maxHp) continue;
+      const entry = towerMeshes.get(u.id);
+      if (!entry) continue;
+      const p = project(tmp.set(entry.group.position.x, 1.15, entry.group.position.z));
+      if (!p.visible) continue;
+      const scale = pixelsPerUnit(tmp.set(entry.group.position.x, 1.15, entry.group.position.z)) / ppuRef;
+      overlay.healthBar(p.x, p.y, Math.max(18, 32 * scale), u.hp / u.maxHp);
     }
 
     // Galões de veterania sob as torres

@@ -5,6 +5,19 @@ até o bastião, e você ergue torres pelo caminho para segurá-los.
 
 Jogue abrindo `index.html` — é um único arquivo estático, sem build.
 
+## Sistemas de jogo
+
+| Sistema | Onde | Nota |
+|---|---|---|
+| **Status** | `applyStatus` / `tickStatus` | `e.status[tipo] = {fim, poder, stacks, fonte}`. `refresh` renova e mantém o mais forte; `add` empilha até um teto. Produtores hoje: Gélida (slow), Piromante (burn). `stun`, `poison`, `bleed` e `armorBreak` já funcionam, à espera das torres que os produzem. |
+| **Terra / ar** | `canHit`, `UNIT_BASE[].targets` | Voadores traçam rota reta e ignoram o labirinto. A Milícia é corpo a corpo e não alcança o ar — a loja e a ficha da torre dizem isso, porque é regra de balanceamento e não pode ser invisível. |
+| **Inimigos atacantes** | `ENEMY_BASE[].attacker` | Só criaturas marcadas param a marcha para destruir torres. O resto corre para o bastião. Torres sobreviventes são reparadas entre ondas: a pressão vale dentro da onda, sem virar bola de neve. |
+| **Composição de ondas** | `WAVE_THEMES` | Receitas com pesos e onda mínima, em vez de um tipo em destaque mais goblins. É o que permite expressar "incursão aérea" ou "coluna blindada". |
+
+Ao remover uma torre — vendida ou destruída — use sempre `removeUnit()`: quem
+a estivesse atacando precisa soltar o alvo, senão o inimigo fica parado batendo
+num fantasma que nunca morre.
+
 ## Como o jogo é desenhado
 
 O projeto tem **dois renderers** para a mesma partida:

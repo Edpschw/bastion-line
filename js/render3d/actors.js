@@ -618,12 +618,77 @@ function buildDragon(color) {
   return g;
 }
 
+/**
+ * Harpia: voador leve. Reaproveita a lógica de asas do dragão em escala menor,
+ * com silhueta bem diferente — corpo esguio e asas longas — para não se
+ * confundir com o chefe na distância da câmera.
+ */
+function buildHarpy(color) {
+  const g = new THREE.Group();
+  const body = std(color, { roughness: 0.7 });
+  const feather = std(shade(color, 0.72), { roughness: 0.8, side: THREE.DoubleSide });
+
+  const torso = mesh(ICO(0.2, 0), body, 0, 0.3, 0);
+  torso.scale.set(0.85, 1.25, 0.9);
+  g.add(torso);
+
+  const head = mesh(SPH(0.115, 8, 6), std(shade(color, 1.3), { roughness: 0.7 }), 0, 0.53, 0.04);
+  g.add(head);
+  const beak = mesh(CONE(0.045, 0.14, 4), std(PAL.gold, { roughness: 0.5 }), 0, 0.51, 0.14);
+  beak.rotation.x = Math.PI / 2;
+  g.add(beak);
+  for (let side = -1; side <= 1; side += 2) {
+    const eye = mesh(SPH(0.025, 6, 6), std(0xffe9a8, { emissive: 0xffc94a, emissiveIntensity: 1.2 }), side * 0.05, 0.56, 0.1);
+    eye.castShadow = false;
+    g.add(eye);
+  }
+
+  // Garras recolhidas sob o corpo
+  for (let side = -1; side <= 1; side += 2) {
+    const claw = mesh(BOX(0.05, 0.16, 0.06), std(PAL.ironDark), side * 0.08, 0.13, 0.02);
+    claw.rotation.x = 0.5;
+    g.add(claw);
+  }
+
+  const wings = [];
+  for (let side = -1; side <= 1; side += 2) {
+    const wing = new THREE.Group();
+    wing.position.set(side * 0.13, 0.36, 0);
+    const membrane = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.3, 3, 1), feather);
+    membrane.position.set(side * 0.32, 0.03, -0.03);
+    membrane.rotation.y = side * 0.18;
+    membrane.castShadow = true;
+    wing.add(membrane);
+    for (let i = 0; i < 2; i++) {
+      const rib = mesh(BOX(0.34, 0.018, 0.018), std(shade(color, 0.55)), side * 0.2, 0.06 - i * 0.08, -0.03);
+      rib.rotation.z = side * (0.18 - i * 0.16);
+      rib.castShadow = false;
+      wing.add(rib);
+    }
+    g.add(wing);
+    wings.push({ group: wing, side: side });
+  }
+
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.24, -0.16);
+  const plume = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.4, 1, 2), feather);
+  plume.position.set(0, -0.04, -0.18);
+  plume.rotation.x = -0.5;
+  tail.add(plume);
+  g.add(tail);
+
+  g.userData = { wings: wings, tail: tail, head: head, flying: true, legs: [],
+                 fastFlap: true, hoverBase: 0 };
+  return g;
+}
+
 const ENEMY_BUILDERS = {
   grunt: function (c) { return buildGoblin(c, false); },
   raider: function (c) { return buildGoblin(c, true); },
   brute: function (c) { return buildSlime(c, false); },
   swarmling: function (c) { return buildSlime(c, true); },
   reaver: function (c) { return buildSkeletonKnight(c); },
+  harpy: function (c) { return buildHarpy(c); },
   boss: function (c) { return buildDragon(c); }
 };
 
@@ -793,8 +858,8 @@ export function animateEnemy(holder, info, t, dt) {
 
   // Dragão: paira, bate as asas e balança pescoço e cauda
   if (p.flying) {
-    const flap = Math.sin(t * 5.2 + anim.phase);
-    inner.position.y = 0.34 + flap * 0.075;
+    const flap = Math.sin(t * (p.fastFlap ? 8.5 : 5.2) + anim.phase);
+    inner.position.y = (p.hoverBase === undefined ? 0.34 : p.hoverBase) + flap * 0.075;
     for (let i = 0; i < p.wings.length; i++) {
       const w = p.wings[i];
       w.group.rotation.z = w.side * (0.35 + flap * 0.75);
