@@ -238,14 +238,122 @@ const RECIPES = {
     if (tier <= 1) return { stack: ['tower-base'] };
     if (tier === 2) return { stack: ['tower-base', 'tower-top'] };
     return { stack: ['tower-base', 'tower-base', 'tower-top'] };
+  },
+  // Hexagonal sem telhado: o topo aberto deixa a bobina à vista, e é o que a
+  // separa do Mago, que usa o mesmo corpo mas coroado.
+  lightning: function (tier) {
+    if (tier <= 1) return { stack: ['tower-hexagon-base', 'tower-hexagon-top'] };
+    if (tier === 2) return { stack: ['tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-top'] };
+    return {
+      stack: ['tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-mid', 'tower-hexagon-top'],
+      flag: 'flag-pennant'
+    };
+  },
+  // Baixa e larga: o Druida é suporte, não deve competir de altura com as
+  // torres de ataque nem esconder o que está atrás.
+  nature: function (tier) {
+    if (tier <= 1) return { stack: ['tower-base'] };
+    if (tier === 2) return { stack: ['tower-base', 'tower-top'] };
+    return { stack: ['tower-base', 'tower-top'], flag: 'flag-banner-short' };
   }
 };
+
+/** Bobina: hastes metálicas, anéis girando e um núcleo que crepita. */
+function lightningOccupant(tier, branch, color) {
+  const root = new THREE.Group();
+  const metal = std(PAL.iron, { metalness: 0.7, roughness: 0.3 });
+  const arc = std(color, { emissive: color, emissiveIntensity: 1.8, roughness: 0.25 });
+
+  root.add(mesh(CYL(0.035, 0.06, 0.26, 6), metal, 0, 0.13, 0));
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const haste = mesh(CYL(0.016, 0.02, 0.22, 5), metal, Math.cos(a) * 0.1, 0.24, Math.sin(a) * 0.1);
+    haste.rotation.z = Math.cos(a) * 0.25;
+    haste.rotation.x = -Math.sin(a) * 0.25;
+    root.add(haste);
+  }
+
+  // O núcleo é o "orbe" que animateTower já sabe pulsar e girar.
+  const orb = mesh(ICO(0.085, 0), arc, 0, 0.4, 0);
+  orb.castShadow = false;
+  root.add(orb);
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.36), glow(color, 0.55).clone());
+  halo.position.copy(orb.position);
+  root.add(halo);
+
+  // Anéis: no ramo do canhão viram um cano apontado; no da corrente, orbitam.
+  const sats = [];
+  if (branch === 'canhao') {
+    const cano = mesh(CYL(0.05, 0.07, 0.34, 8), metal, 0, 0.4, 0.14);
+    cano.rotation.x = Math.PI / 2;
+    root.add(cano);
+    if (tier >= 3) root.add(mesh(CYL(0.03, 0.03, 0.12, 6), arc, 0, 0.4, 0.3));
+  } else {
+    const anelCount = tier >= 3 ? 3 : tier >= 2 ? 2 : 1;
+    for (let i = 0; i < anelCount; i++) {
+      const anel = new THREE.Mesh(
+        geo('coil-ring', function () { return new THREE.TorusGeometry(0.15, 0.012, 5, 18); }), arc);
+      anel.position.y = 0.4;
+      anel.rotation.x = Math.PI / 2 + i * 0.7;
+      anel.castShadow = false;
+      anel.userData.baseY = 0.4;
+      root.add(anel);
+      sats.push(anel);
+    }
+  }
+
+  return { root: root, orb: orb, halo: halo, sats: sats, orbY: 0.4 };
+}
+
+/** Druida: tronco retorcido e copa de folhas, com esporos subindo. */
+function natureOccupant(tier, branch, color) {
+  const root = new THREE.Group();
+  const casca = std(PAL.woodDark, { roughness: 0.95 });
+  const folha = std(color, { roughness: 0.85 });
+  const folhaAlt = std(shade(color, branch === 'praga' ? 0.75 : 1.2), { roughness: 0.85 });
+
+  const tronco = mesh(CYL(0.05, 0.08, 0.3, 6), casca, 0, 0.15, 0);
+  tronco.rotation.z = 0.06;
+  root.add(tronco);
+
+  // Copa em camadas: quanto maior o tier, mais densa
+  const camadas = 1 + tier;
+  for (let i = 0; i < camadas; i++) {
+    const r = 0.22 - i * 0.045;
+    const copa = mesh(CONE(r, 0.2, 6), i % 2 ? folhaAlt : folha, 0, 0.32 + i * 0.13, 0);
+    copa.rotation.y = i * 0.5;
+    root.add(copa);
+  }
+
+  // Esporos: o ramo da praga sobe esverdeado-doente, o do bosque dourado
+  const sats = [];
+  const esporoMat = std(branch === 'praga' ? 0x9fd84a : 0xd9e88a,
+    { emissive: branch === 'praga' ? 0x6f9f1a : 0xb0c050, emissiveIntensity: 1.2, roughness: 0.4 });
+  for (let i = 0; i < 3 + tier; i++) {
+    const a = (i / (3 + tier)) * Math.PI * 2;
+    const esporo = mesh(OCT(0.025), esporoMat, Math.cos(a) * 0.2, 0.3, Math.sin(a) * 0.2);
+    esporo.castShadow = false;
+    esporo.userData.baseY = 0.3;
+    root.add(esporo);
+    sats.push(esporo);
+  }
+
+  // Tapete de musgo: marca visualmente o alcance da cura
+  const musgo = new THREE.Mesh(new THREE.CircleGeometry(0.36, 24), glow(color, 0.14).clone());
+  musgo.rotation.x = -Math.PI / 2;
+  musgo.position.y = 0.02;
+  root.add(musgo);
+
+  return { root: root, sats: sats, mist: musgo };
+}
 
 const OCCUPANTS = {
   militia: militiaOccupant,
   archer: archerOccupant,
   mage: mageOccupant,
-  frost: frostOccupant
+  frost: frostOccupant,
+  lightning: lightningOccupant,
+  nature: natureOccupant
 };
 
 /** Monta a malha de uma torre a partir do tipo, tier, ramo e cor do núcleo 2D. */
@@ -266,7 +374,9 @@ export function buildTower(type, tier, branch, color) {
   const occupant = (OCCUPANTS[type] || OCCUPANTS.militia)(tier, branch, color);
   occupant.root.scale.multiplyScalar(OCCUPANT_SCALE);
   // Orbe e cristais coroam a torre; soldado e arqueira ficam no piso da ameia.
-  if (type === 'mage' || type === 'frost') turret.position.y = shell.top * KIT_H;
+  if (type === 'mage' || type === 'frost' || type === 'lightning' || type === 'nature') {
+    turret.position.y = shell.top * KIT_H;
+  }
   turret.add(occupant.root);
 
   if (recipe.mount) {

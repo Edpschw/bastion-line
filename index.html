@@ -102,6 +102,7 @@ body{
 
 .build-menu{
   position:absolute;left:16px;bottom:16px;width:224px;
+  max-height:calc(100% - 32px);overflow-y:auto;
   background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;
   box-shadow:0 6px 18px rgba(0,0,0,.55);
 }
@@ -238,6 +239,16 @@ body{
           <div class="uc-cost">16g</div>
           <div class="uc-stats">HP 20 · DANO 3 · congela<br><b>terra e ar</b></div>
         </button>
+        <button class="unit-card" data-unit="lightning">
+          <div class="uc-top"><span class="uc-swatch" style="background:#6fd0ff;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)"></span><span class="uc-name">Bobina</span></div>
+          <div class="uc-cost">24g</div>
+          <div class="uc-stats">HP 20 · DANO 7 · em cadeia<br><b>terra e ar</b></div>
+        </button>
+        <button class="unit-card" data-unit="nature">
+          <div class="uc-top"><span class="uc-swatch" style="background:#7fc45a;clip-path:polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%)"></span><span class="uc-name">Druida</span></div>
+          <div class="uc-cost">18g</div>
+          <div class="uc-stats">HP 26 · DANO 3 · cura torres<br><b>só terra</b></div>
+        </button>
       </div>
     </div>
 
@@ -277,7 +288,11 @@ var UNIT_BASE={
   militia:{name:'Milícia',cost:10,hp:42,dmg:5,range:46,atkSpd:1.3,shape:'square',color:'#b7623b',targets:'ground'},
   archer:{name:'Arqueira',cost:14,hp:18,dmg:6,range:150,atkSpd:1.15,shape:'triangle',color:'#8a7ab0',targets:'both'},
   mage:{name:'Mago',cost:20,hp:16,dmg:7,range:112,atkSpd:0.78,shape:'diamond',color:'#5f8fc9',splash:34,targets:'both'},
-  frost:{name:'Gélida',cost:16,hp:20,dmg:3,range:96,atkSpd:1.0,shape:'hex',color:'#6fc7bd',slowFactor:0.5,slowDur:1.4,targets:'both'}
+  frost:{name:'Gélida',cost:16,hp:20,dmg:3,range:96,atkSpd:1.0,shape:'hex',color:'#6fc7bd',slowFactor:0.5,slowDur:1.4,targets:'both'},
+  lightning:{name:'Bobina',cost:24,hp:20,dmg:7,range:118,atkSpd:0.85,shape:'diamond',color:'#6fd0ff',targets:'both',
+             chain:{jumps:1,range:72,falloff:0.6}},
+  nature:{name:'Druida',cost:18,hp:26,dmg:3,range:104,atkSpd:0.9,shape:'hex',color:'#7fc45a',targets:'ground',
+          heal:{rate:3,range:112}}
 };
 
 var BRANCHES={
@@ -315,6 +330,32 @@ var BRANCHES={
       tier2:{name:'Cristalina',hp:24,dmg:7,range:100,atkSpd:1.15,slowFactor:0.6,slowDur:1.2,cost:27,color:'#9fd6ce'},
       tier3:{name:'Fragmentos Cristalinos',hp:30,dmg:12,range:106,atkSpd:1.3,slowFactor:0.65,slowDur:1.1,splash:18,cost:54,color:'#c8ebe5'} }
   }
+};
+
+BRANCHES.lightning={
+  corrente:{ label:'Corrente',
+    tier2:{name:'Corrente',hp:24,dmg:8,range:126,atkSpd:0.95,cost:36,color:'#6fd0ff',
+           chain:{jumps:3,range:78,falloff:0.7}},
+    tier3:{name:'Senhor da Tempestade',hp:30,dmg:11,range:138,atkSpd:1.05,cost:70,color:'#9ae4ff',
+           chain:{jumps:5,range:86,falloff:0.75}, stun:{chance:0.25,dur:0.5}} },
+  canhao:{ label:'Canhão de Trovão',
+    tier2:{name:'Canhão de Trovão',hp:24,dmg:20,range:132,atkSpd:0.5,cost:36,color:'#4f9fd8',
+           stun:{chance:0.3,dur:0.5}},
+    tier3:{name:'Deus do Trovão',hp:30,dmg:38,range:146,atkSpd:0.5,armorPierce:0.35,cost:70,color:'#2f78b8',
+           stun:{chance:0.5,dur:0.8}} }
+};
+
+BRANCHES.nature={
+  bosque:{ label:'Guardiã do Bosque',
+    tier2:{name:'Guardiã do Bosque',hp:32,dmg:4,range:110,atkSpd:0.9,cost:30,color:'#7fc45a',
+           heal:{rate:6,range:124}},
+    tier3:{name:'Coração da Floresta',hp:40,dmg:5,range:118,atkSpd:0.95,cost:58,color:'#a8dd6a',
+           heal:{rate:11,range:140}} },
+  praga:{ label:'Praga',
+    tier2:{name:'Ervas Venenosas',hp:28,dmg:5,range:112,atkSpd:1.0,cost:30,color:'#87a83a',
+           poison:{dps:4,dur:3}, heal:{rate:2,range:100}},
+    tier3:{name:'Praga',hp:34,dmg:7,range:120,atkSpd:1.05,cost:58,color:'#6f8f2a',
+           poison:{dps:9,dur:3.5}, armorBreak:{power:0.35,dur:3}, heal:{rate:3,range:104}} }
 };
 
 // Cada criatura carrega uma função estratégica, conforme a seção 18 do GDD:
@@ -499,11 +540,13 @@ function findNearestEmptyCell(row,col){
 function getBaseStats(u){
   if(u.tier===1){
     var b=UNIT_BASE[u.type];
-    return {name:b.name,hp:b.hp,dmg:b.dmg,range:b.range,atkSpd:b.atkSpd,splash:b.splash||0,slowFactor:b.slowFactor||0,slowDur:b.slowDur||0,armorPierce:0,burn:b.burn||null,color:b.color};
+    return {name:b.name,hp:b.hp,dmg:b.dmg,range:b.range,atkSpd:b.atkSpd,splash:b.splash||0,slowFactor:b.slowFactor||0,slowDur:b.slowDur||0,armorPierce:0,burn:b.burn||null,
+            chain:b.chain||null,stun:b.stun||null,poison:b.poison||null,armorBreak:b.armorBreak||null,heal:b.heal||null,color:b.color};
   }
   var br=BRANCHES[u.type][u.branch];
   var td=u.tier===2?br.tier2:br.tier3;
-  return {name:td.name,hp:td.hp,dmg:td.dmg,range:td.range,atkSpd:td.atkSpd,splash:td.splash||0,slowFactor:td.slowFactor||0,slowDur:td.slowDur||0,armorPierce:td.armorPierce||0,burn:td.burn||null,color:td.color||UNIT_BASE[u.type].color};
+  return {name:td.name,hp:td.hp,dmg:td.dmg,range:td.range,atkSpd:td.atkSpd,splash:td.splash||0,slowFactor:td.slowFactor||0,slowDur:td.slowDur||0,armorPierce:td.armorPierce||0,burn:td.burn||null,
+          chain:td.chain||null,stun:td.stun||null,poison:td.poison||null,armorBreak:td.armorBreak||null,heal:td.heal||null,color:td.color||UNIT_BASE[u.type].color};
 }
 
 function makeUnit(type, row, col){
@@ -539,6 +582,11 @@ function recomputeUnitStats(u){
   u.targets=UNIT_BASE[u.type].targets||'ground';
   // Queimadura escala com a veterania, como o dano direto.
   u.burn = base.burn ? {dps:+(base.burn.dps*dmgMult).toFixed(1), dur:base.burn.dur} : null;
+  u.poison = base.poison ? {dps:+(base.poison.dps*dmgMult).toFixed(1), dur:base.poison.dur} : null;
+  u.chain = base.chain || null;
+  u.stun = base.stun || null;
+  u.armorBreak = base.armorBreak || null;
+  u.heal = base.heal ? {rate:+(base.heal.rate*dmgMult).toFixed(1), range:base.heal.range} : null;
 }
 
 function evolveUnit(u, branchKey){
@@ -854,6 +902,24 @@ function tickStatus(e, dt, now){
   e.fx.poisoned=hasStatus(e,'poison',now);
 }
 
+/**
+ * Aplica um acerto de torre num inimigo: dano já descontado de armadura, mais
+ * todo efeito que a torre carregue. Centralizado porque a cadeia de raios
+ * precisa repetir exatamente isto a cada salto.
+ */
+function hitEnemy(u, e, dmgMult, now){
+  var effArmor=effectiveArmor(e,now)*(1-(u.armorPierce||0));
+  var dmg=Math.max(1, Math.round(u.dmg*dmgMult-effArmor));
+  e.hp-=dmg;
+  e.lastHitBy=u;
+  e.lastDamageAt=now;
+  if(u.slowFactor) applyStatus(e,'slow',u.slowFactor,u.slowDur,u,now);
+  if(u.burn) applyStatus(e,'burn',u.burn.dps,u.burn.dur,u,now);
+  if(u.poison) applyStatus(e,'poison',u.poison.dps,u.poison.dur,u,now);
+  if(u.armorBreak) applyStatus(e,'armorBreak',u.armorBreak.power,u.armorBreak.dur,u,now);
+  if(u.stun && Math.random()<u.stun.chance) applyStatus(e,'stun',1,u.stun.dur,u,now);
+}
+
 /** A torre alcança este inimigo? Voadores só caem para alcance aéreo. */
 var TARGET_LABEL={ground:'só terra', air:'só ar', both:'terra e ar'};
 
@@ -934,6 +1000,23 @@ function update(dt, now){
     }
   }
 
+  // Suporte: o Druida recupera as torres por perto durante a onda. O reparo de
+  // fim de onda continua existindo; isto é o que mantém uma linha de frente viva
+  // enquanto a onda ainda corre.
+  for(var i=0;i<units.length;i++) units[i].healedNow=false;
+  for(var i=0;i<units.length;i++){
+    var h=units[i];
+    if(!h.heal) continue;
+    for(var j=0;j<units.length;j++){
+      var alvo=units[j];
+      if(alvo.hp>=alvo.maxHp) continue;
+      if(dist(h,alvo)<=h.heal.range){
+        alvo.hp=Math.min(alvo.maxHp, alvo.hp+h.heal.rate*dt);
+        alvo.healedNow=true;
+      }
+    }
+  }
+
   // O Xamã não bate nas torres: enfraquece as que estão por perto. Como é um
   // efeito de presença, é recalculado por frame em vez de virar status com
   // duração — sai de cena, o efeito some junto.
@@ -967,15 +1050,29 @@ function update(dt, now){
           // O respingo não alcança o que a torre não conseguiria mirar.
           hitList=enemies.filter(function(e){ return e.hp>0 && canHit(u,e) && dist(e,target)<=u.splash; });
         }
-        for(var k=0;k<hitList.length;k++){
-          var e2=hitList[k];
-          var effArmor=effectiveArmor(e2,now)*(1-(u.armorPierce||0));
-          var dmg=Math.max(1, Math.round(u.dmg-effArmor));
-          e2.hp-=dmg;
-          e2.lastHitBy=u;
-          e2.lastDamageAt=now;
-          if(u.slowFactor){ applyStatus(e2,'slow',u.slowFactor,u.slowDur,u,now); }
-          if(u.burn){ applyStatus(e2,'burn',u.burn.dps,u.burn.dur,u,now); }
+        for(var k=0;k<hitList.length;k++){ hitEnemy(u, hitList[k], 1, now); }
+
+        // Cadeia: salta para o inimigo mais próximo ainda não atingido,
+        // perdendo força a cada salto.
+        if(u.chain){
+          var last=target, atingidos={}, mult=1;
+          atingidos[target.id]=true;
+          for(var j2=0;j2<u.chain.jumps;j2++){
+            var prox=null, melhorD=Infinity;
+            for(var k2=0;k2<enemies.length;k2++){
+              var cand=enemies[k2];
+              if(cand.hp<=0 || atingidos[cand.id] || !canHit(u,cand)) continue;
+              var dd=dist(last,cand);
+              if(dd<=u.chain.range && dd<melhorD){ melhorD=dd; prox=cand; }
+            }
+            if(!prox) break;
+            mult*=u.chain.falloff;
+            hitEnemy(u, prox, mult, now);
+            attackFX.push({kind:'shot',unitType:'lightning',tier:u.tier,
+              x1:last.x,y1:last.y,x2:prox.x,y2:prox.y,life:0.14,maxLife:0.14,color:u.color,splashR:0});
+            atingidos[prox.id]=true;
+            last=prox;
+          }
         }
         attackFX.push({kind:'shot',unitType:u.type,tier:u.tier,x1:u.x,y1:u.y,x2:target.x,y2:target.y,life:0.12,maxLife:0.12,color:u.color, splashR:u.splash||0});
         attackFX.push({kind:'impact',unitType:u.type,x1:target.x,y1:target.y,x2:target.x,y2:target.y,life:0.14,maxLife:0.14,color:'#fff2cf',splashR:5,impact:true});
@@ -1609,6 +1706,11 @@ function refreshSelectedPanel(){
     '<div class="sel-row"><span>Alcance</span><b>'+Math.round(u.range)+'</b></div>'+
     '<div class="sel-row"><span>Ataques/s</span><b>'+u.atkSpd+'</b></div>'+
     (u.burn ? '<div class="sel-row"><span>Queimadura</span><b>'+u.burn.dps+'/s · '+u.burn.dur+'s</b></div>' : '')+
+    (u.poison ? '<div class="sel-row"><span>Veneno</span><b>'+u.poison.dps+'/s · '+u.poison.dur+'s</b></div>' : '')+
+    (u.chain ? '<div class="sel-row"><span>Saltos</span><b>'+u.chain.jumps+'</b></div>' : '')+
+    (u.stun ? '<div class="sel-row"><span>Atordoa</span><b>'+Math.round(u.stun.chance*100)+'% · '+u.stun.dur+'s</b></div>' : '')+
+    (u.armorBreak ? '<div class="sel-row"><span>Quebra armadura</span><b>-'+Math.round(u.armorBreak.power*100)+'%</b></div>' : '')+
+    (u.heal ? '<div class="sel-row"><span>Cura aliados</span><b>'+u.heal.rate+'/s</b></div>' : '')+
     (u.hexed ? '<div class="sel-row"><span>Maldição</span><b>-'+Math.round(u.hexed*100)+'% cadência</b></div>' : '');
   refreshEvolveButtons();
 }

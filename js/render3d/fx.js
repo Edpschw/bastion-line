@@ -14,7 +14,10 @@ const SHOT_STYLE = {
   militia: { melee: true, width: 0.05, color: 0xfff0c4 },
   archer: { width: 0.028, length: 0.34, color: 0xe6d6a8, tip: 0xfff4d0 },
   mage: { width: 0.085, length: 0.26, color: null, tip: 0xfff2d8, soft: true },
-  frost: { width: 0.06, length: 0.22, color: PAL.frost, tip: 0xeafffd }
+  frost: { width: 0.06, length: 0.22, color: PAL.frost, tip: 0xeafffd },
+  // O raio é fino, longo e claríssimo: lê como descarga, não como projétil.
+  lightning: { width: 0.022, length: 0.5, color: 0x6fd0ff, tip: 0xeaffff, soft: true },
+  nature: { width: 0.05, length: 0.24, color: 0x9fd84a, tip: 0xe2ffb0, soft: true }
 };
 
 export function createEffects(scene, map) {
