@@ -168,7 +168,9 @@ body{
   width:10px;height:10px;border-radius:50%;display:block;
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.35), 0 0 6px currentColor;
 }
-.relic-choice h2{color:var(--accent);}
+/* Precisa vencer .modal-card h2, que vem depois no arquivo e tem a mesma
+   especificidade — senão o título da relíquia herda o vermelho da derrota. */
+.modal-card.relic-choice h2{color:var(--accent);}
 .relic-cards{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;justify-content:center;}
 .relic-card{
   flex:1 1 150px;max-width:190px;min-width:140px;
