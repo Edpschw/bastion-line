@@ -1162,6 +1162,129 @@ function buildShaman(color) {
   return g;
 }
 
+/** Assassino: esguio, encapuzado, duas adagas. Some e reaparece em ciclo. */
+function buildAssassin(color) {
+  const g = new THREE.Group();
+  const pano = std(color, { roughness: 0.9 });
+  const panoEsc = std(shade(color, 0.65), { roughness: 0.9 });
+  const aco = std(PAL.iron, { metalness: 0.7, roughness: 0.3 });
+
+  const legL = mesh(BOX(0.07, 0.2, 0.08), panoEsc, -0.055, 0.1, 0);
+  const legR = mesh(BOX(0.07, 0.2, 0.08), panoEsc, 0.055, 0.1, 0);
+  g.add(legL, legR);
+
+  const body = mesh(BOX(0.18, 0.24, 0.14), pano, 0, 0.31, 0);
+  g.add(body);
+
+  const head = mesh(SPH(0.095, 10, 8), panoEsc, 0, 0.5, 0.01);
+  g.add(head);
+  const capuz = mesh(CONE(0.11, 0.16, 6), pano, 0, 0.55, -0.01);
+  g.add(capuz);
+  for (let side = -1; side <= 1; side += 2) {
+    const olho = mesh(BOX(0.022, 0.018, 0.02),
+      std(0xff6a4a, { emissive: 0xff3a1a, emissiveIntensity: 2 }), side * 0.035, 0.5, 0.08);
+    olho.castShadow = false;
+    g.add(olho);
+  }
+
+  // Manto curto, para a silhueta não virar a do Xamã
+  const manto = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.3, 2, 2),
+    std(shade(color, 0.5), { roughness: 0.95, side: THREE.DoubleSide }));
+  manto.position.set(0, 0.3, -0.09);
+  manto.rotation.x = 0.15;
+  manto.castShadow = true;
+  g.add(manto);
+
+  const armR = new THREE.Group();
+  armR.position.set(0.13, 0.36, 0.02);
+  armR.add(mesh(BOX(0.055, 0.15, 0.055), pano, 0, -0.06, 0));
+  const adagaR = mesh(BOX(0.022, 0.2, 0.01), aco, 0.01, -0.2, 0.05);
+  adagaR.rotation.x = 0.5;
+  armR.add(adagaR);
+  g.add(armR);
+
+  const armL = new THREE.Group();
+  armL.position.set(-0.13, 0.36, 0.02);
+  armL.add(mesh(BOX(0.055, 0.15, 0.055), pano, 0, -0.06, 0));
+  const adagaL = mesh(BOX(0.022, 0.2, 0.01), aco, -0.01, -0.2, 0.05);
+  adagaL.rotation.x = 0.5;
+  armL.add(adagaL);
+  g.add(armL);
+
+  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, body: body, cape: manto };
+  return g;
+}
+
+/**
+ * Senhor da Guerra: o Orc com estandarte e mais metal. Reaproveita o corpo em
+ * vez de recomeçar — o que o marca como chefe é o porte e a insígnia.
+ */
+function buildWarlord(color) {
+  const g = buildOrc(color);
+  const metal = std(PAL.iron, { metalness: 0.6, roughness: 0.4 });
+
+  // Elmo com chifres
+  const elmo = mesh(SPH(0.15, 10, 6), metal, 0, 0.58, 0.06);
+  elmo.scale.set(1, 0.62, 1);
+  g.add(elmo);
+  for (let side = -1; side <= 1; side += 2) {
+    const chifre = mesh(CONE(0.045, 0.24, 4), std(PAL.bone, { roughness: 0.7 }), side * 0.14, 0.62, 0.04);
+    chifre.rotation.z = side * -1.1;
+    g.add(chifre);
+  }
+
+  // Estandarte nas costas: a insígnia que se vê de longe
+  const mastro = mesh(CYL(0.02, 0.025, 0.8, 5), std(PAL.woodDark), -0.16, 0.6, -0.16);
+  g.add(mastro);
+  const bandeira = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.24, 3, 1),
+    std(0xc03a2a, { side: THREE.DoubleSide, roughness: 0.85 }));
+  bandeira.position.set(-0.01, 0.9, -0.16);
+  bandeira.castShadow = true;
+  g.add(bandeira);
+  g.userData.banner = bandeira;
+
+  const aura = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 28), glow(0xff8a3d, 0.3).clone());
+  aura.rotation.x = -Math.PI / 2;
+  aura.position.y = 0.015;
+  aura.castShadow = false;
+  g.add(aura);
+  g.userData.auraRing = aura;
+  return g;
+}
+
+/** Rei da Morte: o cavaleiro esqueleto coroado, com almas ao redor. */
+function buildDeathKing(color) {
+  const g = buildSkeletonKnight(color);
+  const ouro = std(PAL.gold, { metalness: 0.7, roughness: 0.3 });
+
+  // Coroa de pontas
+  g.add(mesh(CYL(0.12, 0.13, 0.06, 8), ouro, 0, 0.86, 0.01));
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const ponta = mesh(CONE(0.025, 0.11, 4), ouro, Math.cos(a) * 0.11, 0.94, Math.sin(a) * 0.11);
+    g.add(ponta);
+  }
+
+  // Almas presas em órbita: o exército que ele ainda pode erguer
+  const almas = [];
+  for (let i = 0; i < 4; i++) {
+    const alma = mesh(OCT(0.05), std(0xb89aff, { emissive: 0x8a4aff, emissiveIntensity: 1.5, roughness: 0.3 }), 0, 0.5, 0);
+    alma.castShadow = false;
+    alma.userData.angle = (i / 4) * Math.PI * 2;
+    g.add(alma);
+    almas.push(alma);
+  }
+  g.userData.souls = almas;
+
+  const aura = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 28), glow(0xa050ff, 0.32).clone());
+  aura.rotation.x = -Math.PI / 2;
+  aura.position.y = 0.015;
+  aura.castShadow = false;
+  g.add(aura);
+  g.userData.auraRing = aura;
+  return g;
+}
+
 const ENEMY_BUILDERS = {
   grunt: function (c) { return buildGoblin(c, false); },
   raider: function (c) { return buildGoblin(c, true); },
@@ -1173,6 +1296,9 @@ const ENEMY_BUILDERS = {
   troll: function (c) { return buildTroll(c); },
   golem: function (c) { return buildGolem(c); },
   shaman: function (c) { return buildShaman(c); },
+  assassin: function (c) { return buildAssassin(c); },
+  warlord: function (c) { return buildWarlord(c); },
+  deathking: function (c) { return buildDeathKing(c); },
   harpy: function (c) { return buildHarpy(c); },
   boss: function (c) { return buildDragon(c); }
 };
@@ -1193,8 +1319,18 @@ export function buildEnemy(type, color, radiusWorld, auraWorld) {
   inner.add(frost);
   inner.userData.frost = frost;
 
+  // Enquanto oculto o corpo some, mas uma ondulação fica no chão: o jogador
+  // continua sabendo que há algo ali, e só as torres é que ficam sem mira.
+  const cloakMark = new THREE.Mesh(
+    new THREE.RingGeometry(0.16, 0.26, 20), glow(0x9a7ac4, 0.5).clone());
+  cloakMark.rotation.x = -Math.PI / 2;
+  cloakMark.position.y = 0.02;
+  cloakMark.visible = false;
+  cloakMark.castShadow = false;
+
   const holder = new THREE.Group();
   holder.add(inner);
+  holder.add(cloakMark);
   // Raio de referência das malhas acima ≈ 0.34 unidades de mundo.
   const holderScale = Math.max(0.68, radiusWorld / 0.25);
   holder.scale.setScalar(holderScale);
@@ -1204,7 +1340,7 @@ export function buildEnemy(type, color, radiusWorld, auraWorld) {
   if (inner.userData.auraRing && auraWorld > 0) {
     inner.userData.auraRing.scale.setScalar(auraWorld / holderScale);
   }
-  holder.userData = { inner: inner, parts: inner.userData, type: type };
+  holder.userData = { inner: inner, parts: inner.userData, type: type, cloakMark: cloakMark };
   return holder;
 }
 
@@ -1404,6 +1540,36 @@ export function animateEnemy(holder, info, t, dt) {
       p.aura.position.y = -inner.position.y + 0.02;
       p.aura.material.opacity = 0.16 + Math.sin(t * 2.6) * 0.07;
       p.aura.scale.setScalar(1 + Math.sin(t * 2.6) * 0.06);
+    }
+  }
+
+  // Chefes: almas em órbita e estandarte ao vento.
+  if (p.souls) {
+    for (let i = 0; i < p.souls.length; i++) {
+      const sl = p.souls[i];
+      const a = sl.userData.angle + t * 1.1;
+      sl.position.set(Math.cos(a) * 0.36, 0.5 + Math.sin(a * 2) * 0.08, Math.sin(a) * 0.36);
+      sl.rotation.set(t, a, 0);
+    }
+  }
+  if (p.banner) p.banner.rotation.y = Math.sin(t * 2.2 + anim.phase) * 0.3;
+  // O Xamã anima o anel dentro do ramo de planar; os chefes andam, então o
+  // deles precisa ser tratado aqui.
+  if (p.auraRing && !p.glide) {
+    p.auraRing.position.y = -inner.position.y + 0.015;
+    p.auraRing.rotation.z = t * 0.4;
+    p.auraRing.material.opacity = 0.22 + Math.sin(t * 2.4) * 0.1;
+  }
+
+  // Ocultação
+  if (holder.userData.cloakMark) {
+    const oculto = !!info.cloaked;
+    inner.visible = !oculto;
+    holder.userData.cloakMark.visible = oculto;
+    if (oculto) {
+      const pulso = 1 + Math.sin(t * 5 + anim.phase) * 0.12;
+      holder.userData.cloakMark.scale.setScalar(pulso);
+      holder.userData.cloakMark.material.opacity = 0.25 + Math.sin(t * 4) * 0.12;
     }
   }
 

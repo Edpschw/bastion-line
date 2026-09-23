@@ -60,6 +60,29 @@ e duplicar isso era como as duas versões iriam divergir.
 | Harpia | voadora barata | asas longas, sombra deslocada |
 | Dragão de Cristal | chefe voador | maior, asas batendo |
 
+### Chefes
+
+Um a cada cinco ondas, em rodízio fixo, para o jogador poder se preparar.
+Cada um carrega uma mecânica própria — chefe não é inimigo comum com a vida
+inflada (GDD §20).
+
+| Chefe | Ondas | Mecânica |
+|---|---|---|
+| Senhor da Guerra | 5, 20, 35… | convoca orcs e **acelera os aliados por perto** |
+| Dragão Ancião | 10, 25… | voa, **troca de coluna no meio da travessia**, imune a fogo |
+| Rei da Morte | 15, 30… | convoca cavaleiros, enfraquece torres e **ergue de volta o que você já matou** |
+
+A ressurreição lê uma lista curta de caídos (`fallen`, no máximo 12) e devolve o
+inimigo com metade da vida e 40% do ouro — senão o Rei vira fonte infinita de
+renda em vez de ameaça.
+
+### Ocultação
+
+O **Assassino** alterna entre oculto e visível. Enquanto oculto nenhuma torre
+consegue mirá-lo, então ele só leva dano em janelas — o que favorece cadência
+alta sobre golpe pesado. A **Armadilha** é a exceção: dispara por contato e não
+por mira (`ignoresCloak`), o que a torna o contra-ataque específico dele.
+
 O Xamã não bate em torre: a maldição é um efeito de presença recalculado por
 frame, então sai de cena e o efeito some junto — não precisa de status com
 duração. O anel no chão desenha o alcance verdadeiro da aura.

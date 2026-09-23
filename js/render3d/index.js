@@ -37,7 +37,8 @@ const PAN_SMOOTH = 0.00002;            // suavização do damp() por segundo
 const ENEMY_HEIGHT = {
   grunt: 0.78, raider: 0.82, brute: 0.68, swarmling: 0.62,
   reaver: 0.95, orc: 0.85, wolf: 0.55, troll: 0.95,
-  golem: 0.95, shaman: 0.85, harpy: 0.8, boss: 1.15
+  golem: 0.95, shaman: 0.85, assassin: 0.8, harpy: 0.8,
+  warlord: 1.1, boss: 1.15, deathking: 1.1
 };
 
 // Altura de voo, em células. Alta o bastante para ler como "acima do alcance
@@ -394,7 +395,8 @@ function createRenderer3D() {
         moving: !e.fx.fighting,
         speed: e.speed,
         slowed: e.fx.slowed,
-        healing: e.fx.healing
+        healing: e.fx.healing,
+        cloaked: e.fx.cloaked
       }, t, dt);
     }
 

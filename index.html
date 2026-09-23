@@ -306,7 +306,7 @@ var UNIT_BASE={
   // walkable: ocupa a célula mas não fecha a rota. É o que separa armadilha de
   // muro — o inimigo passa por cima, e é justamente aí que ela dispara.
   trap:{name:'Armadilha',cost:14,hp:30,dmg:11,range:34,atkSpd:0.55,shape:'square',color:'#9a8256',shape2d:'militia',targets:'ground',
-        walkable:true, splash:30},
+        walkable:true, splash:30, ignoresCloak:true},
   necro:{name:'Necromante',cost:28,hp:22,dmg:6,range:108,atkSpd:0.7,shape:'diamond',color:'#8f7ab8',shape2d:'mage',targets:'both',
          summon:{max:1,interval:6,hp:18,dmg:4,atkSpd:0.8,range:42,leash:96}}
 };
@@ -426,13 +426,27 @@ var ENEMY_BASE={
          immune:['slow'], attacker:{dmg:9,range:56,atkSpd:0.35}},
   shaman:{hp:26,speed:40,armor:0,bounty:10,leak:2,color:'#9a6ec4',r:12,shape2d:'grunt',
           aura:{range:112,atkSlow:0.4}},
+  assassin:{hp:30,speed:82,armor:1,bounty:9,leak:2,color:'#5a4a6a',r:11,shape2d:'raider',
+            cloak:{hidden:2.4,shown:2.0}},
   swarmling:{hp:7,speed:95,armor:0,bounty:2,leak:1,color:'#6ec46a',r:7},
   harpy:{hp:15,speed:66,armor:1,bounty:5,leak:1,color:'#b07ac4',r:10,flying:true},
-  boss:{hp:130,speed:28,armor:5,bounty:45,leak:5,color:'#3a7ac4',r:20,flying:true}
+  // Bosses. Cada um ensina uma mecânica, como pede a seção 20 do GDD — não é
+  // só um inimigo comum com a vida inflada.
+  warlord:{hp:150,speed:30,armor:4,bounty:42,leak:5,color:'#7a4a2a',r:19,boss:true,shape2d:'grunt',
+           attacker:{dmg:10,range:58,atkSpd:0.5},
+           spawns:{type:'orc',count:2,interval:7},
+           rally:{range:150,speed:1.45}},
+  boss:{hp:130,speed:28,armor:5,bounty:45,leak:5,color:'#3a7ac4',r:20,boss:true,flying:true,
+        immune:['burn'], reroute:5},
+  deathking:{hp:170,speed:24,armor:7,bounty:55,leak:6,color:'#6a5a8a',r:20,boss:true,shape2d:'reaver',
+             spawns:{type:'reaver',count:1,interval:8},
+             aura:{range:150,atkSlow:0.35},
+             raise:{range:130,fraction:0.5,cooldown:4}}
 };
 var TYPE_NAMES={grunt:'Goblin',raider:'Goblin Batedor',wolf:'Lobo',brute:'Gosma Ácida',
   orc:'Orc',reaver:'Cavaleiro Esqueleto',troll:'Troll',golem:'Golem',shaman:'Xamã',
-  swarmling:'Gosminha',harpy:'Harpia',boss:'Dragão de Cristal'};
+  assassin:'Assassino',swarmling:'Gosminha',harpy:'Harpia',
+  warlord:'Senhor da Guerra',boss:'Dragão Ancião',deathking:'Rei da Morte'};
 
 var SPRITE_DEFS={
   grunt:{src:'sprites/goblin.png',scale:3.2},
@@ -444,6 +458,9 @@ var SPRITE_DEFS={
   troll:{src:'sprites/slime.png',scale:3.4},
   golem:{src:'sprites/skeleton.png',scale:3.3},
   shaman:{src:'sprites/goblin.png',scale:3.0},
+  assassin:{src:'sprites/skeleton.png',scale:2.9},
+  warlord:{src:'sprites/goblin.png',scale:4.4},
+  deathking:{src:'sprites/skeleton.png',scale:4.2},
   swarmling:{src:'sprites/slime.png',scale:3.4},
   harpy:{src:'sprites/dragon.png',scale:2.4},
   boss:{src:'sprites/dragon.png',scale:3.6}
@@ -470,7 +487,7 @@ function vetLevelForKills(k){
 var BUILDER_SPEED=200;
 var builder={x:0,y:0,row:0,col:0,state:'idle',targetRow:0,targetCol:0,buildType:null,buildTimer:0};
 
-var grid, units, enemies, minions, floatingTexts, attackFX;
+var grid, units, enemies, minions, fallen, floatingTexts, attackFX;
 var gold, lives, wave, best, phase, buildTimer, phaseStartTime, waveStartTime, spawnQueue, spawnedIdx, incomeTimer;
 var selectedUnit=null, placing=null, hoverCell=null, lastMouseX=null, lastMouseY=null;
 var recentThemes=[];
@@ -516,7 +533,7 @@ function log(msg){
 function resetGame(){
   grid=[];
   for(var r=0;r<ROWS;r++){ var row=[]; for(var c=0;c<COLS;c++){ row.push(null); } grid.push(row); }
-  units=[]; enemies=[]; minions=[]; floatingTexts=[]; attackFX=[];
+  units=[]; enemies=[]; minions=[]; fallen=[]; floatingTexts=[]; attackFX=[];
   gold=40; lives=20; wave=1; phase='build';
   buildTimer=BUILD_BASE+2; phaseStartTime=performance.now(); incomeTimer=0;
   selectedUnit=null; placing=null; hoverCell=null;
@@ -636,6 +653,7 @@ function recomputeUnitStats(u){
   u.heal = base.heal ? {rate:+(base.heal.rate*dmgMult).toFixed(1), range:base.heal.range} : null;
   u.summon = base.summon || null;
   u.walkable = !!UNIT_BASE[u.type].walkable;
+  u.ignoresCloak = !!UNIT_BASE[u.type].ignoresCloak;
 }
 
 function evolveUnit(u, branchKey){
@@ -670,6 +688,69 @@ function damageUnit(u, dmg, source){
                  life:0.12,maxLife:0.12,color:'#c1503d',splashR:0});
   floatingTexts.push(mkFloat(u.x, u.y-14, '-'+Math.round(dmg), '#e0a89c'));
   if(u.hp<=0){ u.isMinion ? destroyMinion(u) : destroyUnit(u); }
+}
+
+/**
+ * Mecânicas de chefe. Cada uma existe para ensinar algo diferente: convocar
+ * reforços, mudar de rota no ar, ou devolver à luta o que você já matou.
+ */
+function updateBosses(dt, now){
+  var novos=[];
+  for(var i=0;i<enemies.length;i++){
+    var b=enemies[i];
+    if(b.hp<=0) continue;
+
+    // Convoca reforços no próprio lugar, seguindo o mesmo caminho.
+    if(b.spawns){
+      b.spawnCd-=dt;
+      if(b.spawnCd<=0){
+        b.spawnCd=b.spawns.interval;
+        for(var k=0;k<b.spawns.count;k++){
+          var a=(k/b.spawns.count)*Math.PI*2;
+          novos.push(makeEnemy(b.spawns.type,
+            b.x+Math.cos(a)*b.r*1.2, b.y+Math.sin(a)*b.r*1.2,
+            b.path, b.wpIndex, b.traveled));
+        }
+        floatingTexts.push(mkFloat(b.x, b.y-b.r, 'reforços!', '#e0a89c'));
+      }
+    }
+
+    // Ergue de volta o que morreu por perto, com parte da vida.
+    if(b.raise){
+      b.raiseCd-=dt;
+      if(b.raiseCd<=0 && fallen.length){
+        for(var k=fallen.length-1;k>=0;k--){
+          var f=fallen[k];
+          if(dist(b,f)>b.raise.range) continue;
+          var rev=makeEnemy(f.type, f.x, f.y, f.path, f.wpIndex, f.traveled);
+          rev.maxHp=Math.max(1, Math.round(rev.maxHp*b.raise.fraction));
+          rev.hp=rev.maxHp;
+          rev.bounty=Math.round(rev.bounty*0.4);   // não vira fonte infinita de ouro
+          novos.push(rev);
+          fallen.splice(k,1);
+          b.raiseCd=b.raise.cooldown;
+          floatingTexts.push(mkFloat(rev.x, rev.y-rev.r, 'erguido', '#b89aff'));
+          break;
+        }
+      }
+    }
+
+    // Voador que muda de coluna no meio da travessia.
+    if(b.reroute && b.flying){
+      b.rerouteT+=dt;
+      if(b.rerouteT>=b.reroute){
+        b.rerouteT=0;
+        var col=Math.floor(Math.random()*COLS);
+        var destino={x:col*CELL+CELL/2, y:(ROWS-1)*CELL+CELL/2};
+        b.path=[{x:b.x,y:b.y}, destino];
+        b.wpIndex=1;
+      }
+    }
+  }
+  if(novos.length) enemies=enemies.concat(novos);
+  // A lista de caídos só serve à ressurreição; sem Rei da Morte em campo ela
+  // não precisa crescer.
+  while(fallen.length>12) fallen.shift();
 }
 
 // ---------------------------------------------------------------------------
@@ -725,7 +806,7 @@ function updateMinions(dt, now){
       var melhor=Infinity;
       for(var j=0;j<enemies.length;j++){
         var e=enemies[j];
-        if(e.hp<=0 || e.flying) continue;      // esqueleto não alcança o ar
+        if(e.hp<=0 || e.flying || e.fx.cloaked) continue;   // nem o ar, nem o oculto
         var dd=dist(m.owner,e);
         if(dd<=m.leash && dd<melhor){ melhor=dd; m.target=e; }
       }
@@ -794,7 +875,7 @@ function scaledEnemy(type, w){
   var b=ENEMY_BASE[type];
   var mult=1+(w-1)*0.2, bMult=1+(w-1)*0.1;
   var hp=Math.round(b.hp*mult), bounty=Math.round(b.bounty*bMult);
-  if(type==='boss'){
+  if(b.boss){
     var bw=Math.max(1,w/5);
     hp=Math.round(b.hp*(1+(bw-1)*0.35));
     bounty=Math.round(b.bounty*(1+(bw-1)*0.25));
@@ -809,6 +890,10 @@ function scaledEnemy(type, w){
 // destaque e enchia o resto de goblins, o que satura assim que existem muitas
 // criaturas e não sabe expressar "onda aérea" ou "coluna blindada".
 // ---------------------------------------------------------------------------
+// Rodízio de chefes: um a cada cinco ondas, sempre em ordem, para o jogador
+// poder se preparar para o que vem.
+var BOSS_ORDER=['warlord','boss','deathking'];
+
 var WAVE_THEMES=[
   {key:'horda',     label:'horda de goblins',   minWave:1,  weights:{grunt:3, raider:1}},
   {key:'batedores', label:'batedores',          minWave:3,  weights:{raider:3, grunt:1}},
@@ -820,7 +905,8 @@ var WAVE_THEMES=[
   {key:'pedra',     label:'marcha de pedra',    minWave:11, weights:{golem:1, orc:1, grunt:2}},
   {key:'enxame',    label:'enxame',             minWave:12, weights:{swarmling:5, raider:1}, countBonus:8},
   {key:'ritual',    label:'ritual sombrio',     minWave:14, weights:{shaman:1, reaver:1, grunt:2}},
-  {key:'pantano',   label:'gente do pântano',   minWave:16, weights:{troll:1, orc:1, brute:1}}
+  {key:'pantano',   label:'gente do pântano',   minWave:16, weights:{troll:1, orc:1, brute:1}},
+  {key:'sombras',   label:'sombras',            minWave:18, weights:{assassin:2, raider:1}}
 ];
 
 function availableThemes(w){
@@ -869,7 +955,7 @@ function generateWave(w){
 
   var entries=[]; var t=0;
   for(var i=0;i<seq.length;i++){ entries.push({type:seq[i], t:t}); t+=480+Math.random()*260; }
-  if(isBoss){ entries.push({type:'boss', t:t+700}); }
+  if(isBoss){ entries.push({type:BOSS_ORDER[(Math.floor(w/5)-1)%BOSS_ORDER.length], t:t+700}); }
   return {entries:entries, theme:theme};
 }
 
@@ -885,11 +971,20 @@ function makeEnemy(type, x, y, path, wpIndex, traveled){
     id:idCounter++, type:type, x:x, y:y, path:path, wpIndex:wpIndex, traveled:traveled||0,
     hp:stats.hp, maxHp:stats.maxHp, speed:stats.speed, armor:stats.armor, bounty:stats.bounty,
     leak:stats.leak, color:stats.color, r:stats.r, leaked:false, lastHitBy:null,
-    flying:!!base.flying, attacker:base.attacker||null, atkCd:0, target:null,
+    flying:!!base.flying, boss:!!base.boss, attacker:base.attacker||null, atkCd:0, target:null,
     splitInto:base.splitInto||null, regen:base.regen||null, immune:base.immune||null,
-    aura:base.aura||null, lastDamageAt:0,
+    aura:base.aura||null, cloak:base.cloak||null,
+    // Fase inicial sorteada. Se todos começassem em zero, como andam à mesma
+    // velocidade chegariam a cada ponto do mapa na mesma fase do ciclo, e a
+    // ocultação viraria posicionalmente previsível — uma armadilha num dado
+    // lugar sempre acertaria, ou nunca.
+    cloakT: base.cloak ? Math.random()*(base.cloak.hidden+base.cloak.shown) : 0,
+    lastDamageAt:0,
+    spawns:base.spawns||null, spawnCd:0, rally:base.rally||null,
+    raise:base.raise||null, raiseCd:0, reroute:base.reroute||0, rerouteT:0,
     status:{}, dotCarry:0,
-    fx:{slowed:false, stunned:false, burning:false, poisoned:false, fighting:false, healing:false}
+    fx:{slowed:false, stunned:false, burning:false, poisoned:false, fighting:false,
+        healing:false, cloaked:false}
   };
 }
 
@@ -919,7 +1014,8 @@ function startWave(now){
   var gen=generateWave(wave);
   spawnQueue=gen.entries;
   spawnedIdx=0;
-  var label=gen.theme.label + ((wave%5===0) ? ' e um Chefe de Guerra' : '');
+  var chefe=gen.entries.filter(function(en){ return ENEMY_BASE[en.type].boss; })[0];
+  var label=gen.theme.label + (chefe ? ' e o '+TYPE_NAMES[chefe.type] : '');
   log('Onda '+wave+' se aproxima — '+label+'.');
 }
 function completeWave(now){
@@ -1033,6 +1129,13 @@ function tickStatus(e, dt, now){
     e.hp=Math.min(e.maxHp, e.hp+e.regen.rate*dt);
     e.fx.healing=true;
   }
+  // Ocultação: alterna entre sumir e reaparecer. Enquanto oculto nenhuma torre
+  // consegue mirá-lo — só o que fere por contato, como a armadilha.
+  if(e.cloak){
+    e.cloakT=(e.cloakT||0)+dt;
+    var ciclo=e.cloak.hidden+e.cloak.shown;
+    e.fx.cloaked=(e.cloakT % ciclo) < e.cloak.hidden;
+  }
   e.fx.slowed=hasStatus(e,'slow',now);
   e.fx.stunned=hasStatus(e,'stun',now);
   e.fx.burning=hasStatus(e,'burn',now);
@@ -1061,6 +1164,7 @@ function hitEnemy(u, e, dmgMult, now){
 var TARGET_LABEL={ground:'só terra', air:'só ar', both:'terra e ar'};
 
 function canHit(u, e){
+  if(e.fx.cloaked && !u.ignoresCloak) return false;
   return e.flying ? (u.targets==='both'||u.targets==='air')
                   : (u.targets==='both'||u.targets==='ground'||!u.targets);
 }
@@ -1158,12 +1262,23 @@ function update(dt, now){
   // efeito de presença, é recalculado por frame em vez de virar status com
   // duração — sai de cena, o efeito some junto.
   for(var i=0;i<units.length;i++) units[i].hexed=0;
+  for(var i=0;i<enemies.length;i++) enemies[i].rallied=1;
   for(var i=0;i<enemies.length;i++){
     var ae=enemies[i];
-    if(!ae.aura || ae.hp<=0) continue;
-    for(var j=0;j<units.length;j++){
-      var au=units[j];
-      if(dist(ae,au)<=ae.aura.range) au.hexed=Math.max(au.hexed, ae.aura.atkSlow);
+    if(ae.hp<=0) continue;
+    if(ae.aura){
+      for(var j=0;j<units.length;j++){
+        var au=units[j];
+        if(dist(ae,au)<=ae.aura.range) au.hexed=Math.max(au.hexed, ae.aura.atkSlow);
+      }
+    }
+    // Grito de guerra: acelera os aliados por perto, não a si mesmo.
+    if(ae.rally){
+      for(var j=0;j<enemies.length;j++){
+        var al=enemies[j];
+        if(al===ae || al.hp<=0) continue;
+        if(dist(ae,al)<=ae.rally.range) al.rallied=Math.max(al.rallied, ae.rally.speed);
+      }
     }
   }
 
@@ -1251,7 +1366,7 @@ function update(dt, now){
       }
     }
 
-    var eff=e.speed*speedFactor(e,now);
+    var eff=e.speed*speedFactor(e,now)*(e.rallied||1);
     if(eff<=0) continue;
     var wp=e.path[e.wpIndex];
     if(!wp){ e.leaked=true; continue; }
@@ -1265,6 +1380,7 @@ function update(dt, now){
     }
   }
 
+  updateBosses(dt, now);
   updateMinions(dt, now);
 
   var survivors=[], spawned=[];
@@ -1275,6 +1391,8 @@ function update(dt, now){
       floatingTexts.push(mkFloat(e.x,e.y,'+'+e.bounty,'#d9992f'));
       attackFX.push({kind:'death',x1:e.x,y1:e.y,x2:e.x,y2:e.y,life:0.28,maxLife:0.28,color:'#e8e2c9',splashR:e.r*1.9});
       if(e.lastHitBy){ creditKill(e.lastHitBy); }
+      // Guarda o caído: o Rei da Morte pode querer trazê-lo de volta.
+      if(!e.boss) fallen.push({type:e.type,x:e.x,y:e.y,path:e.path,wpIndex:e.wpIndex,traveled:e.traveled});
       // Filhotes continuam de onde o pai caiu. Vão para uma lista à parte
       // porque 'enemies' é reatribuído no fim deste laço.
       if(e.splitInto){
@@ -1552,7 +1670,7 @@ function drawEnemySprite(e, perfNow){
     }
     var h=e.r*sp.scale;
     var w=h*(sp.img.naturalWidth/sp.img.naturalHeight);
-    if(e.type==='boss'){
+    if(e.boss){
       var pulse=1+Math.sin(perfNow/1000*3)*0.06;
       h*=pulse; w*=pulse;
       ctx.save();
