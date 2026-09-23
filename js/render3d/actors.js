@@ -255,6 +255,17 @@ const RECIPES = {
     if (tier <= 1) return { stack: ['tower-base'] };
     if (tier === 2) return { stack: ['tower-base', 'tower-top'] };
     return { stack: ['tower-base', 'tower-top'], flag: 'flag-banner-short' };
+  },
+  // Pilha vazia de propósito: a armadilha é rente ao chão. Se tivesse corpo de
+  // torre, leria como muro — e muro é exatamente o que ela não é.
+  trap: function () { return { stack: [] }; },
+  necro: function (tier) {
+    if (tier <= 1) return { stack: ['tower-square-base', 'tower-hexagon-top'] };
+    if (tier === 2) return { stack: ['tower-square-base', 'tower-square-mid-windows', 'tower-hexagon-top'] };
+    return {
+      stack: ['tower-square-base', 'tower-square-mid-windows', 'tower-square-mid-windows', 'tower-hexagon-top'],
+      flag: 'flag-pennant'
+    };
   }
 };
 
@@ -347,13 +358,111 @@ function natureOccupant(tier, branch, color) {
   return { root: root, sats: sats, mist: musgo };
 }
 
+/** Armadilha: placa de pressão e espinhos, tudo rente ao chão. */
+function trapOccupant(tier, branch, color) {
+  const root = new THREE.Group();
+  const madeira = std(PAL.woodDark, { roughness: 0.95 });
+  const ferro = std(PAL.iron, { metalness: 0.6, roughness: 0.4 });
+
+  const placa = mesh(CYL(0.36, 0.38, 0.05, 8), madeira, 0, 0.025, 0);
+  root.add(placa);
+  root.add(mesh(CYL(0.28, 0.28, 0.03, 8), std(color, { roughness: 0.8 }), 0, 0.055, 0));
+
+  // Espinhos: mais numerosos e maiores a cada evolução
+  const sats = [];
+  const n = 5 + tier * 2;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const r = 0.1 + (i % 2) * 0.12;
+    const esp = mesh(CONE(0.03, 0.12 + tier * 0.03, 4), ferro, Math.cos(a) * r, 0.1, Math.sin(a) * r);
+    esp.userData.baseY = 0.1;
+    root.add(esp);
+    sats.push(esp);
+  }
+
+  if (branch === 'explosiva') {
+    // Barril: o ramo explosivo tem massa visível no centro
+    const barril = mesh(CYL(0.13, 0.15, 0.22, 8), std(0x8a5a2a, { roughness: 0.9 }), 0, 0.17, 0);
+    root.add(barril);
+    root.add(mesh(CYL(0.155, 0.155, 0.03, 8), ferro, 0, 0.22, 0));
+  } else if (branch === 'toxica') {
+    const caldeira = mesh(CYL(0.12, 0.14, 0.14, 8), std(0x4a5a3a, { roughness: 0.9 }), 0, 0.13, 0);
+    root.add(caldeira);
+    const gosma = mesh(CYL(0.11, 0.11, 0.02, 8),
+      std(color, { emissive: color, emissiveIntensity: 1.1, roughness: 0.3 }), 0, 0.21, 0);
+    gosma.castShadow = false;
+    root.add(gosma);
+  }
+
+  const aviso = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.46, 20), glow(color, 0.3).clone());
+  aviso.rotation.x = -Math.PI / 2;
+  aviso.position.y = 0.012;
+  root.add(aviso);
+
+  return { root: root, sats: sats, mist: aviso };
+}
+
+/** Necromante: figura encapuzada com um crânio flutuando sobre o cajado. */
+function necroOccupant(tier, branch, color) {
+  const root = new THREE.Group();
+  const manto = std(color, { roughness: 0.9 });
+  const mantoEsc = std(shade(color, 0.6), { roughness: 0.9 });
+
+  root.add(mesh(CONE(0.15, 0.34, 8), manto, 0, 0.17, 0));
+  const capuz = mesh(SPH(0.095, 10, 7), mantoEsc, 0, 0.38, 0);
+  capuz.scale.set(1, 1.15, 1);
+  root.add(capuz);
+  // Vazio sob o capuz, com duas brasas
+  for (let side = -1; side <= 1; side += 2) {
+    const brasa = mesh(SPH(0.022, 6, 6),
+      std(0xc9a0ff, { emissive: 0xa050ff, emissiveIntensity: 2 }), side * 0.035, 0.37, 0.08);
+    brasa.castShadow = false;
+    root.add(brasa);
+  }
+
+  root.add(mesh(CYL(0.016, 0.02, 0.44, 6), std(PAL.woodDark), 0.14, 0.24, 0.02));
+
+  // O crânio é o "orbe": animateTower já o faz pairar e girar.
+  const orb = mesh(BOX(0.11, 0.1, 0.1), std(PAL.bone, { emissive: 0x5a4a7a, emissiveIntensity: 0.5, roughness: 0.6 }), 0.14, 0.5, 0.02);
+  orb.castShadow = false;
+  root.add(orb);
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), glow(0xa050ff, 0.45).clone());
+  halo.position.copy(orb.position);
+  root.add(halo);
+
+  // Almas orbitando: uma por esqueleto que a torre sustenta
+  const sats = [];
+  const almas = branch === 'senhor' ? 2 + tier : tier;
+  for (let i = 0; i < almas; i++) {
+    const alma = mesh(OCT(0.032), std(0xb89aff, { emissive: 0x8a4aff, emissiveIntensity: 1.4, roughness: 0.3 }), 0, 0.3, 0);
+    alma.castShadow = false;
+    alma.userData.baseY = 0.3;
+    root.add(alma);
+    sats.push(alma);
+  }
+
+  return { root: root, orb: orb, halo: halo, sats: sats, orbY: 0.5 };
+}
+
+/** Esqueleto invocado: o cavaleiro morto, menor e sem os metais do original. */
+export function buildMinion() {
+  const holder = new THREE.Group();
+  const inner = buildSkeletonKnight(0x8f8f98);
+  inner.scale.setScalar(0.62);
+  holder.add(inner);
+  holder.userData = { inner: inner, parts: inner.userData };
+  return holder;
+}
+
 const OCCUPANTS = {
   militia: militiaOccupant,
   archer: archerOccupant,
   mage: mageOccupant,
   frost: frostOccupant,
   lightning: lightningOccupant,
-  nature: natureOccupant
+  nature: natureOccupant,
+  trap: trapOccupant,
+  necro: necroOccupant
 };
 
 /** Monta a malha de uma torre a partir do tipo, tier, ramo e cor do núcleo 2D. */
@@ -374,7 +483,8 @@ export function buildTower(type, tier, branch, color) {
   const occupant = (OCCUPANTS[type] || OCCUPANTS.militia)(tier, branch, color);
   occupant.root.scale.multiplyScalar(OCCUPANT_SCALE);
   // Orbe e cristais coroam a torre; soldado e arqueira ficam no piso da ameia.
-  if (type === 'mage' || type === 'frost' || type === 'lightning' || type === 'nature') {
+  if (type === 'mage' || type === 'frost' || type === 'lightning' ||
+      type === 'nature' || type === 'necro') {
     turret.position.y = shell.top * KIT_H;
   }
   turret.add(occupant.root);

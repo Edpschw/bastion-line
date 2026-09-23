@@ -15,6 +15,36 @@ Jogue abrindo `index.html` — é um único arquivo estático, sem build.
 | **Criaturas** | `ENEMY_BASE` | Cada uma carrega uma função estratégica (GDD §18), declarada como dado e não como código especial: `flying`, `attacker`, `splitInto`, `regen`, `immune`, `aura`. `shape2d` diz qual desenho o renderer 2D reaproveita — sem ele, tipo novo cai no `else` e aparece como o chefe. |
 | **Composição de ondas** | `WAVE_THEMES` | Receitas com pesos e onda mínima, em vez de um tipo em destaque mais goblins. É o que permite expressar "incursão aérea" ou "coluna blindada". |
 
+### Torres
+
+As oito do GDD, cada uma com nível 1 → dois ramos → nível 3.
+
+| Torre | Função | Ramos |
+|---|---|---|
+| Milícia | corpo a corpo, só terra | Guardião / Guerreiro |
+| Arqueira | dano físico a distância | Patrulheira / Franco-atiradora |
+| Mago | dano em área | Piromante (queima) / Arcanista |
+| Gélida | lentidão | Eterna / Cristalina |
+| **Bobina** | dano elétrico | Corrente (salta entre inimigos) / Canhão (alvo único, atordoa) |
+| **Druida** | suporte | Guardiã do Bosque (cura torres) / Praga (veneno e quebra de armadura) |
+| **Armadilha** | controle de rota | Tóxica / Explosiva |
+| **Necromante** | invocação | Lich (magia) / Senhor da Morte (exército) |
+
+Duas delas fogem do molde:
+
+- A **Armadilha** é `walkable`: ocupa a célula mas não fecha a rota. É o que
+  separa armadilha de muro — o inimigo passa por cima, e é aí que ela dispara.
+  Como nunca bloqueia, construí-la jamais arrisca fechar o caminho.
+- O **Necromante** ergue esqueletos, a única entidade que anda, briga e morre
+  sem ser torre nem inimigo. Ficam presos a uma coleira em volta da torre: são
+  linha de frente, não um segundo exército solto. Inimigos atacantes os incluem
+  na busca de alvo, que é o que os faz valer a pena. O abate conta como
+  veterania de quem os ergueu.
+
+Aplicar um acerto passa por `hitEnemy()`: a cadeia de raios precisa repetir um
+acerto por completo — armadura, perda de força por salto, todo efeito embutido —
+e duplicar isso era como as duas versões iriam divergir.
+
 ### Elenco
 
 | Criatura | Função | Como se distingue de cima |

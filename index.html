@@ -244,6 +244,16 @@ body{
           <div class="uc-cost">24g</div>
           <div class="uc-stats">HP 20 · DANO 7 · em cadeia<br><b>terra e ar</b></div>
         </button>
+        <button class="unit-card" data-unit="trap">
+          <div class="uc-top"><span class="uc-swatch" style="background:#9a8256"></span><span class="uc-name">Armadilha</span></div>
+          <div class="uc-cost">14g</div>
+          <div class="uc-stats">HP 30 · DANO 11 · não bloqueia<br><b>só terra</b></div>
+        </button>
+        <button class="unit-card" data-unit="necro">
+          <div class="uc-top"><span class="uc-swatch" style="background:#8f7ab8;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)"></span><span class="uc-name">Necromante</span></div>
+          <div class="uc-cost">28g</div>
+          <div class="uc-stats">HP 22 · DANO 6 · invoca<br><b>terra e ar</b></div>
+        </button>
         <button class="unit-card" data-unit="nature">
           <div class="uc-top"><span class="uc-swatch" style="background:#7fc45a;clip-path:polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%)"></span><span class="uc-name">Druida</span></div>
           <div class="uc-cost">18g</div>
@@ -289,10 +299,16 @@ var UNIT_BASE={
   archer:{name:'Arqueira',cost:14,hp:18,dmg:6,range:150,atkSpd:1.15,shape:'triangle',color:'#8a7ab0',targets:'both'},
   mage:{name:'Mago',cost:20,hp:16,dmg:7,range:112,atkSpd:0.78,shape:'diamond',color:'#5f8fc9',splash:34,targets:'both'},
   frost:{name:'Gélida',cost:16,hp:20,dmg:3,range:96,atkSpd:1.0,shape:'hex',color:'#6fc7bd',slowFactor:0.5,slowDur:1.4,targets:'both'},
-  lightning:{name:'Bobina',cost:24,hp:20,dmg:7,range:118,atkSpd:0.85,shape:'diamond',color:'#6fd0ff',targets:'both',
+  lightning:{name:'Bobina',cost:24,hp:20,dmg:7,range:118,atkSpd:0.85,shape:'diamond',color:'#6fd0ff',shape2d:'mage',targets:'both',
              chain:{jumps:1,range:72,falloff:0.6}},
-  nature:{name:'Druida',cost:18,hp:26,dmg:3,range:104,atkSpd:0.9,shape:'hex',color:'#7fc45a',targets:'ground',
-          heal:{rate:3,range:112}}
+  nature:{name:'Druida',cost:18,hp:26,dmg:3,range:104,atkSpd:0.9,shape:'hex',color:'#7fc45a',shape2d:'frost',targets:'ground',
+          heal:{rate:3,range:112}},
+  // walkable: ocupa a célula mas não fecha a rota. É o que separa armadilha de
+  // muro — o inimigo passa por cima, e é justamente aí que ela dispara.
+  trap:{name:'Armadilha',cost:14,hp:30,dmg:11,range:34,atkSpd:0.55,shape:'square',color:'#9a8256',shape2d:'militia',targets:'ground',
+        walkable:true, splash:30},
+  necro:{name:'Necromante',cost:28,hp:22,dmg:6,range:108,atkSpd:0.7,shape:'diamond',color:'#8f7ab8',shape2d:'mage',targets:'both',
+         summon:{max:1,interval:6,hp:18,dmg:4,atkSpd:0.8,range:42,leash:96}}
 };
 
 var BRANCHES={
@@ -356,6 +372,34 @@ BRANCHES.nature={
            poison:{dps:4,dur:3}, heal:{rate:2,range:100}},
     tier3:{name:'Praga',hp:34,dmg:7,range:120,atkSpd:1.05,cost:58,color:'#6f8f2a',
            poison:{dps:9,dur:3.5}, armorBreak:{power:0.35,dur:3}, heal:{rate:3,range:104}} }
+};
+
+BRANCHES.trap={
+  toxica:{ label:'Tóxica',
+    tier2:{name:'Armadilha Tóxica',hp:34,dmg:9,range:36,atkSpd:0.6,splash:34,cost:24,color:'#8aa84a',
+           poison:{dps:5,dur:3}},
+    tier3:{name:'Miasma',hp:42,dmg:12,range:40,atkSpd:0.65,splash:44,cost:48,color:'#6f9030',
+           poison:{dps:11,dur:4}, armorBreak:{power:0.3,dur:3}} },
+  explosiva:{ label:'Explosiva',
+    tier2:{name:'Armadilha Explosiva',hp:34,dmg:20,range:36,atkSpd:0.4,splash:52,cost:24,color:'#c0783a'},
+    tier3:{name:'Barril de Pólvora',hp:42,dmg:36,range:40,atkSpd:0.38,splash:74,cost:48,color:'#d9632a'} }
+};
+
+// O GDD encadeia o Necromante como nível 1 → Invocador → Lich ou Senhor da
+// Morte. A árvore aqui ramifica no nível 1, então cada ramo carrega sua própria
+// via: um vai para a magia, o outro para o exército.
+BRANCHES.necro={
+  lich:{ label:'Lich',
+    tier2:{name:'Necromante Superior',hp:26,dmg:12,range:124,atkSpd:0.7,cost:42,color:'#8f7ab8',
+           summon:{max:1,interval:6,hp:24,dmg:5,atkSpd:0.8,range:42,leash:96}},
+    tier3:{name:'Lich',hp:32,dmg:24,range:150,atkSpd:0.72,armorPierce:0.3,cost:80,color:'#6f5aa0',
+           armorBreak:{power:0.4,dur:3},
+           summon:{max:2,interval:5,hp:32,dmg:7,atkSpd:0.85,range:44,leash:104}} },
+  senhor:{ label:'Senhor da Morte',
+    tier2:{name:'Invocador',hp:26,dmg:7,range:110,atkSpd:0.7,cost:42,color:'#a98fd0',
+           summon:{max:3,interval:4,hp:26,dmg:5,atkSpd:0.9,range:44,leash:104}},
+    tier3:{name:'Senhor da Morte',hp:34,dmg:9,range:118,atkSpd:0.75,cost:80,color:'#c0a8e8',
+           summon:{max:5,interval:3,hp:36,dmg:7,atkSpd:1.0,range:46,leash:112}} }
 };
 
 // Cada criatura carrega uma função estratégica, conforme a seção 18 do GDD:
@@ -426,7 +470,7 @@ function vetLevelForKills(k){
 var BUILDER_SPEED=200;
 var builder={x:0,y:0,row:0,col:0,state:'idle',targetRow:0,targetCol:0,buildType:null,buildTimer:0};
 
-var grid, units, enemies, floatingTexts, attackFX;
+var grid, units, enemies, minions, floatingTexts, attackFX;
 var gold, lives, wave, best, phase, buildTimer, phaseStartTime, waveStartTime, spawnQueue, spawnedIdx, incomeTimer;
 var selectedUnit=null, placing=null, hoverCell=null, lastMouseX=null, lastMouseY=null;
 var recentThemes=[];
@@ -472,7 +516,7 @@ function log(msg){
 function resetGame(){
   grid=[];
   for(var r=0;r<ROWS;r++){ var row=[]; for(var c=0;c<COLS;c++){ row.push(null); } grid.push(row); }
-  units=[]; enemies=[]; floatingTexts=[]; attackFX=[];
+  units=[]; enemies=[]; minions=[]; floatingTexts=[]; attackFX=[];
   gold=40; lives=20; wave=1; phase='build';
   buildTimer=BUILD_BASE+2; phaseStartTime=performance.now(); incomeTimer=0;
   selectedUnit=null; placing=null; hoverCell=null;
@@ -509,7 +553,8 @@ function findPath(startCol){
       var nr=r+dirs[i][0], nc=c+dirs[i][1];
       if(nr<0||nr>=ROWS||nc<0||nc>=COLS) continue;
       if(visited[nr][nc]) continue;
-      var open=(nr===0||nr===ROWS-1||grid[nr][nc]===null);
+      var ocupante=grid[nr][nc];
+      var open=(nr===0||nr===ROWS-1||ocupante===null||(ocupante!=='PENDING'&&ocupante.walkable));
       if(!open) continue;
       visited[nr][nc]=true;
       prev[nr+','+nc]=[r,c];
@@ -541,12 +586,14 @@ function getBaseStats(u){
   if(u.tier===1){
     var b=UNIT_BASE[u.type];
     return {name:b.name,hp:b.hp,dmg:b.dmg,range:b.range,atkSpd:b.atkSpd,splash:b.splash||0,slowFactor:b.slowFactor||0,slowDur:b.slowDur||0,armorPierce:0,burn:b.burn||null,
-            chain:b.chain||null,stun:b.stun||null,poison:b.poison||null,armorBreak:b.armorBreak||null,heal:b.heal||null,color:b.color};
+            chain:b.chain||null,stun:b.stun||null,poison:b.poison||null,armorBreak:b.armorBreak||null,heal:b.heal||null,
+            summon:b.summon||null,color:b.color};
   }
   var br=BRANCHES[u.type][u.branch];
   var td=u.tier===2?br.tier2:br.tier3;
   return {name:td.name,hp:td.hp,dmg:td.dmg,range:td.range,atkSpd:td.atkSpd,splash:td.splash||0,slowFactor:td.slowFactor||0,slowDur:td.slowDur||0,armorPierce:td.armorPierce||0,burn:td.burn||null,
-          chain:td.chain||null,stun:td.stun||null,poison:td.poison||null,armorBreak:td.armorBreak||null,heal:td.heal||null,color:td.color||UNIT_BASE[u.type].color};
+          chain:td.chain||null,stun:td.stun||null,poison:td.poison||null,armorBreak:td.armorBreak||null,heal:td.heal||null,
+          summon:td.summon||null,color:td.color||UNIT_BASE[u.type].color};
 }
 
 function makeUnit(type, row, col){
@@ -587,6 +634,8 @@ function recomputeUnitStats(u){
   u.stun = base.stun || null;
   u.armorBreak = base.armorBreak || null;
   u.heal = base.heal ? {rate:+(base.heal.rate*dmgMult).toFixed(1), range:base.heal.range} : null;
+  u.summon = base.summon || null;
+  u.walkable = !!UNIT_BASE[u.type].walkable;
 }
 
 function evolveUnit(u, branchKey){
@@ -620,7 +669,91 @@ function damageUnit(u, dmg, source){
   attackFX.push({kind:'shot',unitType:'militia',tier:1,x1:source.x,y1:source.y,x2:u.x,y2:u.y,
                  life:0.12,maxLife:0.12,color:'#c1503d',splashR:0});
   floatingTexts.push(mkFloat(u.x, u.y-14, '-'+Math.round(dmg), '#e0a89c'));
-  if(u.hp<=0){ destroyUnit(u); }
+  if(u.hp<=0){ u.isMinion ? destroyMinion(u) : destroyUnit(u); }
+}
+
+// ---------------------------------------------------------------------------
+// Invocações
+//
+// Esqueletos que o Necromante ergue perto de si. Diferente de tudo o mais no
+// jogo: andam, brigam e morrem. Ficam presos a uma coleira em volta da torre —
+// são linha de frente, não um segundo exército solto pelo mapa.
+// ---------------------------------------------------------------------------
+var MINION_SPEED=62;
+
+function spawnMinion(owner){
+  var a=Math.random()*Math.PI*2, d=24+Math.random()*12;
+  minions.push({
+    id:idCounter++, isMinion:true, owner:owner,
+    homeX:owner.x+Math.cos(a)*d, homeY:owner.y+Math.sin(a)*d,
+    x:owner.x, y:owner.y,
+    hp:owner.summon.hp, maxHp:owner.summon.hp,
+    dmg:owner.summon.dmg, atkSpd:owner.summon.atkSpd,
+    range:owner.summon.range, leash:owner.summon.leash,
+    cd:0, target:null, bornAt:performance.now()
+  });
+}
+
+function destroyMinion(m){
+  m.hp=0;
+  for(var i=0;i<enemies.length;i++){ if(enemies[i].target===m) enemies[i].target=null; }
+  attackFX.push({kind:'death',x1:m.x,y1:m.y,x2:m.x,y2:m.y,life:0.26,maxLife:0.26,color:'#d9d3b9',splashR:16});
+}
+
+function updateMinions(dt, now){
+  // Reposição: cada torre mantém seu teto de esqueletos.
+  for(var i=0;i<units.length;i++){
+    var u=units[i];
+    if(!u.summon) continue;
+    u.summonCd=Math.max(0,(u.summonCd||0)-dt);
+    var vivos=0;
+    for(var k=0;k<minions.length;k++){ if(minions[k].owner===u) vivos++; }
+    if(vivos<u.summon.max && u.summonCd===0){
+      spawnMinion(u);
+      u.summonCd=u.summon.interval;
+    }
+  }
+
+  var restantes=[];
+  for(var i=0;i<minions.length;i++){
+    var m=minions[i];
+    // Some junto com quem o ergueu.
+    if(m.hp<=0 || units.indexOf(m.owner)<0) continue;
+
+    if(m.target && (m.target.hp<=0 || dist(m.owner,m.target)>m.leash)) m.target=null;
+    if(!m.target){
+      var melhor=Infinity;
+      for(var j=0;j<enemies.length;j++){
+        var e=enemies[j];
+        if(e.hp<=0 || e.flying) continue;      // esqueleto não alcança o ar
+        var dd=dist(m.owner,e);
+        if(dd<=m.leash && dd<melhor){ melhor=dd; m.target=e; }
+      }
+    }
+
+    var ax = m.target ? m.target.x : m.homeX;
+    var ay = m.target ? m.target.y : m.homeY;
+    var dx=ax-m.x, dy=ay-m.y, d2=Math.sqrt(dx*dx+dy*dy);
+    var parar = m.target ? m.range*0.6 : 3;
+    m.moving = d2>parar;
+    if(m.moving){
+      var passo=Math.min(d2-parar, MINION_SPEED*dt);
+      m.x+=dx/d2*passo; m.y+=dy/d2*passo;
+    }
+
+    m.cd=Math.max(0, m.cd-dt);
+    if(m.target && m.cd===0 && dist(m,m.target)<=m.range){
+      m.cd=1/m.atkSpd;
+      var dano=Math.max(1, Math.round(m.dmg-effectiveArmor(m.target,now)));
+      m.target.hp-=dano;
+      m.target.lastDamageAt=now;
+      m.target.lastHitBy=m.owner;   // o abate conta como veterania da torre
+      attackFX.push({kind:'shot',unitType:'militia',tier:1,x1:m.x,y1:m.y,x2:m.target.x,y2:m.target.y,
+                     life:0.12,maxLife:0.12,color:'#d9d3b9',splashR:0});
+    }
+    restantes.push(m);
+  }
+  minions=restantes;
 }
 
 /**
@@ -631,7 +764,11 @@ function damageUnit(u, dmg, source){
 function removeUnit(u){
   grid[u.row][u.col]=null;
   units=units.filter(function(x){ return x!==u; });
-  for(var i=0;i<enemies.length;i++){ if(enemies[i].target===u) enemies[i].target=null; }
+  for(var i=0;i<enemies.length;i++){
+    if(enemies[i].target===u) enemies[i].target=null;
+    // Os esqueletos dela somem no próximo tique; o alvo tem de soltar já.
+    if(enemies[i].target && enemies[i].target.owner===u) enemies[i].target=null;
+  }
   if(selectedUnit===u){ selectedUnit=null; refreshSelectedPanel(); }
 }
 
@@ -1096,6 +1233,12 @@ function update(dt, now){
           var cand=units[k], cd=dist(e,cand);
           if(cd<=e.attacker.range && cd<bestD){ bestD=cd; e.target=cand; }
         }
+        // Esqueletos entram na mesma busca: é o que faz deles linha de frente
+        // em vez de enfeite atrás da torre.
+        for(var k=0;k<minions.length;k++){
+          var mm=minions[k], md=dist(e,mm);
+          if(md<=e.attacker.range && md<bestD){ bestD=md; e.target=mm; }
+        }
       }
       if(e.target){
         e.fx.fighting=true;
@@ -1121,6 +1264,8 @@ function update(dt, now){
       e.x+=dx/d*step; e.y+=dy/d*step; e.traveled+=step;
     }
   }
+
+  updateMinions(dt, now);
 
   var survivors=[], spawned=[];
   for(var i=0;i<enemies.length;i++){
@@ -1291,9 +1436,10 @@ function drawUnitSprite(u, perfNow){
   var bob=Math.sin(perfNow/1000*2+u.bobPhase)*1.6;
   var by=u.y+bob;
   if(u.tier>=3){ ctx.save(); ctx.shadowColor='#d9992f'; ctx.shadowBlur=9; }
-  if(u.type==='militia') drawMilitia(u.x,by,rad,u.color);
-  else if(u.type==='archer') drawArcher(u.x,by,rad,u.color);
-  else if(u.type==='mage') drawMage(u.x,by,rad,u.color);
+  var forma=UNIT_BASE[u.type].shape2d||u.type;
+  if(forma==='militia') drawMilitia(u.x,by,rad,u.color);
+  else if(forma==='archer') drawArcher(u.x,by,rad,u.color);
+  else if(forma==='mage') drawMage(u.x,by,rad,u.color);
   else drawFrost(u.x,by,rad,u.color);
   if(u.tier>=3) ctx.restore();
   return rad;
@@ -1592,6 +1738,18 @@ function draw2D(perfNow){
     }
   }
 
+  // Esqueletos invocados: pequenos, cor de osso, com barra de vida própria.
+  for(var i=0;i<minions.length;i++){
+    var m=minions[i];
+    drawGroundShadow(m.x, m.y+8, 7, 3);
+    drawReaver(m.x, m.y-2+Math.sin(perfNow/1000*6+m.id)*1.2, 9, '#d9d3b9');
+    var mw=16, mx=m.x-mw/2, my=m.y-20;
+    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(mx,my,mw,2.5);
+    var mp=Math.max(0,m.hp/m.maxHp);
+    ctx.fillStyle= mp>0.5 ? '#6fae63' : mp>0.25 ? '#d9992f' : '#c1503d';
+    ctx.fillRect(mx,my,mw*mp,2.5);
+  }
+
   drawBuilder(perfNow);
 
   for(var i=0;i<enemies.length;i++){
@@ -1711,6 +1869,8 @@ function refreshSelectedPanel(){
     (u.stun ? '<div class="sel-row"><span>Atordoa</span><b>'+Math.round(u.stun.chance*100)+'% · '+u.stun.dur+'s</b></div>' : '')+
     (u.armorBreak ? '<div class="sel-row"><span>Quebra armadura</span><b>-'+Math.round(u.armorBreak.power*100)+'%</b></div>' : '')+
     (u.heal ? '<div class="sel-row"><span>Cura aliados</span><b>'+u.heal.rate+'/s</b></div>' : '')+
+    (u.summon ? '<div class="sel-row"><span>Esqueletos</span><b>'+u.summon.max+' · '+u.summon.dmg+' dano</b></div>' : '')+
+    (u.walkable ? '<div class="sel-row"><span>Rota</span><b>não bloqueia</b></div>' : '')+
     (u.hexed ? '<div class="sel-row"><span>Maldição</span><b>-'+Math.round(u.hexed*100)+'% cadência</b></div>' : '');
   refreshEvolveButtons();
 }
@@ -1816,6 +1976,7 @@ function readState(){
   return {
     units:units, enemies:enemies, builder:builder,
     attackFX:attackFX, floatingTexts:floatingTexts, grid:grid,
+    minions:minions,
     placing:placing, hoverCell:hoverCell, selectedUnit:selectedUnit,
     phase:phase, wave:wave, lives:lives, gold:gold
   };

@@ -9,7 +9,7 @@
 import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js';
 import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './world.js';
 import {
-  buildTower, buildEnemy, buildWorker,
+  buildTower, buildEnemy, buildWorker, buildMinion,
   animateTower, animateEnemy, animateWorker, pokeRecoil
 } from './actors.js';
 import { preloadTowerKit } from './towerKit.js';
@@ -51,6 +51,7 @@ function createRenderer3D() {
 
   const towerMeshes = new Map();   // unit.id  -> { group, sig }
   const enemyMeshes = new Map();   // enemy.id -> group
+  const minionMeshes = new Map();  // minion.id -> group
   const ghostCache = new Map();    // tipo     -> grupo translúcido de pré-visualização
   let worker = null;
   let ghost = null;
@@ -405,6 +406,33 @@ function createRenderer3D() {
     });
   }
 
+  /** Esqueletos invocados: mesma malha do cavaleiro morto, em escala menor. */
+  function syncMinions(minions, t, dt) {
+    const alive = new Set();
+    for (let i = 0; i < minions.length; i++) {
+      const m = minions[i];
+      alive.add(m.id);
+      let g = minionMeshes.get(m.id);
+      if (!g) {
+        g = buildMinion();
+        scene.add(g);
+        minionMeshes.set(m.id, g);
+      }
+      const wx = map.x(m.x), wz = map.z(m.y);
+      let yaw = g.rotation.y;
+      if (m.target) {
+        const dx = map.x(m.target.x) - wx, dz = map.z(m.target.y) - wz;
+        if (dx * dx + dz * dz > 1e-6) yaw = Math.atan2(dx, dz);
+      }
+      g.position.x = wx;
+      g.position.z = wz;
+      animateEnemy(g, { yaw: yaw, moving: !!m.moving, speed: 60, slowed: false, healing: false }, t, dt);
+    }
+    minionMeshes.forEach(function (g, id) {
+      if (!alive.has(id)) { scene.remove(g); minionMeshes.delete(id); }
+    });
+  }
+
   function syncWorker(builder, t, dt) {
     const wx = map.x(builder.x), wz = map.z(builder.y);
     worker.position.x = wx;
@@ -476,6 +504,17 @@ function createRenderer3D() {
       overlay.healthBar(p.x, p.y, Math.max(13, 26 * scale * g.scale.x), e.hp / e.maxHp);
     }
 
+    // Vida dos esqueletos invocados
+    for (let i = 0; i < state.minions.length; i++) {
+      const m = state.minions[i];
+      const g = minionMeshes.get(m.id);
+      if (!g || m.hp >= m.maxHp) continue;
+      const p = project(tmp.set(g.position.x, 0.62, g.position.z));
+      if (!p.visible) continue;
+      const scale = pixelsPerUnit(tmp.set(g.position.x, 0.62, g.position.z)) / ppuRef;
+      overlay.healthBar(p.x, p.y, Math.max(12, 20 * scale), m.hp / m.maxHp);
+    }
+
     // Vida das torres feridas (só aparece quando há dano a mostrar)
     for (let i = 0; i < state.units.length; i++) {
       const u = state.units[i];
@@ -529,6 +568,7 @@ function createRenderer3D() {
     processNewShots(state.attackFX, state.units);
     syncTowers(state.units, state.enemies, t, dt);
     syncEnemies(state.enemies, perfNow, t, dt);
+    syncMinions(state.minions, t, dt);
     syncWorker(state.builder, t, dt);
     syncGhost(state);
 
@@ -620,6 +660,7 @@ function createRenderer3D() {
     }
     towerMeshes.clear();
     enemyMeshes.clear();
+    minionMeshes.clear();
     ghostCache.clear();
     pickables.length = 0;
   }
