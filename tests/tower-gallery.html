@@ -18,7 +18,7 @@
 </head>
 <body>
   <header><h1 id="heading">Formas supremas · nível 20</h1><p>Prévia visual das 16 especializações. Página de inspeção, sem influência na partida.</p>
-    <nav aria-label="Marcos de evolução"><a href="tests/tower-gallery.html?tier=1">Nível 1</a><a href="tests/tower-gallery.html?tier=2">Nível 5</a><a href="tests/tower-gallery.html?tier=3">Nível 10</a><a href="tests/tower-gallery.html?tier=4">Nível 15</a><a href="tests/tower-gallery.html?tier=5">Nível 20</a></nav>
+    <nav aria-label="Marcos de evolução"><a href="tests/tower-gallery.html?tier=1&amp;v=gallery-2">Nível 1</a><a href="tests/tower-gallery.html?tier=2&amp;v=gallery-2">Nível 5</a><a href="tests/tower-gallery.html?tier=3&amp;v=gallery-2">Nível 10</a><a href="tests/tower-gallery.html?tier=4&amp;v=gallery-2">Nível 15</a><a href="tests/tower-gallery.html?tier=5&amp;v=gallery-2">Nível 20</a></nav>
   </header>
   <div id="gallery"><div id="labels"></div></div>
   <script type="module">
@@ -37,7 +37,7 @@
     const tier=Math.min(5,Math.max(1,Number(new URLSearchParams(location.search).get('tier'))||5));
     const levels=[0,1,5,10,15,20];
     document.getElementById('heading').textContent='Torres · nível '+levels[tier];
-    document.querySelectorAll('nav a').forEach(a=>{if(a.search==='?tier='+tier)a.setAttribute('aria-current','page');});
+    document.querySelectorAll('nav a').forEach(a=>{if(new URLSearchParams(a.search).get('tier')===String(tier))a.setAttribute('aria-current','page');});
     const baseColors={militia:0xb18a55,archer:0x80a66a,mage:0x7775bd,frost:0x85bed1,
       lightning:0x50b6dd,nature:0x8cbb62,trap:0x9b8462,necro:0xaa7ed2};
     const host=document.getElementById('gallery');
