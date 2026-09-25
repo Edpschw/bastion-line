@@ -44,7 +44,7 @@
     const labels=document.getElementById('labels');
     variants.forEach(v=>{const label=document.createElement('div');label.textContent=v[2];labels.appendChild(label);});
     const renderer=new THREE.WebGLRenderer({antialias:true});
-    renderer.setSize(1280,1280);
+    renderer.setSize(1280,1280,false);
     renderer.setPixelRatio(1);
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
