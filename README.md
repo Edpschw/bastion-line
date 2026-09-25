@@ -9,26 +9,34 @@ Jogue abrindo `index.html` — é um único arquivo estático, sem build.
 
 | Sistema | Onde | Nota |
 |---|---|---|
-| **Status** | `applyStatus` / `tickStatus` | `e.status[tipo] = {fim, poder, stacks, fonte}`. `refresh` renova e mantém o mais forte; `add` empilha até um teto. Produtores hoje: Gélida (slow), Piromante (burn). `stun`, `poison`, `bleed` e `armorBreak` já funcionam, à espera das torres que os produzem. |
+| **Status** | `applyStatus` / `tickStatus` | Lentidão, congelamento, queimadura, veneno, sangramento e quebra de armadura são aplicados pelas evoluções correspondentes. Efeitos empilháveis têm teto. |
 | **Terra / ar** | `canHit`, `UNIT_BASE[].targets` | Voadores traçam rota reta e ignoram o labirinto. A Milícia é corpo a corpo e não alcança o ar — a loja e a ficha da torre dizem isso, porque é regra de balanceamento e não pode ser invisível. |
-| **Inimigos atacantes** | `ENEMY_BASE[].attacker` | Só criaturas marcadas param a marcha para destruir torres. O resto corre para o bastião. Torres sobreviventes são reparadas entre ondas: a pressão vale dentro da onda, sem virar bola de neve. |
+| **Inimigos atacantes** | `ENEMY_BASE[].attacker` | Criaturas marcadas atacam torres; qualquer inimigo terrestre também luta quando é bloqueado por Paladino ou Fortaleza. Torres sobreviventes são reparadas entre ondas. |
 | **Criaturas** | `ENEMY_BASE` | Cada uma carrega uma função estratégica (GDD §18), declarada como dado e não como código especial: `flying`, `attacker`, `splitInto`, `regen`, `immune`, `aura`. `shape2d` diz qual desenho o renderer 2D reaproveita — sem ele, tipo novo cai no `else` e aparece como o chefe. |
 | **Composição de ondas** | `WAVE_THEMES` | Receitas com pesos e onda mínima, em vez de um tipo em destaque mais goblins. É o que permite expressar "incursão aérea" ou "coluna blindada". |
 
 ### Torres
 
-As oito do GDD, cada uma com nível 1 → dois ramos → nível 3.
+As oito do GDD, cada uma com nível 1 → dois ramos → nível 3. As cinco primeiras
+somam as 20 etapas de evolução detalhadas no GDD; as outras três mantêm suas
+árvores próprias.
 
 | Torre | Função | Ramos |
 |---|---|---|
-| Milícia | corpo a corpo, só terra | Guardião / Guerreiro |
-| Arqueira | dano físico a distância | Patrulheira / Franco-atiradora |
-| Mago | dano em área | Piromante (queima) / Arcanista |
-| Gélida | lentidão | Eterna / Cristalina |
+| Milícia | bloqueio e proteção | Paladino → Cavaleiro Sagrado / Fortaleza → Bastião de Ferro |
+| Arqueira | dano físico a distância | Patrulheira → Caçadora / Atiradora de Elite → Assassina |
+| Mago | dano mágico | Mago Infernal → Mago Dragão / Bruxo das Chamas → Mago Demoníaco |
+| Gélida | lentidão e congelamento | Mago do Gelo → Mestre da Nevasca / Aprisionadora → Prisão Congelada |
 | **Bobina** | dano elétrico | Corrente (salta entre inimigos) / Canhão (alvo único, atordoa) |
 | **Druida** | suporte | Guardiã do Bosque (cura torres) / Praga (veneno e quebra de armadura) |
 | **Armadilha** | controle de rota | Tóxica / Explosiva |
 | **Necromante** | invocação | Lich (magia) / Senhor da Morte (exército) |
+
+As evoluções alteram a função da torre: a Caçadora atinge vários alvos e sangra;
+a Assassina pode executar inimigos fracos; o Mago Demoníaco atravessa uma fila;
+o Mago Dragão amplia o impacto em área; a Milícia bloqueia e protege aliados;
+a Gélida alterna entre nevasca e prisão de alvo único. Chefes recebem apenas
+congelamentos breves. No 3D, ramos e níveis têm silhuetas e efeitos próprios.
 
 Duas delas fogem do molde:
 

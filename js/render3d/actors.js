@@ -63,7 +63,7 @@ function humanoid(cloth, skin, scale) {
   return g;
 }
 
-/** Soldado da Milícia: elmo, tabardo e o par de armas do ramo escolhido. */
+/** Soldado da Milícia: Paladino luminoso ou Fortaleza de ferro. */
 function militiaOccupant(tier, branch, color) {
   const body = humanoid(color, PAL.skin, 1 + (tier - 1) * 0.1);
 
@@ -81,18 +81,20 @@ function militiaOccupant(tier, branch, color) {
   const arms = new THREE.Group();
   arms.position.y = 0.34;
   if (branch === 'guerreiro') {
-    // Duas lâminas: ofensivo
+    // O Bastião ocupa mais espaço na silhueta: escudo duplo e ameias.
+    const iron = std(PAL.iron, { metalness: 0.7, roughness: 0.3 });
+    const shield = mesh(BOX(0.1, 0.38 + tier * 0.08, 0.39 + tier * 0.07), iron, -0.16, 0.01, 0.09);
+    arms.add(shield);
     for (let side = -1; side <= 1; side += 2) {
-      const blade = mesh(BOX(0.05, 0.4, 0.015), std(PAL.iron, { metalness: 0.6, roughness: 0.35 }), side * 0.19, 0.12, 0.06);
-      blade.rotation.z = side * -0.5;
-      arms.add(blade);
-      arms.add(mesh(BOX(0.05, 0.09, 0.05), std(PAL.woodDark), side * 0.17, -0.06, 0.06));
+      arms.add(mesh(BOX(0.07, 0.11, 0.08), iron, -0.16, 0.24 + tier * 0.04, side * 0.16));
     }
+    arms.add(mesh(BOX(0.09, 0.3, 0.09), iron, 0.19, 0.08, 0.05));
   } else {
-    // Escudo + espada: defensivo
+    // Escudo e espada sagrados; a cruz brilha ao evoluir.
     const shield = mesh(BOX(0.05, 0.32 + tier * 0.04, 0.26 + tier * 0.04), std(PAL.wood, { roughness: 0.8 }), -0.18, 0.02, 0.05);
     arms.add(shield);
-    arms.add(mesh(BOX(0.02, 0.12, 0.12), std(PAL.gold, { metalness: 0.5, roughness: 0.4 }), -0.21, 0.02, 0.05));
+    arms.add(mesh(BOX(0.02, 0.12, 0.12), std(PAL.gold, { metalness: 0.5, roughness: 0.4,
+      emissive: tier >= 2 ? PAL.gold : 0x000000, emissiveIntensity: tier >= 2 ? 0.7 : 0 }), -0.21, 0.02, 0.05));
     const sword = mesh(BOX(0.045, 0.38, 0.015), std(PAL.iron, { metalness: 0.6, roughness: 0.35 }), 0.19, 0.14, 0.04);
     sword.rotation.z = -0.35;
     arms.add(sword);
@@ -124,6 +126,14 @@ function archerOccupant(tier, branch, color) {
     bow.castShadow = true;
     arms.add(bow);
     arms.add(mesh(BOX(0.008, 0.36, 0.008), std(PAL.cloth), 0.02, 0.03, 0.15));
+    if (tier >= 2) {
+      const quiver = mesh(CYL(0.055, 0.045, 0.22, 6), std(PAL.woodDark), -0.13, 0.31, -0.13);
+      quiver.rotation.z = -0.25;
+      body.add(quiver);
+      for (let i = 0; i < tier; i++) {
+        body.add(mesh(BOX(0.008, 0.24, 0.008), std(PAL.bone), -0.16 + i * 0.035, 0.44, -0.12));
+      }
+    }
   }
   body.add(arms);
 
@@ -150,6 +160,25 @@ function mageOccupant(tier, branch, color) {
   halo.position.copy(orb.position);
   root.add(halo);
 
+  if (branch === 'piromante' && tier >= 2) {
+    const fire = std(PAL.ember, { emissive: PAL.ember, emissiveIntensity: 1.6, roughness: 0.4 });
+    for (let side = -1; side <= 1; side += 2) {
+      const flame = mesh(CONE(0.06, tier >= 3 ? 0.4 : 0.27, 5), fire,
+        side * 0.2, 0.18, 0);
+      flame.rotation.z = side * -0.3;
+      root.add(flame);
+    }
+    if (tier >= 3) root.add(mesh(OCT(0.13), fire, 0, 0.39, -0.1));
+  } else if (branch === 'arcanista' && tier >= 2) {
+    const dark = std(shade(color, 0.65), { emissive: color, emissiveIntensity: 0.9, roughness: 0.35 });
+    for (let side = -1; side <= 1; side += 2) {
+      const horn = mesh(CONE(0.05, tier >= 3 ? 0.31 : 0.21, 5), dark,
+        side * 0.16, 0.24, -0.04);
+      horn.rotation.z = side * -0.55;
+      root.add(horn);
+    }
+  }
+
   const shards = [];
   const shardCount = tier >= 3 ? 5 : tier >= 2 ? 3 : 0;
   for (let i = 0; i < shardCount; i++) {
@@ -175,6 +204,22 @@ function frostOccupant(tier, branch, color) {
   const spire = mesh(OCT(0.13), crystalMat, 0, spireH * 0.5, 0);
   spire.scale.set(0.8, spireH * 3.2, 0.8);
   root.add(spire);
+
+  if (branch === 'cristalina' && tier >= 2) {
+    // Gaiola de cristais: a silhueta estreita anuncia o foco em congelar um alvo.
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2;
+      const bar = mesh(OCT(0.08), crystalMat, Math.cos(a) * 0.21, 0.23, Math.sin(a) * 0.21);
+      bar.scale.set(0.45, tier >= 3 ? 2.7 : 2.1, 0.45);
+      root.add(bar);
+    }
+  } else if (branch === 'eterna' && tier >= 3) {
+    // Mestre da Nevasca: coroa aberta em vez de cela.
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3;
+      root.add(mesh(OCT(0.09), crystalMat, Math.cos(a) * 0.3, 0.32, Math.sin(a) * 0.3));
+    }
+  }
 
   const sats = [];
   const satCount = branch === 'cristalina' ? 4 + tier : 2 + tier;

@@ -97,6 +97,9 @@ export function createEffects(scene, map) {
 
       if (f.kind === 'shot' || (!f.kind && !f.impact)) {
         const style = SHOT_STYLE[f.unitType] || SHOT_STYLE.archer;
+        // O Mago Dragão lança de cima; a explosão no chão continua usando
+        // splashR, mas o projétil deixa de parecer uma bola disparada da torre.
+        if (f.meteor) a.set(b.x - 0.35, 1.8, b.z - 0.25);
 
         if (style.melee) {
           // Corpo a corpo: arco de lâmina junto ao alvo
@@ -123,13 +126,14 @@ export function createEffects(scene, map) {
             mid.lerpVectors(a, b, travel);
             const dir = b.clone().sub(a);
             const len = Math.max(0.001, dir.length());
-            const shotColor = style.color === null ? hex : style.color;
+            const shotColor = (f.unitType === 'frost' || f.unitType === 'lightning' ||
+              style.color === null) ? hex : style.color;
 
             bolt.head.visible = true;
             bolt.head.position.copy(mid);
             bolt.head.lookAt(b.x, b.y, b.z);
-            const hw = style.width * (style.soft ? 1.5 : 1);
-            bolt.head.scale.set(hw, hw, style.length || 0.3);
+            const hw = style.width * (f.meteor ? 3.2 : style.soft ? 1.5 : 1);
+            bolt.head.scale.set(hw, hw, f.meteor ? 0.48 : style.length || 0.3);
             bolt.head.material.color.setHex(style.tip || shotColor);
             bolt.head.material.opacity = Math.min(1, life * 1.6);
 
@@ -140,7 +144,8 @@ export function createEffects(scene, map) {
               mid.lerpVectors(a, b, travel * 0.5);
               bolt.trail.position.copy(mid);
               bolt.trail.lookAt(b.x, b.y, b.z);
-              bolt.trail.scale.set(style.width * 0.6, style.width * 0.6, trailLen);
+              bolt.trail.scale.set(style.width * (f.meteor ? 2 : 0.6),
+                style.width * (f.meteor ? 2 : 0.6), trailLen);
               bolt.trail.material.color.setHex(shotColor);
               bolt.trail.material.opacity = life * (style.soft ? 0.55 : 0.35);
             }
