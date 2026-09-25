@@ -353,38 +353,38 @@ var UNIT_BASE={
 
 var BRANCHES={
   militia:{
-    guardiao:{ label:'Paladino',
-      tier2:{name:'Paladino',hp:90,dmg:7,range:50,atkSpd:1.3,splash:20,cost:22,color:'#c6a65a',block:2,armor:0.15,aura:{range:100,reduction:0.12}},
-      tier3:{name:'Cavaleiro Sagrado',hp:155,dmg:10,range:54,atkSpd:1.35,splash:34,cost:46,color:'#f1d78a',block:3,armor:0.25,aura:{range:130,reduction:0.2},heal:{rate:5,range:90},hexResist:0.6} },
-    guerreiro:{ label:'Fortaleza',
-      tier2:{name:'Fortaleza',hp:125,dmg:8,range:48,atkSpd:1.2,cost:22,color:'#767d82',block:3,armor:0.35},
-      tier3:{name:'Bastião de Ferro',hp:220,dmg:11,range:50,atkSpd:1.25,splash:26,cost:46,color:'#58626c',block:5,armor:0.5,taunt:110} }
+    guardiao:{ label:'Guardião',
+      tier2:{name:'Guardião',hp:90,dmg:7,range:50,atkSpd:1.3,splash:20,cost:22,color:'#8a6a3a'},
+      tier3:{name:'Muralha Viva',hp:170,dmg:10,range:54,atkSpd:1.35,splash:34,cost:46,color:'#6e5228'} },
+    guerreiro:{ label:'Guerreiro',
+      tier2:{name:'Guerreiro',hp:55,dmg:11,range:48,atkSpd:1.55,cost:22,color:'#c1503d'},
+      tier3:{name:'Fúria',hp:70,dmg:19,range:50,atkSpd:1.85,cost:46,color:'#9c3624'} }
   },
   archer:{
     patrulheira:{ label:'Patrulheira',
-      tier2:{name:'Patrulheira',hp:22,dmg:8,range:170,atkSpd:1.55,cost:26,color:'#8a7ab0',multi:2},
-      tier3:{name:'Caçadora',hp:28,dmg:11,range:190,atkSpd:1.8,cost:52,color:'#a596c9',multi:3,bleed:{chance:0.45,dps:4,dur:3}} },
-    francoatiradora:{ label:'Atiradora de Elite',
-      tier2:{name:'Atiradora de Elite',hp:20,dmg:16,range:205,atkSpd:0.75,armorPierce:0.3,cost:26,color:'#5c4f7a'},
-      tier3:{name:'Assassina',hp:26,dmg:28,range:225,atkSpd:0.8,armorPierce:0.45,cost:52,color:'#453a5c',crit:{chance:0.3,mult:2},execute:0.12} }
+      tier2:{name:'Patrulheira',hp:22,dmg:8,range:170,atkSpd:1.55,cost:26,color:'#8a7ab0'},
+      tier3:{name:'Vendaval',hp:28,dmg:11,range:190,atkSpd:2.05,cost:52,color:'#a596c9'} },
+    francoatiradora:{ label:'Franco-atiradora',
+      tier2:{name:'Franco-atiradora',hp:20,dmg:16,range:185,atkSpd:0.85,armorPierce:0.3,cost:26,color:'#5c4f7a'},
+      tier3:{name:'Perfurante',hp:26,dmg:30,range:210,atkSpd:0.85,armorPierce:0.55,cost:52,color:'#453a5c'} }
   },
   mage:{
-    piromante:{ label:'Mago Infernal',
-      tier2:{name:'Mago Infernal',hp:20,dmg:9,range:118,atkSpd:0.85,splash:48,cost:34,color:'#c1703d',
+    piromante:{ label:'Piromante',
+      tier2:{name:'Piromante',hp:20,dmg:9,range:118,atkSpd:0.85,splash:48,cost:34,color:'#c1703d',
              burn:{dps:3,dur:2.5}},
-      tier3:{name:'Mago Dragão',hp:26,dmg:14,range:132,atkSpd:0.72,splash:78,cost:66,color:'#e0863f',
-             burn:{dps:8,dur:4.2},meteor:true} },
-    arcanista:{ label:'Bruxo das Chamas',
-      tier2:{name:'Bruxo das Chamas',hp:18,dmg:20,range:132,atkSpd:0.68,armorPierce:0.25,cost:34,color:'#a74756'},
-      tier3:{name:'Mago Demoníaco',hp:24,dmg:32,range:150,atkSpd:0.68,armorPierce:0.4,cost:66,color:'#712f65',pierce:3} }
+      tier3:{name:'Inferno',hp:26,dmg:13,range:124,atkSpd:0.95,splash:68,cost:66,color:'#e0863f',
+             burn:{dps:7,dur:3.2}} },
+    arcanista:{ label:'Arcanista',
+      tier2:{name:'Arcanista',hp:18,dmg:16,range:130,atkSpd:0.7,splash:20,armorPierce:0.25,cost:34,color:'#5f8fc9'},
+      tier3:{name:'Supremacia Arcana',hp:24,dmg:30,range:145,atkSpd:0.7,splash:26,armorPierce:0.45,cost:66,color:'#3d6aa3'} }
   },
   frost:{
-    eterna:{ label:'Mago do Gelo',
-      tier2:{name:'Mago do Gelo',hp:24,dmg:4,range:104,atkSpd:1.05,slowFactor:0.38,slowDur:2.1,cost:27,color:'#6fc7bd',stun:{chance:0.12,dur:0.45}},
-      tier3:{name:'Mestre da Nevasca',hp:30,dmg:6,range:116,atkSpd:1.0,slowFactor:0.3,slowDur:2.7,splash:52,cost:54,color:'#4fa89e',stun:{chance:0.18,dur:0.6}} },
-    cristalina:{ label:'Aprisionadora',
-      tier2:{name:'Aprisionadora',hp:24,dmg:9,range:112,atkSpd:0.8,slowFactor:0.48,slowDur:1.5,cost:27,color:'#9fd6ce',stun:{chance:0.22,dur:0.6}},
-      tier3:{name:'Prisão Congelada',hp:30,dmg:14,range:128,atkSpd:0.75,slowFactor:0.4,slowDur:1.8,cost:54,color:'#c8ebe5',stun:{chance:0.55,dur:1.5,bossDur:0.35}} }
+    eterna:{ label:'Gélida Eterna',
+      tier2:{name:'Gélida Eterna',hp:24,dmg:4,range:104,atkSpd:1.05,slowFactor:0.38,slowDur:2.1,cost:27,color:'#6fc7bd'},
+      tier3:{name:'Inverno Eterno',hp:30,dmg:5,range:112,atkSpd:1.1,slowFactor:0.25,slowDur:2.8,cost:54,color:'#4fa89e'} },
+    cristalina:{ label:'Cristalina',
+      tier2:{name:'Cristalina',hp:24,dmg:7,range:100,atkSpd:1.15,slowFactor:0.6,slowDur:1.2,cost:27,color:'#9fd6ce'},
+      tier3:{name:'Fragmentos Cristalinos',hp:30,dmg:12,range:106,atkSpd:1.3,slowFactor:0.65,slowDur:1.1,splash:18,cost:54,color:'#c8ebe5'} }
   }
 };
 
@@ -656,10 +656,7 @@ function getBaseStats(u){
   var td=u.tier===2?br.tier2:br.tier3;
   return {name:td.name,hp:td.hp,dmg:td.dmg,range:td.range,atkSpd:td.atkSpd,splash:td.splash||0,slowFactor:td.slowFactor||0,slowDur:td.slowDur||0,armorPierce:td.armorPierce||0,burn:td.burn||null,
           chain:td.chain||null,stun:td.stun||null,poison:td.poison||null,armorBreak:td.armorBreak||null,heal:td.heal||null,
-          summon:td.summon||null,color:td.color||UNIT_BASE[u.type].color,multi:td.multi||1,bleed:td.bleed||null,
-          crit:td.crit||null,execute:td.execute||0,pierce:td.pierce||0,meteor:!!td.meteor,
-          block:td.block||0,armor:td.armor||0,aura:td.aura||null,taunt:td.taunt||0,
-          hexResist:td.hexResist||0};
+          summon:td.summon||null,color:td.color||UNIT_BASE[u.type].color};
 }
 
 function makeUnit(type, row, col){
@@ -701,17 +698,6 @@ function recomputeUnitStats(u){
   u.chain = base.chain || null;
   u.stun = base.stun || null;
   u.armorBreak = base.armorBreak || null;
-  u.multi = base.multi || 1;
-  u.bleed = base.bleed ? {chance:base.bleed.chance,dps:+(base.bleed.dps*dmgMult).toFixed(1),dur:base.bleed.dur} : null;
-  u.crit = base.crit || null;
-  u.execute = base.execute || 0;
-  u.pierce = base.pierce || 0;
-  u.meteor = !!base.meteor;
-  u.block = base.block || 0;
-  u.armor = base.armor || 0;
-  u.aura = base.aura || null;
-  u.taunt = base.taunt || 0;
-  u.hexResist = base.hexResist || 0;
   u.heal = base.heal ? {rate:+(base.heal.rate*dmgMult).toFixed(1), range:base.heal.range} : null;
   // O Livro do Necromante soma um esqueleto ao teto de qualquer invocador.
   u.summon = base.summon
@@ -748,14 +734,6 @@ function evolveUnit(u, branchKey){
  */
 function damageUnit(u, dmg, source){
   if(u.hp<=0) return;
-  var reduction=u.armor||0;
-  for(var i=0;i<units.length;i++){
-    var ally=units[i];
-    if(ally.hp>0 && ally.aura && dist(ally,u)<=ally.aura.range){
-      reduction=Math.max(reduction,ally.aura.reduction);
-    }
-  }
-  dmg=Math.max(1,Math.round(dmg*(1-Math.min(0.8,reduction))));
   u.hp-=dmg;
   attackFX.push({kind:'shot',unitType:'militia',tier:1,x1:source.x,y1:source.y,x2:u.x,y2:u.y,
                  life:0.12,maxLife:0.12,color:'#c1503d',splashR:0});
@@ -1318,9 +1296,7 @@ function tickStatus(e, dt, now){
  */
 function hitEnemy(u, e, dmgMult, now){
   var effArmor=effectiveArmor(e,now)*(1-(u.armorPierce||0));
-  var critical=!!(u.crit && Math.random()<u.crit.chance);
-  var dmg=Math.max(1, Math.round(u.dmg*dmgMult*(critical?u.crit.mult:1)-effArmor));
-  if(u.execute && !e.boss && e.hp/e.maxHp<=u.execute) dmg=Math.max(dmg,e.hp);
+  var dmg=Math.max(1, Math.round(u.dmg*dmgMult-effArmor));
   e.hp-=dmg;
   e.lastHitBy=u;
   e.lastDamageAt=now;
@@ -1328,11 +1304,7 @@ function hitEnemy(u, e, dmgMult, now){
   if(u.burn) applyStatus(e,'burn',u.burn.dps,u.burn.dur,u,now);
   if(u.poison) applyStatus(e,'poison',u.poison.dps,u.poison.dur,u,now);
   if(u.armorBreak) applyStatus(e,'armorBreak',u.armorBreak.power,u.armorBreak.dur,u,now);
-  if(u.stun && Math.random()<u.stun.chance){
-    applyStatus(e,'stun',1,e.boss ? Math.min(u.stun.dur,u.stun.bossDur||0.35) : u.stun.dur,u,now);
-  }
-  if(u.bleed && Math.random()<u.bleed.chance) applyStatus(e,'bleed',u.bleed.dps,u.bleed.dur,u,now);
-  if(critical) floatingTexts.push(mkFloat(e.x,e.y-e.r,'CRÍTICO','#f2c15a'));
+  if(u.stun && Math.random()<u.stun.chance) applyStatus(e,'stun',1,u.stun.dur,u,now);
 }
 
 /** A torre alcança este inimigo? Voadores só caem para alcance aéreo. */
@@ -1447,7 +1419,7 @@ function update(dt, now){
     if(ae.aura){
       for(var j=0;j<units.length;j++){
         var au=units[j];
-        if(dist(ae,au)<=ae.aura.range) au.hexed=Math.max(au.hexed, ae.aura.atkSlow*(1-au.hexResist));
+        if(dist(ae,au)<=ae.aura.range) au.hexed=Math.max(au.hexed, ae.aura.atkSlow);
       }
     }
     // Grito de guerra: acelera os aliados por perto, não a si mesmo.
@@ -1482,37 +1454,6 @@ function update(dt, now){
         }
         for(var k=0;k<hitList.length;k++){ hitEnemy(u, hitList[k], 1, now); }
 
-        // Patrulheira/Caçadora: flechas independentes, sem repetir o alvo do
-        // primeiro disparo nem os inimigos já apanhados pelo respingo.
-        if(u.multi>1){
-          var adicionais=enemies.filter(function(e){
-            return e.hp>0 && hitList.indexOf(e)<0 && canHit(u,e) && dist(u,e)<=u.range;
-          }).sort(function(a,b){ return b.traveled-a.traveled; });
-          for(var m=0;m<Math.min(u.multi-1,adicionais.length);m++){
-            var alvoExtra=adicionais[m];
-            hitEnemy(u,alvoExtra,0.8,now);
-            attackFX.push({kind:'shot',unitType:u.type,tier:u.tier,
-              x1:u.x,y1:u.y,x2:alvoExtra.x,y2:alvoExtra.y,life:0.12,maxLife:0.12,color:u.color,splashR:0});
-          }
-        }
-
-        // Mago Demoníaco: o mesmo projétil atravessa inimigos ao longo do raio.
-        if(u.pierce){
-          var vx=target.x-u.x, vy=target.y-u.y, vl=Math.hypot(vx,vy)||1;
-          var alinhados=enemies.filter(function(e){
-            if(e===target || e.hp<=0 || !canHit(u,e)) return false;
-            var along=(e.x-u.x)*vx/vl+(e.y-u.y)*vy/vl;
-            var side=Math.abs((e.x-u.x)*vy/vl-(e.y-u.y)*vx/vl);
-            return along>0 && along<=u.range && side<=e.r+9;
-          }).sort(function(a,b){ return dist(u,a)-dist(u,b); });
-          for(var p=0;p<Math.min(u.pierce,alinhados.length);p++){
-            hitEnemy(u,alinhados[p],Math.max(0.55,0.85-p*0.1),now);
-            attackFX.push({kind:'shot',unitType:u.type,tier:u.tier,
-              x1:target.x,y1:target.y,x2:alinhados[p].x,y2:alinhados[p].y,
-              life:0.14,maxLife:0.14,color:u.color,splashR:0});
-          }
-        }
-
         // Cadeia: salta para o inimigo mais próximo ainda não atingido,
         // perdendo força a cada salto.
         if(u.chain){
@@ -1535,13 +1476,12 @@ function update(dt, now){
             last=prox;
           }
         }
-        attackFX.push({kind:'shot',unitType:u.type,tier:u.tier,x1:u.x,y1:u.y,x2:target.x,y2:target.y,life:0.12,maxLife:0.12,color:u.color, splashR:u.splash||0,meteor:u.meteor});
+        attackFX.push({kind:'shot',unitType:u.type,tier:u.tier,x1:u.x,y1:u.y,x2:target.x,y2:target.y,life:0.12,maxLife:0.12,color:u.color, splashR:u.splash||0});
         attackFX.push({kind:'impact',unitType:u.type,x1:target.x,y1:target.y,x2:target.x,y2:target.y,life:0.14,maxLife:0.14,color:'#fff2cf',splashR:5,impact:true});
       }
     }
   }
 
-  for(var i=0;i<units.length;i++) units[i].blockedNow=0;
   for(var i=0;i<enemies.length;i++){
     var e=enemies[i];
     if(e.hp<=0) continue;
@@ -1550,35 +1490,13 @@ function update(dt, now){
 
     // Atacantes param a marcha para derrubar a torre mais próxima no alcance.
     e.fx.fighting=false;
-    // Guardiões seguram um número limitado de inimigos que passam por perto.
-    // Voadores ignoram o bloqueio; os demais lutam até derrubar a torre.
-    if(!e.flying){
-      var blocker=null, blockerD=Infinity;
-      for(var b=0;b<units.length;b++){
-        var bu=units[b], bd=dist(e,bu);
-        if(bu.hp>0 && bu.block && bu.blockedNow<bu.block && bd<e.r+22 && bd<blockerD){
-          blocker=bu; blockerD=bd;
-        }
-      }
-      if(blocker){
-        blocker.blockedNow++;
-        e.fx.fighting=true;
-        e.atkCd=Math.max(0,e.atkCd-dt);
-        if(e.atkCd===0 && speedFactor(e,now)>0){
-          e.atkCd=1/(e.attacker ? e.attacker.atkSpd : 0.8);
-          damageUnit(blocker,e.attacker ? e.attacker.dmg : Math.max(2,Math.round(wave*0.35)),e);
-        }
-        continue;
-      }
-    }
     if(e.attacker && !e.flying){
       if(e.target && (e.target.hp<=0 || dist(e,e.target)>e.attacker.range)) e.target=null;
       if(!e.target){
         var bestD=Infinity;
         for(var k=0;k<units.length;k++){
           var cand=units[k], cd=dist(e,cand);
-          var priority=cd-(cand.taunt ? 1000 : 0);
-          if(cd<=e.attacker.range && priority<bestD){ bestD=priority; e.target=cand; }
+          if(cd<=e.attacker.range && cd<bestD){ bestD=cd; e.target=cand; }
         }
         // Esqueletos entram na mesma busca: é o que faz deles linha de frente
         // em vez de enfeite atrás da torre.
@@ -2170,7 +2088,6 @@ function refreshEvolveButtons(){
       btn.className='btn-evolve';
       btn.innerHTML='Evoluir: <b>'+opt.label+'</b><span>'+opt.tier2.cost+'g</span>';
       btn.dataset.cost=opt.tier2.cost;
-      btn.title=describeEvolution(opt.tier2);
       btn.disabled = gold<opt.tier2.cost;
       btn.addEventListener('click', function(){ evolveUnit(u,key); });
       evolveButtonsEl.appendChild(btn);
@@ -2181,7 +2098,6 @@ function refreshEvolveButtons(){
     btn2.className='btn-evolve';
     btn2.innerHTML='Evoluir: <b>'+opt2.name+'</b><span>'+opt2.cost+'g</span>';
     btn2.dataset.cost=opt2.cost;
-    btn2.title=describeEvolution(opt2);
     btn2.disabled = gold<opt2.cost;
     btn2.addEventListener('click', function(){ evolveUnit(u,u.branch); });
     evolveButtonsEl.appendChild(btn2);
@@ -2190,21 +2106,6 @@ function refreshEvolveButtons(){
     note.className='hint'; note.textContent='Evolução máxima alcançada.';
     evolveButtonsEl.appendChild(note);
   }
-}
-
-function describeEvolution(stats){
-  var effects=[];
-  if(stats.multi) effects.push(stats.multi+' alvos por ataque');
-  if(stats.bleed) effects.push('sangramento');
-  if(stats.crit) effects.push('crítico e execução');
-  if(stats.meteor) effects.push('meteoro em área');
-  if(stats.pierce) effects.push('atravessa até '+stats.pierce+' inimigos');
-  if(stats.block) effects.push('bloqueia '+stats.block+' inimigos');
-  if(stats.aura) effects.push('protege torres próximas');
-  if(stats.heal) effects.push('cura torres');
-  if(stats.stun) effects.push('chance de congelar/atordoar');
-  if(stats.chain) effects.push(stats.chain.jumps+' saltos elétricos');
-  return effects.join(' · ') || 'Mais dano, alcance ou resistência';
 }
 
 function updateEvolveAfford(){
@@ -2232,14 +2133,6 @@ function refreshSelectedPanel(){
     '<div class="sel-row"><span>Ataques/s</span><b>'+u.atkSpd+'</b></div>'+
     (u.burn ? '<div class="sel-row"><span>Queimadura</span><b>'+u.burn.dps+'/s · '+u.burn.dur+'s</b></div>' : '')+
     (u.poison ? '<div class="sel-row"><span>Veneno</span><b>'+u.poison.dps+'/s · '+u.poison.dur+'s</b></div>' : '')+
-    (u.bleed ? '<div class="sel-row"><span>Sangramento</span><b>'+u.bleed.dps+'/s · '+Math.round(u.bleed.chance*100)+'%</b></div>' : '')+
-    (u.multi>1 ? '<div class="sel-row"><span>Alvos por ataque</span><b>'+u.multi+'</b></div>' : '')+
-    (u.crit ? '<div class="sel-row"><span>Crítico</span><b>'+Math.round(u.crit.chance*100)+'% · '+u.crit.mult+'×</b></div>' : '')+
-    (u.pierce ? '<div class="sel-row"><span>Perfuração</span><b>'+u.pierce+' alvos</b></div>' : '')+
-    (u.meteor ? '<div class="sel-row"><span>Meteoro</span><b>área '+Math.round(u.splash)+'</b></div>' : '')+
-    (u.block ? '<div class="sel-row"><span>Bloqueio</span><b>'+u.block+' inimigos</b></div>' : '')+
-    (u.armor ? '<div class="sel-row"><span>Redução de dano</span><b>'+Math.round(u.armor*100)+'%</b></div>' : '')+
-    (u.aura ? '<div class="sel-row"><span>Aura defensiva</span><b>'+Math.round(u.aura.reduction*100)+'%</b></div>' : '')+
     (u.chain ? '<div class="sel-row"><span>Saltos</span><b>'+u.chain.jumps+'</b></div>' : '')+
     (u.stun ? '<div class="sel-row"><span>Atordoa</span><b>'+Math.round(u.stun.chance*100)+'% · '+u.stun.dur+'s</b></div>' : '')+
     (u.armorBreak ? '<div class="sel-row"><span>Quebra armadura</span><b>-'+Math.round(u.armorBreak.power*100)+'%</b></div>' : '')+
