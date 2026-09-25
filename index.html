@@ -723,7 +723,7 @@ function evolveUnit(u, branchKey){
     return;
   }
   recomputeUnitStats(u);
-  attackFX.push({x1:u.x,y1:u.y,x2:u.x,y2:u.y,life:0.35,maxLife:0.35,color:'#f2c15a',splashR:24});
+  attackFX.push({kind:'build',x1:u.x,y1:u.y,x2:u.x,y2:u.y,life:0.35,maxLife:0.35,color:'#f2c15a',splashR:24});
   log('Evoluiu para '+u.name+'!');
   refreshSelectedPanel();
 }
@@ -918,7 +918,7 @@ function creditKill(u){
     u.vetLevel=newLvl;
     recomputeUnitStats(u);
     log(u.name+' virou '+VET_TITLES[u.vetLevel]+' após '+u.kills+' abates!');
-    attackFX.push({x1:u.x,y1:u.y,x2:u.x,y2:u.y,life:0.35,maxLife:0.35,color:'#f2c15a',splashR:22});
+    attackFX.push({kind:'build',x1:u.x,y1:u.y,x2:u.x,y2:u.y,life:0.35,maxLife:0.35,color:'#f2c15a',splashR:22});
   }
 }
 
@@ -934,13 +934,6 @@ function scaledEnemy(type, w){
   return {type:type, hp:hp, maxHp:hp, speed:b.speed, armor:b.armor, bounty:bounty, leak:b.leak, color:b.color, r:b.r};
 }
 
-// ---------------------------------------------------------------------------
-// Composição de ondas
-//
-// Cada tema é uma receita com pesos. O modelo anterior elegia um único tipo em
-// destaque e enchia o resto de goblins, o que satura assim que existem muitas
-// criaturas e não sabe expressar "onda aérea" ou "coluna blindada".
-// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Relíquias (GDD §23)
 //
@@ -989,6 +982,13 @@ function ganharOuro(v){
 // poder se preparar para o que vem.
 var BOSS_ORDER=['warlord','boss','deathking'];
 
+// ---------------------------------------------------------------------------
+// Composição de ondas
+//
+// Cada tema é uma receita com pesos. O modelo anterior elegia um único tipo em
+// destaque e enchia o resto de goblins, o que satura assim que existem muitas
+// criaturas e não sabe expressar "onda aérea" ou "coluna blindada".
+// ---------------------------------------------------------------------------
 var WAVE_THEMES=[
   {key:'horda',     label:'horda de goblins',   minWave:1,  weights:{grunt:3, raider:1}},
   {key:'batedores', label:'batedores',          minWave:3,  weights:{raider:3, grunt:1}},
@@ -1807,6 +1807,20 @@ function drawBoss(x,y,r,color,perfNow){
   ctx.restore();
 }
 function drawEnemySprite(e, perfNow){
+  if(e.fx.cloaked){
+    ctx.save();
+    ctx.globalAlpha=0.16;
+    var alturaOculta=drawEnemySpriteBody(e, perfNow);
+    ctx.restore();
+    // Marca de vapor no chão: sinaliza a presença sem revelar a silhueta.
+    var pulsoOculto=0.45+Math.sin(perfNow/1000*4+e.id)*0.2;
+    ctx.beginPath(); ctx.ellipse(e.x,e.y+e.r*0.7,e.r*0.9*pulsoOculto+e.r*0.4,e.r*0.36,0,0,Math.PI*2);
+    ctx.strokeStyle='rgba(150,130,190,0.5)'; ctx.lineWidth=1.2; ctx.stroke();
+    return alturaOculta;
+  }
+  return drawEnemySpriteBody(e, perfNow);
+}
+function drawEnemySpriteBody(e, perfNow){
   drawGroundShadow(e.x, e.y+e.r*0.7, e.r*0.98, e.r*0.4);
   var bob=Math.sin(perfNow/1000*7+e.id)*1.2;
   var ey=e.y+bob;
@@ -1967,9 +1981,10 @@ function draw2D(perfNow){
     ctx.strokeStyle='rgba(234,227,200,0.18)'; ctx.lineWidth=1; ctx.stroke();
     if(!grid[hoverCell.row][hoverCell.col]){
       ctx.save(); ctx.globalAlpha=0.6;
-      if(placing==='militia') drawMilitia(cx,cy,13,s.color);
-      else if(placing==='archer') drawArcher(cx,cy,13,s.color);
-      else if(placing==='mage') drawMage(cx,cy,13,s.color);
+      var formaPrev=s.shape2d||placing;
+      if(formaPrev==='militia') drawMilitia(cx,cy,13,s.color);
+      else if(formaPrev==='archer') drawArcher(cx,cy,13,s.color);
+      else if(formaPrev==='mage') drawMage(cx,cy,13,s.color);
       else drawFrost(cx,cy,13,s.color);
       ctx.restore();
     }
@@ -2027,6 +2042,7 @@ function draw2D(perfNow){
       ctx.beginPath(); ctx.ellipse(e.x,e.y+e.r*0.72,e.r*1.15,e.r*0.5,0,0,Math.PI*2);
       ctx.strokeStyle='rgba(111,199,189,0.7)'; ctx.lineWidth=1.5; ctx.stroke();
     }
+    if(e.fx.cloaked) continue;
     var bw=e.r*2.2, bh=3, bx=e.x-bw/2, by=e.y+e.r*0.8-spriteH-6;
     ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(bx,by,bw,bh);
     var pct=Math.max(0,e.hp/e.maxHp);
@@ -2074,8 +2090,6 @@ function draw2D(perfNow){
   vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.32)');
   ctx.fillStyle=vg; ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
 }
-function now_slow(e){ return e.fx.slowed; }
-
 function refreshEvolveButtons(){
   var u=selectedUnit;
   evolveButtonsEl.innerHTML='';

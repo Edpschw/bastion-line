@@ -88,6 +88,7 @@ function createRenderer3D() {
 
   let lastTime = 0;
   let resizeObserver = null;
+  let onKeyDown = null, onKeyUp = null;
 
   // Qualidade adaptativa: em máquina fraca o renderer desce de degrau sozinho.
   // Só desce, nunca sobe — subir de volta causaria oscilação visível.
@@ -369,7 +370,7 @@ function createRenderer3D() {
     el.addEventListener('touchend', fimToque, { passive: true });
     el.addEventListener('touchcancel', fimToque, { passive: true });
 
-    window.addEventListener('keydown', function (e) {
+    onKeyDown = function (e) {
       if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = true;
       else if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = true;
       else if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
@@ -379,15 +380,17 @@ function createRenderer3D() {
       else if (e.code === 'Home') { reenquadrar(); }
       else return;
       e.preventDefault();
-    });
-    window.addEventListener('keyup', function (e) {
+    };
+    onKeyUp = function (e) {
       if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
       else if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
       else if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
       else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
       else if (e.code === 'Equal' || e.code === 'NumpadAdd') keys.zoomIn = false;
       else if (e.code === 'Minus' || e.code === 'NumpadSubtract') keys.zoomOut = false;
-    });
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
   }
 
   function distTouches(t) {
@@ -514,6 +517,8 @@ function createRenderer3D() {
       const r2 = u.range * u.range;
       for (let j = 0; j < enemies.length; j++) {
         const e = enemies[j];
+        if (e.fx.cloaked && !u.ignoresCloak) continue;
+        if (e.flying ? u.targets === 'ground' : u.targets === 'air') continue;
         const dx = e.x - u.x, dy = e.y - u.y;
         const d2 = dx * dx + dy * dy;
         if (d2 <= r2 && d2 < bestD2) { bestD2 = d2; tx = e.x; tz = e.y; }
@@ -673,6 +678,9 @@ function createRenderer3D() {
     // Barras de vida acima dos inimigos
     for (let i = 0; i < state.enemies.length; i++) {
       const e = state.enemies[i];
+      // Quem está oculto não mostra barra: era ela que entregava a posição
+      // exata do Assassino, apesar de a malha já sumir.
+      if (e.fx.cloaked) continue;
       const g = enemyMeshes.get(e.id);
       if (!g) continue;
       const top = (g.userData.height || 0.8) + 0.22 + (e.flying ? FLIGHT_ALTITUDE : 0);
@@ -840,6 +848,8 @@ function createRenderer3D() {
   // -------------------------------------------------------------------------
   function dispose() {
     if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
+    if (onKeyDown) { window.removeEventListener('keydown', onKeyDown); onKeyDown = null; }
+    if (onKeyUp) { window.removeEventListener('keyup', onKeyUp); onKeyUp = null; }
     if (overlay) overlay.dispose();
     if (renderer) {
       renderer.dispose();

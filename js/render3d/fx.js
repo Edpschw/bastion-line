@@ -17,7 +17,10 @@ const SHOT_STYLE = {
   frost: { width: 0.06, length: 0.22, color: PAL.frost, tip: 0xeafffd },
   // O raio é fino, longo e claríssimo: lê como descarga, não como projétil.
   lightning: { width: 0.022, length: 0.5, color: 0x6fd0ff, tip: 0xeaffff, soft: true },
-  nature: { width: 0.05, length: 0.24, color: 0x9fd84a, tip: 0xe2ffb0, soft: true }
+  nature: { width: 0.05, length: 0.24, color: 0x9fd84a, tip: 0xe2ffb0, soft: true },
+  // A armadilha tem alcance 34, menos de uma célula: é golpe, não projétil.
+  trap: { melee: true, width: 0.05, color: 0xd8c48a },
+  necro: { width: 0.075, length: 0.22, color: 0x8f7ab8, tip: 0xd9c8ff, soft: true }
 };
 
 export function createEffects(scene, map) {
