@@ -17,7 +17,12 @@ Jogue abrindo `index.html` — é um único arquivo estático, sem build.
 
 ### Torres
 
-As oito do GDD, cada uma com nível 1 → dois ramos → nível 3.
+As oito do GDD têm 20 níveis. O nível 5 escolhe um dos dois ramos; os
+níveis 10, 15 e 20 desbloqueiam novas mecânicas, enquanto os intermediários
+melhoram vida, dano, alcance e cadência. `TOWER_LEVELS` concentra os marcos,
+`getBaseStats()` calcula a progressão e `visualTier()` escolhe uma das cinco
+formas 3D (básica, evoluída, avançada, épica e suprema). A arte 3D usa
+paletas e silhuetas distintas por ramo, inspiradas no plano visual da conversa.
 
 | Torre | Função | Ramos |
 |---|---|---|
@@ -44,6 +49,9 @@ Duas delas fogem do molde:
 Aplicar um acerto passa por `hitEnemy()`: a cadeia de raios precisa repetir um
 acerto por completo — armadura, perda de força por salto, todo efeito embutido —
 e duplicar isso era como as duas versões iriam divergir.
+
+A Armadilha continua `walkable` em todos os níveis. O Senhor da Morte sustenta
+1/2/3/5/7 esqueletos nos níveis 1/5/10/15/20 (mais um com a relíquia Livro).
 
 ### Elenco
 

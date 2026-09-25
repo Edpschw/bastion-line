@@ -465,8 +465,88 @@ const OCCUPANTS = {
   necro: necroOccupant
 };
 
+// Paletas e coroas inspiradas na prancha de evolução: cada ramo é reconhecível
+// pela cor e a forma suprema tem silhueta própria, mesmo vista de cima.
+const EVOLUTION_COLORS = {
+  militia: { guardiao: 0xe9aa48, guerreiro: 0xf05b38 },
+  archer: { patrulheira: 0x86d84a, francoatiradora: 0x55baff },
+  mage: { piromante: 0xff6a28, arcanista: 0x665bff },
+  frost: { eterna: 0x8edaff, cristalina: 0x31b9ff },
+  lightning: { corrente: 0x39b8ff, canhao: 0xffb347 },
+  nature: { bosque: 0xa8e852, praga: 0x9d54d4 },
+  trap: { toxica: 0x83e34f, explosiva: 0xff6c2f },
+  necro: { lich: 0x9c56ff, senhor: 0xdfc887 }
+};
+
+function addEvolutionSilhouette(group, turret, type, tier, branch, accent) {
+  if (tier < 3) return;
+  const metal = std(tier >= 5 ? PAL.goldLight : PAL.iron, { metalness: 0.7, roughness: 0.35 });
+  const magic = std(accent, { emissive: accent, emissiveIntensity: tier >= 5 ? 2 : 1.15, roughness: 0.3 });
+  // N10: cantoneiras/armas maiores. N15: quatro emissores. N20: coroa única.
+  const corners = type === 'trap' ? 4 : tier >= 5 ? 8 : tier >= 4 ? 4 : 2;
+  const radius = type === 'trap' ? 0.31 : 0.27;
+  for (let i = 0; i < corners; i++) {
+    const a = (i / corners) * Math.PI * 2;
+    const h = type === 'trap' ? 0.1 : tier >= 5 ? 0.38 : tier >= 4 ? 0.25 : 0.15;
+    const fin = mesh(CONE(tier >= 5 ? 0.052 : 0.037, h, 5), i % 2 ? magic : metal,
+      Math.cos(a) * radius, h * 0.5 + 0.07, Math.sin(a) * radius);
+    fin.rotation.z = Math.cos(a) * 0.2;
+    fin.rotation.x = Math.sin(a) * 0.2;
+    (type === 'trap' ? group : turret).add(fin);
+  }
+  if (tier >= 4) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(tier >= 5 ? 0.34 : 0.28, 0.012, 5, 24), magic);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = type === 'trap' ? 0.1 : 0.12;
+    (type === 'trap' ? group : turret).add(ring);
+  }
+  if (tier < 5) return;
+  const crown = new THREE.Group();
+  crown.position.y = type === 'trap' ? 0.16 : 0.58;
+  if (type === 'militia') {
+    // Guardião: escudo dourado; Guerreiro: lâminas escarlates cruzadas.
+    for (let s = -1; s <= 1; s += 2) {
+      const blade = mesh(BOX(0.06, branch === 'guerreiro' ? 0.48 : 0.28, 0.025), branch === 'guerreiro' ? magic : metal, s * 0.14, 0, 0);
+      blade.rotation.z = s * (branch === 'guerreiro' ? 0.45 : 0.1); crown.add(blade);
+    }
+  } else if (type === 'archer') {
+    // Patrulheira: folhas/arcos; Franco: mira e virote longo.
+    if (branch === 'patrulheira') {
+      for (let s = -1; s <= 1; s += 2) crown.add(mesh(CONE(0.1, 0.35, 5), magic, s * 0.16, 0, 0));
+    } else {
+      crown.add(mesh(CYL(0.03, 0.04, 0.46, 8), metal, 0, 0, 0.06));
+      crown.add(mesh(OCT(0.11), magic, 0, 0.27, 0.06));
+    }
+  } else if (type === 'mage' || type === 'frost' || type === 'lightning') {
+    const count = type === 'frost' ? 5 : type === 'lightning' ? 3 : 4;
+    for (let i = 0; i < count; i++) {
+      const a = i * Math.PI * 2 / count;
+      crown.add(mesh(OCT(type === 'frost' ? 0.105 : 0.075), magic, Math.cos(a) * 0.2, i % 2 ? 0.05 : 0.13, Math.sin(a) * 0.2));
+    }
+    if (type === 'lightning' && branch === 'canhao') {
+      const barrel = mesh(CYL(0.075, 0.1, 0.42, 8), metal, 0, -0.12, 0.2);
+      barrel.rotation.x = Math.PI / 2; crown.add(barrel);
+    }
+  } else if (type === 'nature') {
+    for (let i = 0; i < 5; i++) {
+      const a = i * Math.PI * 2 / 5;
+      crown.add(mesh(CONE(0.09, 0.28, 5), magic, Math.cos(a) * 0.18, 0.05, Math.sin(a) * 0.18));
+    }
+  } else if (type === 'necro') {
+    crown.add(mesh(CONE(0.16, 0.38, 6), magic, 0, 0.14, 0));
+    if (branch === 'senhor') for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2;
+      crown.add(mesh(SPH(0.055), metal, Math.cos(a) * 0.22, -0.08, Math.sin(a) * 0.22));
+    }
+  } else if (type === 'trap') {
+    crown.add(mesh(ICO(0.15), magic, 0, 0.08, 0));
+  }
+  (type === 'trap' ? group : turret).add(crown);
+}
+
 /** Monta a malha de uma torre a partir do tipo, tier, ramo e cor do núcleo 2D. */
 export function buildTower(type, tier, branch, color) {
+  color = (EVOLUTION_COLORS[type] && EVOLUTION_COLORS[type][branch]) || color;
   const recipe = (RECIPES[type] || RECIPES.militia)(tier, branch);
   const g = new THREE.Group();
 
@@ -501,14 +581,15 @@ export function buildTower(type, tier, branch, color) {
     flag.position.set(0.21, shell.lastBase * KIT_H, -0.21);
     g.add(flag);
   }
+  addEvolutionSilhouette(g, turret, type, tier, branch, color);
 
   // Auréola dourada das evoluções, lida de longe.
   if (tier >= 2) {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.33, 0.4, 28),
       new THREE.MeshBasicMaterial({
-        color: tier >= 3 ? PAL.goldLight : PAL.gold,
-        transparent: true, opacity: tier >= 3 ? 0.85 : 0.6,
+        color: tier >= 4 ? color : tier >= 3 ? PAL.goldLight : PAL.gold,
+        transparent: true, opacity: tier >= 5 ? 0.95 : tier >= 3 ? 0.85 : 0.6,
         depthWrite: false, side: THREE.DoubleSide, toneMapped: false
       })
     );

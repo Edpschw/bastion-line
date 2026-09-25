@@ -442,6 +442,93 @@ BRANCHES.necro={
            summon:{max:5,interval:3,hp:36,dmg:7,atkSpd:1.0,range:46,leash:112}} }
 };
 
+// Cada torre tem 20 níveis reais. O ramo é escolhido ao comprar o nível 5;
+// 10, 15 e 20 acrescentam habilidades e uma nova forma visual. Os níveis entre
+// marcos também melhoram atributos. A tabela concentra as diferenças dos ramos.
+var MAX_TOWER_LEVEL=20;
+var TOWER_LEVELS={
+  militia:{
+    guardiao:{
+      10:{name:'Escudo Pesado',armor:0.18,block:2},
+      15:{name:'Muralha Viva',armor:0.25,block:3,taunt:95,counter:0.35},
+      20:{name:'Guardião Supremo',armor:0.35,block:5,taunt:120,counter:0.55,counterSplash:42}},
+    guerreiro:{
+      10:{name:'Golpe Duplo',multi:2},
+      15:{name:'Lâmina em Cone',multi:3,splash:48},
+      20:{name:'Berserker',multi:3,splash:58,berserk:0.8}}
+  },
+  archer:{
+    patrulheira:{
+      10:{name:'Flecha Dupla',multi:2},
+      15:{name:'Chuva de Flechas',multi:3,splash:35},
+      20:{name:'Mestre da Floresta',multi:4,splash:44,crit:{chance:0.22,mult:1.7},fastPriority:true}},
+    francoatiradora:{
+      10:{name:'Penetração',armorPierce:0.42},
+      15:{name:'Tiro Mortal',armorPierce:0.5,crit:{chance:0.25,mult:2},execute:0.12},
+      20:{name:'Exterminadora',armorPierce:0.65,crit:{chance:0.4,mult:2.2},execute:0.18,bossBonus:1.45}}
+  },
+  mage:{
+    piromante:{
+      10:{name:'Chamas Persistentes',burn:{dps:7,dur:3.5}},
+      15:{name:'Explosão Infernal',splash:88,burn:{dps:10,dur:4}},
+      20:{name:'Arquimago das Chamas',splash:108,burn:{dps:14,dur:5},deathBurst:65,burnBypass:true}},
+    arcanista:{
+      10:{name:'Míssil Arcano',armorPierce:0.5},
+      15:{name:'Tempestade Arcana',splash:52,armorPierce:0.55},
+      20:{name:'Arquimago',splash:62,armorPierce:0.65,chain:{jumps:2,range:78,falloff:0.65}}}
+  },
+  frost:{
+    eterna:{
+      10:{name:'Gelo Profundo',slowFactor:0.28,slowDur:2.8},
+      15:{name:'Congelamento',slowFactor:0.23,slowDur:3,stun:{chance:0.25,dur:0.7}},
+      20:{name:'Rainha do Gelo',slowFactor:0.18,slowDur:3.5,splash:72,stun:{chance:0.35,dur:0.85},frozenBonus:0.3}},
+    cristalina:{
+      10:{name:'Espinhos de Cristal',splash:28},
+      15:{name:'Prisão de Cristal',splash:36,stun:{chance:0.3,dur:0.75}},
+      20:{name:'Avatar de Cristal',splash:58,stun:{chance:0.45,dur:1.1},armorPierce:0.35}}
+  },
+  lightning:{
+    corrente:{
+      10:{name:'Corrente Dupla',chain:{jumps:2,range:80,falloff:0.75}},
+      15:{name:'Tempestade de Raios',chain:{jumps:4,range:88,falloff:0.75},stun:{chance:0.18,dur:0.4}},
+      20:{name:'Tempestade Elétrica',chain:{jumps:6,range:96,falloff:0.75},stun:{chance:0.28,dur:0.55}}},
+    canhao:{
+      10:{name:'Canhão de Choque',stun:{chance:0.35,dur:0.6}},
+      15:{name:'Supercarga',stun:{chance:0.45,dur:0.8},crit:{chance:0.2,mult:1.7}},
+      20:{name:'Colosso Tesla',stun:{chance:0.65,dur:1},crit:{chance:0.35,mult:2},attackerBonus:1.5}}
+  },
+  nature:{
+    bosque:{
+      10:{name:'Cura do Bosque',heal:{rate:10,range:135}},
+      15:{name:'Regeneração',heal:{rate:15,range:148},support:{range:120,rangeBonus:10,attackBonus:0.08}},
+      20:{name:'Espírito da Floresta',heal:{rate:22,range:170},support:{range:150,rangeBonus:18,attackBonus:0.15}}},
+    praga:{
+      10:{name:'Ervas Venenosas',poison:{dps:8,dur:3.5}},
+      15:{name:'Quebra de Armadura',poison:{dps:11,dur:4},armorBreak:{power:0.4,dur:4}},
+      20:{name:'Pestilência',poison:{dps:16,dur:5},armorBreak:{power:0.55,dur:5},slowFactor:0.55,slowDur:2.5}}
+  },
+  trap:{
+    toxica:{
+      10:{name:'Veneno Concentrado',poison:{dps:9,dur:4}},
+      15:{name:'Contágio',splash:68,poison:{dps:13,dur:4.5}},
+      20:{name:'Zona de Pestilência',splash:94,poison:{dps:20,dur:5},armorBreak:{power:0.4,dur:4}}},
+    explosiva:{
+      10:{name:'Grande Explosão',splash:72},
+      15:{name:'Fragmentação',splash:84,fragment:0.45},
+      20:{name:'Mina Devastadora',splash:112,fragment:0.7,crit:{chance:0.2,mult:1.6}}}
+  },
+  necro:{
+    lich:{
+      10:{name:'Esqueleto Arcano',summon:{max:2,interval:5,hp:42,dmg:9,atkSpd:0.95,range:46,leash:112}},
+      15:{name:'Cavaleiro da Morte',summon:{max:3,interval:4.5,hp:58,dmg:13,atkSpd:1,range:48,leash:120},armorBreak:{power:0.45,dur:4}},
+      20:{name:'Lich Supremo',summon:{max:4,interval:4,hp:75,dmg:18,atkSpd:1.1,range:50,leash:130},armorBreak:{power:0.6,dur:5},splash:52}},
+    senhor:{
+      10:{name:'Invocador Maior',summon:{max:3,interval:4,hp:36,dmg:7,atkSpd:0.95,range:44,leash:112}},
+      15:{name:'Exército dos Mortos',summon:{max:5,interval:3,hp:48,dmg:9,atkSpd:1,range:46,leash:120}},
+      20:{name:'Legião dos Mortos',summon:{max:7,interval:2.5,hp:62,dmg:12,atkSpd:1.1,range:48,leash:132}}}
+  }
+};
+
 // Cada criatura carrega uma função estratégica, conforme a seção 18 do GDD:
 //   flying    ignora o labirinto; só cai para torres com alcance aéreo
 //   attacker  para a marcha para destruir torres
@@ -646,24 +733,49 @@ function findNearestEmptyCell(row,col){
 }
 
 function getBaseStats(u){
-  if(u.tier===1){
-    var b=UNIT_BASE[u.type];
-    return {name:b.name,hp:b.hp,dmg:b.dmg,range:b.range,atkSpd:b.atkSpd,splash:b.splash||0,slowFactor:b.slowFactor||0,slowDur:b.slowDur||0,armorPierce:0,burn:b.burn||null,
-            chain:b.chain||null,stun:b.stun||null,poison:b.poison||null,armorBreak:b.armorBreak||null,heal:b.heal||null,
-            summon:b.summon||null,color:b.color};
+  var level=u.level||1, b=UNIT_BASE[u.type], stats=Object.assign({},b);
+  if(level<5){
+    stats.hp=Math.round(b.hp*(1+(level-1)*0.10));
+    stats.dmg=+(b.dmg*(1+(level-1)*0.08)).toFixed(1);
+    stats.range=b.range+(level-1)*2;
+    stats.atkSpd=+(b.atkSpd*(1+(level-1)*0.025)).toFixed(2);
+    return stats;
   }
-  var br=BRANCHES[u.type][u.branch];
-  var td=u.tier===2?br.tier2:br.tier3;
-  return {name:td.name,hp:td.hp,dmg:td.dmg,range:td.range,atkSpd:td.atkSpd,splash:td.splash||0,slowFactor:td.slowFactor||0,slowDur:td.slowDur||0,armorPierce:td.armorPierce||0,burn:td.burn||null,
-          chain:td.chain||null,stun:td.stun||null,poison:td.poison||null,armorBreak:td.armorBreak||null,heal:td.heal||null,
-          summon:td.summon||null,color:td.color||UNIT_BASE[u.type].color};
+  var br=BRANCHES[u.type][u.branch], early=br.tier2, advanced=br.tier3;
+  if(level<10){
+    var p=(level-5)/5;
+    stats=Object.assign({},early);
+    ['hp','dmg','range','atkSpd'].forEach(function(k){ stats[k]=+(early[k]+(advanced[k]-early[k])*p).toFixed(2); });
+  } else {
+    stats=Object.assign({},advanced);
+    var extra=level-10;
+    stats.hp=Math.round(advanced.hp*(1+extra*0.075));
+    stats.dmg=+(advanced.dmg*(1+extra*0.065)).toFixed(1);
+    stats.range=advanced.range+extra*2;
+    stats.atkSpd=+(advanced.atkSpd*(1+extra*0.025)).toFixed(2);
+  }
+  // A troca de ramo não pode reduzir a vida já comprada nos níveis 1–4.
+  stats.hp=Math.max(Math.round(b.hp*1.3),Math.round(stats.hp));
+  var milestones=TOWER_LEVELS[u.type][u.branch];
+  [10,15,20].forEach(function(at){ if(level>=at) Object.assign(stats,milestones[at]); });
+  if(u.type==='necro' && u.branch==='senhor' && level<10){
+    stats.summon=Object.assign({},stats.summon,{max:2});
+  }
+  return stats;
+}
+
+function visualTier(level){ return level>=20?5:level>=15?4:level>=10?3:level>=5?2:1; }
+function evolutionCost(u, nextLevel, branchKey){
+  if(nextLevel===5) return BRANCHES[u.type][branchKey].tier2.cost;
+  if(nextLevel===10) return BRANCHES[u.type][u.branch].tier3.cost;
+  return Math.round(5+nextLevel*1.7+(nextLevel>=15?8:0));
 }
 
 function makeUnit(type, row, col){
   var b=UNIT_BASE[type];
   var u={
     id:idCounter++,
-    type:type, tier:1, branch:null, row:row, col:col,
+    type:type, level:1, tier:1, branch:null, row:row, col:col,
     x:col*CELL+CELL/2, y:row*CELL+CELL/2, cd:0,
     cost:b.cost, shape:b.shape,
     kills:0, vetLevel:0, bobPhase:Math.random()*Math.PI*2
@@ -691,6 +803,10 @@ function recomputeUnitStats(u){
   u.slowFactor=base.slowFactor||0;
   u.slowDur=(base.slowDur||0)*relicMult('slowDur');
   u.armorPierce=base.armorPierce||0;
+  ['armor','block','taunt','counter','counterSplash','multi','berserk','execute','bossBonus',
+   'fastPriority','deathBurst','burnBypass','frozenBonus','attackerBonus','fragment'].forEach(function(k){ u[k]=base[k]||0; });
+  u.crit=base.crit||null;
+  u.support=base.support||null;
   u.targets=UNIT_BASE[u.type].targets||'ground';
   // Queimadura escala com a veterania, como o dano direto.
   u.burn = base.burn ? {dps:+(base.burn.dps*dmgMult).toFixed(1), dur:base.burn.dur} : null;
@@ -708,23 +824,18 @@ function recomputeUnitStats(u){
 }
 
 function evolveUnit(u, branchKey){
-  var cost;
-  if(u.tier===1){
-    var opt=BRANCHES[u.type][branchKey];
-    if(!opt) return;
-    cost=opt.tier2.cost;
-    if(gold<cost){ log('Ouro insuficiente para evoluir.'); return; }
-    gold-=cost; u.branch=branchKey; u.tier=2; u.cost+=cost;
-  } else if(u.tier===2){
-    cost=BRANCHES[u.type][u.branch].tier3.cost;
-    if(gold<cost){ log('Ouro insuficiente para evoluir.'); return; }
-    gold-=cost; u.tier=3; u.cost+=cost;
-  } else {
-    return;
-  }
+  if(u.level>=MAX_TOWER_LEVEL || u.hp<=0) return;
+  var next=u.level+1;
+  if(next===5 && !BRANCHES[u.type][branchKey]) return;
+  if(next>5 && !u.branch) return;
+  var cost=evolutionCost(u,next,branchKey);
+  if(gold<cost){ log('Ouro insuficiente para evoluir.'); return; }
+  gold-=cost;
+  if(next===5) u.branch=branchKey;
+  u.level=next; u.tier=visualTier(next); u.cost+=cost;
   recomputeUnitStats(u);
   attackFX.push({x1:u.x,y1:u.y,x2:u.x,y2:u.y,life:0.35,maxLife:0.35,color:'#f2c15a',splashR:24});
-  log('Evoluiu para '+u.name+'!');
+  log('Nível '+u.level+': '+u.name+'!');
   refreshSelectedPanel();
 }
 
@@ -734,10 +845,18 @@ function evolveUnit(u, branchKey){
  */
 function damageUnit(u, dmg, source){
   if(u.hp<=0) return;
+  if(!u.isMinion) dmg=Math.max(1,Math.round(dmg*(1-(u.armor||0))-(u.block||0)));
   u.hp-=dmg;
   attackFX.push({kind:'shot',unitType:'militia',tier:1,x1:source.x,y1:source.y,x2:u.x,y2:u.y,
                  life:0.12,maxLife:0.12,color:'#c1503d',splashR:0});
   floatingTexts.push(mkFloat(u.x, u.y-14, '-'+Math.round(dmg), '#e0a89c'));
+  if(!u.isMinion && u.counter && source && source.hp>0){
+    var retaliation=Math.max(1,Math.round(u.dmg*u.counter));
+    source.hp-=retaliation; source.lastHitBy=u;
+    if(u.counterSplash){
+      enemies.forEach(function(e){ if(e!==source && e.hp>0 && dist(e,source)<=u.counterSplash){ e.hp-=Math.round(retaliation*0.5); e.lastHitBy=u; } });
+    }
+  }
   if(u.hp<=0){ u.isMinion ? destroyMinion(u) : destroyUnit(u); }
 }
 
@@ -1296,15 +1415,28 @@ function tickStatus(e, dt, now){
  */
 function hitEnemy(u, e, dmgMult, now){
   var effArmor=effectiveArmor(e,now)*(1-(u.armorPierce||0));
-  var dmg=Math.max(1, Math.round(u.dmg*dmgMult-effArmor));
+  var raw=u.dmg*dmgMult;
+  if(u.berserk) raw*=1+u.berserk*(1-u.hp/u.maxHp);
+  if(u.bossBonus && e.boss) raw*=u.bossBonus;
+  if(u.attackerBonus && e.attacker) raw*=u.attackerBonus;
+  if(u.crit && Math.random()<u.crit.chance) raw*=u.crit.mult;
+  if(u.execute && e.hp/e.maxHp<=u.execute) raw*=1.8;
+  if(e.frozenWeakUntil>now && UNIT_BASE[u.type].dmgType==='fisico') raw*=1+(e.frozenWeakPower||0);
+  var dmg=Math.max(1, Math.round(raw-effArmor));
   e.hp-=dmg;
   e.lastHitBy=u;
   e.lastDamageAt=now;
   if(u.slowFactor) applyStatus(e,'slow',u.slowFactor,u.slowDur,u,now);
-  if(u.burn) applyStatus(e,'burn',u.burn.dps,u.burn.dur,u,now);
+  if(u.frozenBonus){ e.frozenWeakUntil=now+u.slowDur*1000; e.frozenWeakPower=u.frozenBonus; }
+  if(u.burn && (u.burnBypass || !e.immune || e.immune.indexOf('burn')<0)){
+    if(u.burnBypass && e.immune && e.immune.indexOf('burn')>=0){
+      e.hp-=u.burn.dps*0.5; // parte da resistência é ignorada, sem retirar a imunidade global
+    } else applyStatus(e,'burn',u.burn.dps,u.burn.dur,u,now);
+  }
   if(u.poison) applyStatus(e,'poison',u.poison.dps,u.poison.dur,u,now);
   if(u.armorBreak) applyStatus(e,'armorBreak',u.armorBreak.power,u.armorBreak.dur,u,now);
   if(u.stun && Math.random()<u.stun.chance) applyStatus(e,'stun',1,u.stun.dur,u,now);
+  if(u.stun && u.attackerBonus && e.attacker && hasStatus(e,'stun',now)) e.atkCd=Math.max(e.atkCd||0,u.stun.dur);
 }
 
 /** A torre alcança este inimigo? Voadores só caem para alcance aéreo. */
@@ -1411,7 +1543,15 @@ function update(dt, now){
   // O Xamã não bate nas torres: enfraquece as que estão por perto. Como é um
   // efeito de presença, é recalculado por frame em vez de virar status com
   // duração — sai de cena, o efeito some junto.
-  for(var i=0;i<units.length;i++) units[i].hexed=0;
+  for(var i=0;i<units.length;i++){ units[i].hexed=0; units[i].rangeAura=0; units[i].attackAura=0; }
+  for(var i=0;i<units.length;i++){
+    var supporter=units[i]; if(!supporter.support) continue;
+    for(var sj=0;sj<units.length;sj++){
+      var ally=units[sj]; if(ally===supporter || dist(ally,supporter)>supporter.support.range) continue;
+      ally.rangeAura=Math.max(ally.rangeAura,supporter.support.rangeBonus);
+      ally.attackAura=Math.max(ally.attackAura,supporter.support.attackBonus);
+    }
+  }
   for(var i=0;i<enemies.length;i++) enemies[i].rallied=1;
   for(var i=0;i<enemies.length;i++){
     var ae=enemies[i];
@@ -1441,18 +1581,33 @@ function update(dt, now){
         var e=enemies[j]; if(e.hp<=0) continue;
         if(!canHit(u,e)) continue;
         var dx=e.x-u.x, dy=e.y-u.y;
-        if(dx*dx+dy*dy<=u.range*u.range && e.traveled>bestProg){ bestProg=e.traveled; target=e; }
+        var reach=u.range+(u.rangeAura||0);
+        var priority=u.fastPriority ? e.speed*10+e.traveled : e.traveled;
+        if(dx*dx+dy*dy<=reach*reach && priority>bestProg){ bestProg=priority; target=e; }
       }
       if(target){
         // Limite de 0.85: uma aura de 100% zeraria a cadência e a torre ficaria
         // travada para sempre, já que o tempo de recarga nunca mais desceria.
-        u.cd=1/(u.atkSpd*(1-Math.min(0.85, u.hexed||0)));
+        u.cd=1/(u.atkSpd*(1+(u.attackAura||0))*(1-Math.min(0.85, u.hexed||0)));
         var hitList=[target];
         if(u.splash){
           // O respingo não alcança o que a torre não conseguiria mirar.
           hitList=enemies.filter(function(e){ return e.hp>0 && canHit(u,e) && dist(e,target)<=u.splash; });
         }
         for(var k=0;k<hitList.length;k++){ hitEnemy(u, hitList[k], 1, now); }
+        if(u.multi>1){
+          var extras=enemies.filter(function(e){ return e.hp>0 && e!==target && hitList.indexOf(e)<0 && canHit(u,e) && dist(e,u)<=u.range+(u.rangeAura||0); });
+          extras.sort(function(a,b){ return dist(a,target)-dist(b,target); });
+          for(var mi=0;mi<Math.min(u.multi-1,extras.length);mi++){
+            hitEnemy(u,extras[mi],0.8,now);
+            attackFX.push({kind:'shot',unitType:u.type,tier:u.tier,x1:u.x,y1:u.y,x2:extras[mi].x,y2:extras[mi].y,life:0.12,maxLife:0.12,color:u.color,splashR:0});
+          }
+        }
+        if(u.fragment){
+          hitList.forEach(function(e){
+            enemies.forEach(function(other){ if(other!==e && other.hp>0 && canHit(u,other) && dist(other,e)<=34) hitEnemy(u,other,u.fragment,now); });
+          });
+        }
 
         // Cadeia: salta para o inimigo mais próximo ainda não atingido,
         // perdendo força a cada salto.
@@ -1496,7 +1651,8 @@ function update(dt, now){
         var bestD=Infinity;
         for(var k=0;k<units.length;k++){
           var cand=units[k], cd=dist(e,cand);
-          if(cd<=e.attacker.range && cd<bestD){ bestD=cd; e.target=cand; }
+          var score=cd-(cand.taunt?1000:0);
+          if(cd<=e.attacker.range && score<bestD){ bestD=score; e.target=cand; }
         }
         // Esqueletos entram na mesma busca: é o que faz deles linha de frente
         // em vez de enfeite atrás da torre.
@@ -1537,6 +1693,11 @@ function update(dt, now){
   for(var i=0;i<enemies.length;i++){
     var e=enemies[i];
     if(e.hp<=0){
+      if(e.lastHitBy && e.lastHitBy.deathBurst){
+        var burst=e.lastHitBy.deathBurst, owner=e.lastHitBy;
+        enemies.forEach(function(other){ if(other!==e && other.hp>0 && dist(other,e)<=burst){ other.hp-=Math.max(1,Math.round(owner.dmg*0.6)); other.lastHitBy=owner; } });
+        attackFX.push({kind:'death',x1:e.x,y1:e.y,x2:e.x,y2:e.y,life:0.24,maxLife:0.24,color:owner.color,splashR:burst});
+      }
       var premio=ganharOuro(e.bounty);
       floatingTexts.push(mkFloat(e.x,e.y,'+'+premio,'#d9992f'));
       attackFX.push({kind:'death',x1:e.x,y1:e.y,x2:e.x,y2:e.y,life:0.28,maxLife:0.28,color:'#e8e2c9',splashR:e.r*1.9});
@@ -2080,31 +2241,37 @@ function refreshEvolveButtons(){
   var u=selectedUnit;
   evolveButtonsEl.innerHTML='';
   if(!u) return;
-  if(u.tier===1){
+  if(u.level>=MAX_TOWER_LEVEL){
+    var note=document.createElement('div');
+    note.className='hint'; note.textContent='Forma suprema alcançada — nível 20.';
+    evolveButtonsEl.appendChild(note);
+    return;
+  }
+  var next=u.level+1;
+  if(next===5){
     var branches=BRANCHES[u.type];
     Object.keys(branches).forEach(function(key){
       var opt=branches[key];
+      var cost=evolutionCost(u,next,key);
       var btn=document.createElement('button');
       btn.className='btn-evolve';
-      btn.innerHTML='Evoluir: <b>'+opt.label+'</b><span>'+opt.tier2.cost+'g</span>';
-      btn.dataset.cost=opt.tier2.cost;
-      btn.disabled = gold<opt.tier2.cost;
+      btn.innerHTML='Nível 5: <b>'+opt.label+'</b><span>'+cost+'g</span>';
+      btn.dataset.cost=cost;
+      btn.disabled = gold<cost;
       btn.addEventListener('click', function(){ evolveUnit(u,key); });
       evolveButtonsEl.appendChild(btn);
     });
-  } else if(u.tier===2){
-    var opt2=BRANCHES[u.type][u.branch].tier3;
+  } else {
+    var cost2=evolutionCost(u,next,u.branch);
+    var milestone=next>=20?20:next>=15?15:next>=10?10:0;
+    var name=milestone && next===milestone ? TOWER_LEVELS[u.type][u.branch][milestone].name : 'Aprimorar';
     var btn2=document.createElement('button');
     btn2.className='btn-evolve';
-    btn2.innerHTML='Evoluir: <b>'+opt2.name+'</b><span>'+opt2.cost+'g</span>';
-    btn2.dataset.cost=opt2.cost;
-    btn2.disabled = gold<opt2.cost;
+    btn2.innerHTML='Nível '+next+': <b>'+name+'</b><span>'+cost2+'g</span>';
+    btn2.dataset.cost=cost2;
+    btn2.disabled = gold<cost2;
     btn2.addEventListener('click', function(){ evolveUnit(u,u.branch); });
     evolveButtonsEl.appendChild(btn2);
-  } else {
-    var note=document.createElement('div');
-    note.className='hint'; note.textContent='Evolução máxima alcançada.';
-    evolveButtonsEl.appendChild(note);
   }
 }
 
@@ -2123,7 +2290,7 @@ function refreshSelectedPanel(){
   for(var i=0;i<VET_THRESHOLDS.length;i++){ if(u.kills<VET_THRESHOLDS[i]){ nextT=VET_THRESHOLDS[i]; break; } }
   var killsLine = nextT!==null ? (u.kills+' / '+nextT) : (u.kills+' (máx.)');
   selectedBody.innerHTML=
-    '<div class="sel-row"><span>'+u.name+'</span><b>Nível '+u.tier+'</b></div>'+
+    '<div class="sel-row"><span>'+u.name+'</span><b>Nível '+u.level+'/'+MAX_TOWER_LEVEL+'</b></div>'+
     '<div class="sel-row"><span>Patente</span><b>'+VET_TITLES[u.vetLevel]+'</b></div>'+
     '<div class="sel-row"><span>Abates</span><b>'+killsLine+'</b></div>'+
     '<div class="sel-row"><span>Vida</span><b>'+Math.max(0,Math.round(u.hp))+'/'+u.maxHp+'</b></div>'+
@@ -2134,6 +2301,9 @@ function refreshSelectedPanel(){
     (u.burn ? '<div class="sel-row"><span>Queimadura</span><b>'+u.burn.dps+'/s · '+u.burn.dur+'s</b></div>' : '')+
     (u.poison ? '<div class="sel-row"><span>Veneno</span><b>'+u.poison.dps+'/s · '+u.poison.dur+'s</b></div>' : '')+
     (u.chain ? '<div class="sel-row"><span>Saltos</span><b>'+u.chain.jumps+'</b></div>' : '')+
+    (u.multi>1 ? '<div class="sel-row"><span>Alvos</span><b>'+u.multi+'</b></div>' : '')+
+    (u.armor ? '<div class="sel-row"><span>Defesa</span><b>'+Math.round(u.armor*100)+'%</b></div>' : '')+
+    (u.crit ? '<div class="sel-row"><span>Crítico</span><b>'+Math.round(u.crit.chance*100)+'%</b></div>' : '')+
     (u.stun ? '<div class="sel-row"><span>Atordoa</span><b>'+Math.round(u.stun.chance*100)+'% · '+u.stun.dur+'s</b></div>' : '')+
     (u.armorBreak ? '<div class="sel-row"><span>Quebra armadura</span><b>-'+Math.round(u.armorBreak.power*100)+'%</b></div>' : '')+
     (u.heal ? '<div class="sel-row"><span>Cura aliados</span><b>'+u.heal.rate+'/s</b></div>' : '')+
