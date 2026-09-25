@@ -2,7 +2,7 @@
 // Bastion Line — cenário 3D
 // Céu, luzes, tabuleiro, ambientação e indicadores de construção.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, HORIZON, geo, std, glow, mesh, rng, lerp } from './core.js';
+import { THREE, PAL, HORIZON, geo, std, glow, mesh, rng, lerp } from './core.js?v=campaign-art-1';
 
 const SKY_VERT = [
   'varying vec3 vPos;',

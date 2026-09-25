@@ -6,13 +6,13 @@
 // cena three.js em sincronia. Se o WebGL não estiver disponível, nada é
 // anexado e o jogo segue no canvas 2D original.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js';
-import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './world.js';
+import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js?v=campaign-art-1';
+import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './world.js?v=campaign-art-1';
 import {
   buildTower, buildEnemy, buildWorker, buildMinion,
   animateTower, animateEnemy, animateWorker, pokeRecoil
-} from './actors.js';
-import { createEffects } from './fx.js';
+} from './actors.js?v=campaign-art-1';
+import { createEffects } from './fx.js?v=campaign-art-1';
 import { createOverlay } from './overlay.js';
 
 // Câmera calcada na de Warcraft III, cujos padrões são ângulo de ataque 304,

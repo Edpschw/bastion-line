@@ -3,7 +3,7 @@
 // Projéteis, impactos, explosões e poeira. Tudo sai de pools pré-alocados:
 // nenhum objeto é criado durante o jogo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, glow, hexInt } from './core.js';
+import { THREE, PAL, glow, hexInt } from './core.js?v=campaign-art-1';
 
 const MAX_BOLTS = 72;
 const MAX_RINGS = 56;

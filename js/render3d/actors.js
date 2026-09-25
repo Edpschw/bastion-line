@@ -3,8 +3,8 @@
 // Malhas procedurais de torres, inimigos e do Mestre de Obras.
 // As oito fundações têm arquitetura própria; ocupantes e armas animam no topo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js';
-import { buildTowerArchitecture } from './towerArchitecture.js';
+import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=campaign-art-1';
+import { buildTowerArchitecture } from './towerArchitecture.js?v=campaign-art-1';
 
 const BOX = function (w, h, d) {
   return geo('box:' + w + ':' + h + ':' + d, function () { return new THREE.BoxGeometry(w, h, d); });

@@ -1,6 +1,6 @@
 // Arquitetura original das oito torres. Todas cabem numa célula, preservam a
 // altura de leitura da câmera RTS e compartilham geometrias e materiais.
-import { THREE, geo, std, glow, mesh, shade } from './core.js';
+import { THREE, geo, std, glow, mesh, shade } from './core.js?v=campaign-art-1';
 
 const box = (w,h,d) => geo(`arch-box:${w}:${h}:${d}`, () => new THREE.BoxGeometry(w,h,d));
 const cyl = (top,bottom,h,n=8) => geo(`arch-cyl:${top}:${bottom}:${h}:${n}`, () => new THREE.CylinderGeometry(top,bottom,h,n));
