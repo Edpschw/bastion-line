@@ -148,13 +148,18 @@ index.html  ──readState()──▶  js/render3d/index.js  ──▶  cena th
 |---|---|
 | `core.js` | paleta, cache de geometrias/materiais, conversão de coordenadas |
 | `world.js` | céu, luzes, tabuleiro, floresta, portal e bastião |
-| `actors.js` | malhas e animações de torres, inimigos e do Mestre de Obras |
+| `towerArchitecture.js` | oito estruturas procedurais próprias, com detalhes por ramo e nível |
+| `actors.js` | ocupantes, inimigos, Mestre de Obras e animações |
 | `fx.js` | projéteis, impactos e partículas (pools pré-alocados) |
 | `overlay.js` | barras de vida, dano e galões, em canvas 2D por cima da cena |
 | `index.js` | câmera, sincronização com o estado do jogo e entrada |
 
 Nenhum modelo externo é carregado: torres, inimigos e cenário são montados a
 partir de primitivas (caixas, cones, octaedros) com *flat shading*.
+O visual de campanha usa pedra escurecida, madeira, bronze e cores de ramo em
+silhuetas distintas. O terreno mantém a grade jogável, com variação discreta de
+grama, terra, bosque misto e estandartes. Para comparar as cinco formas de cada
+especialização, abra `tests/tower-gallery.html`.
 
 ### Câmera
 

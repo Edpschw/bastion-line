@@ -12,7 +12,6 @@ import {
   buildTower, buildEnemy, buildWorker, buildMinion,
   animateTower, animateEnemy, animateWorker, pokeRecoil
 } from './actors.js';
-import { preloadTowerKit } from './towerKit.js';
 import { createEffects } from './fx.js';
 import { createOverlay } from './overlay.js';
 
@@ -111,7 +110,7 @@ function createRenderer3D() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.16;
+    renderer.toneMappingExposure = 1.08;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.domElement.className = 'layer3d';
     container.appendChild(renderer.domElement);
@@ -871,13 +870,6 @@ async function boot() {
   const game = window.BastionLine;
   if (!game || !game.attachRenderer) {
     console.warn('[Bastion Line] núcleo do jogo não encontrado; seguindo em 2D.');
-    return;
-  }
-  // As torres são modelos carregados; sem eles não há o que desenhar em 3D.
-  try {
-    await preloadTowerKit();
-  } catch (err) {
-    console.warn('[Bastion Line] peças de torre indisponíveis; seguindo em 2D.', err);
     return;
   }
   const ok = game.attachRenderer(createRenderer3D());
