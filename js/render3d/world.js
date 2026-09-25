@@ -2,7 +2,7 @@
 // Bastion Line — cenário 3D
 // Céu, luzes, tabuleiro, ambientação e indicadores de construção.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, HORIZON, geo, std, glow, mesh, rng, lerp } from './core.js';
+import { THREE, PAL, HORIZON, geo, std, glow, mesh, rng, lerp } from './core.js?v=campaign-art-1';
 
 const SKY_VERT = [
   'varying vec3 vPos;',
@@ -32,9 +32,9 @@ export function createSky() {
     depthWrite: false,
     fog: false,
     uniforms: {
-      topColor: { value: new THREE.Color(0x2f5480) },
+      topColor: { value: new THREE.Color(0x435e72) },
       midColor: { value: new THREE.Color(HORIZON) },
-      botColor: { value: new THREE.Color(0xd8a877) }
+      botColor: { value: new THREE.Color(0xc2aa84) }
     },
     vertexShader: SKY_VERT,
     fragmentShader: SKY_FRAG
@@ -46,10 +46,10 @@ export function createSky() {
 
 /** Luz do fim de tarde: key direcional com sombra, preenchimento frio e hemisférica. */
 export function createLights(scene, map) {
-  const hemi = new THREE.HemisphereLight(0xbcd9f2, 0x5e7038, 1.45);
+  const hemi = new THREE.HemisphereLight(0xd4dfdd, 0x4c583c, 1.25);
   scene.add(hemi);
 
-  const key = new THREE.DirectionalLight(0xfff1d2, 3.1);
+  const key = new THREE.DirectionalLight(0xffe5ba, 2.45);
   key.position.set(-7, 14, 7);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -71,7 +71,7 @@ export function createLights(scene, map) {
   scene.add(key.target);
 
   // Preenchimento frio vindo do lado oposto, sem sombra: evita pretos chapados.
-  const fill = new THREE.DirectionalLight(0x9dc2ef, 0.75);
+  const fill = new THREE.DirectionalLight(0x96bdcc, 0.7);
   fill.position.set(8, 7, -9);
   scene.add(fill);
 
@@ -107,7 +107,7 @@ export function createBoard(scene, map) {
   const grass = new THREE.InstancedMesh(grassGeo, std(0xffffff, { roughness: 0.95 }), grassCells.length);
   grass.receiveShadow = true;
   grass.castShadow = false;
-  const tones = [PAL.grass, PAL.grassAlt, PAL.grass, PAL.grassDry];
+  const tones = [PAL.grass, PAL.grassAlt, PAL.grass];
   for (let i = 0; i < grassCells.length; i++) {
     const r = grassCells[i][0], c = grassCells[i][1];
     dummy.position.set(map.colX(c), -0.17 + rand() * 0.035, map.rowZ(r));
@@ -116,7 +116,7 @@ export function createBoard(scene, map) {
     grass.setMatrixAt(i, dummy.matrix);
     color.setHex(tones[(rand() * tones.length) | 0]);
     // Variação sutil de luminância por célula — quebra o xadrez uniforme.
-    color.multiplyScalar(0.96 + rand() * 0.07);
+    color.multiplyScalar(0.98 + rand() * 0.035);
     grass.setColorAt(i, color);
   }
   grass.instanceMatrix.needsUpdate = true;
@@ -187,6 +187,25 @@ export function createBoard(scene, map) {
   if (tufts.instanceColor) tufts.instanceColor.needsUpdate = true;
   group.add(tufts);
 
+  // Manchas de terra e palha quebram a grade sem sugerir uma rota fixa.
+  const patchGeo = geo('field-patch', function () { return new THREE.CircleGeometry(0.23, 7); });
+  const patches = new THREE.InstancedMesh(patchGeo, std(0xffffff, { roughness: 1, side: THREE.DoubleSide }), grassCells.length);
+  for (let i = 0; i < grassCells.length; i++) {
+    const cell = grassCells[i];
+    dummy.position.set(map.colX(cell[1]) + (rand() - 0.5) * 0.45, 0.008, map.rowZ(cell[0]) + (rand() - 0.5) * 0.45);
+    dummy.rotation.set(-Math.PI / 2, 0, rand() * Math.PI);
+    const size = rand() > 0.42 ? 0.5 + rand() * 0.65 : 0;
+    dummy.scale.set(size, size * (0.55 + rand() * 0.5), 1);
+    dummy.updateMatrix(); patches.setMatrixAt(i, dummy.matrix);
+    color.setHex(rand() > 0.45 ? 0x927e5c : 0x4d6845);
+    patches.setColorAt(i, color);
+  }
+  dummy.scale.setScalar(1);
+  patches.instanceMatrix.needsUpdate = true;
+  if (patches.instanceColor) patches.instanceColor.needsUpdate = true;
+  patches.receiveShadow = true;
+  group.add(patches);
+
   // --- tampa verde logo abaixo das células: as frestas viram sulcos de grama ---
   const seamCap = mesh(
     geo('seam-cap', function () { return new THREE.BoxGeometry(COLS, 0.1, ROWS); }),
@@ -218,7 +237,8 @@ function buildSideWalls(map) {
   const group = new THREE.Group();
   const rand = rng(0xb0a7);
   const blockGeo = geo('wall-block', function () { return new THREE.BoxGeometry(0.46, 0.3, 0.9); });
-  const blockMat = std(PAL.stone, { roughness: 0.95 });
+  const blockMat = std(PAL.stoneMid, { roughness: 0.95 });
+  const stakeMat = std(PAL.woodDark, { roughness: 1 });
 
   for (let side = -1; side <= 1; side += 2) {
     for (let r = 0; r < map.ROWS; r++) {
@@ -233,6 +253,26 @@ function buildSideWalls(map) {
         b.scale.set(1, 1, 0.86 + rand() * 0.2);
         group.add(b);
       }
+      if(r>0 && r<map.ROWS-1){
+        const x=side*(map.halfW+0.36), z=map.rowZ(r);
+        group.add(mesh(geo('palisade-stake',function(){return new THREE.CylinderGeometry(0.085,0.11,0.72,5);}),stakeMat,x,0.65,z));
+        group.add(mesh(geo('palisade-point',function(){return new THREE.ConeGeometry(0.11,0.25,5);}),stakeMat,x,1.12,z));
+      }
+    }
+    // Estandartes marcam o corredor de batalha sem ocupar células jogáveis.
+    for(const row of [2,6,10]){
+      const x=side*(map.halfW+0.88), z=map.rowZ(row);
+      const pole=mesh(geo('campaign-pole',function(){return new THREE.CylinderGeometry(0.027,0.035,1.55,6);}),stakeMat,x,0.78,z);
+      group.add(pole);
+      const cloth=new THREE.Mesh(
+        geo('campaign-banner',function(){return new THREE.PlaneGeometry(0.40,0.55);}),
+        std(side<0?0xa54f3d:0x4d817f,{side:THREE.DoubleSide,roughness:0.9})
+      );
+      cloth.position.set(x+side*0.21,1.22,z);
+      cloth.rotation.y=0;
+      cloth.castShadow=true;group.add(cloth);
+      group.add(mesh(geo('campaign-finial',function(){return new THREE.ConeGeometry(0.06,0.18,5);}),
+        std(PAL.gold,{metalness:0.5,roughness:0.45}),x,1.65,z));
     }
   }
   return group;
@@ -364,7 +404,7 @@ function buildScenery(map) {
     const z = Math.sin(a) * rad * 0.85;
     // Mantém o tabuleiro e a moldura imediata livres.
     if (Math.abs(x) < map.halfW + 3.4 && Math.abs(z) < map.halfH + 3.4) continue;
-    spots.push([x, z, 0.65 + rand() * 0.85]);
+    spots.push([x, z, 0.65 + rand() * 0.85, rand() > 0.67]);
   }
 
   const trunks = new THREE.InstancedMesh(
@@ -376,7 +416,13 @@ function buildScenery(map) {
   const crownsTop = new THREE.InstancedMesh(
     geo('crown-top', function () { return new THREE.ConeGeometry(0.5, 1.1, 6); }),
     std(0xffffff, { roughness: 0.95 }), spots.length);
+  const oakSpots = spots.filter(function(s){ return s[3]; });
+  const oaks = new THREE.InstancedMesh(
+    geo('oak-crown', function(){ return new THREE.DodecahedronGeometry(0.72,0); }),
+    std(0xffffff, { roughness: 0.96 }), oakSpots.length * 2);
   trunks.castShadow = crownsLow.castShadow = crownsTop.castShadow = true;
+  oaks.castShadow = true;
+  let oakIndex=0;
 
   for (let i = 0; i < spots.length; i++) {
     const x = spots[i][0], z = spots[i][1], s = spots[i][2];
@@ -388,6 +434,7 @@ function buildScenery(map) {
     dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
 
     dummy.position.set(x, -0.82 + 1.35 * s, z);
+    if(spots[i][3]) dummy.scale.setScalar(0);
     dummy.updateMatrix(); crownsLow.setMatrixAt(i, dummy.matrix);
     color.setHex(PAL.leaf).multiplyScalar(0.72 + rand() * 0.6);
     crownsLow.setColorAt(i, color);
@@ -396,9 +443,20 @@ function buildScenery(map) {
     dummy.updateMatrix(); crownsTop.setMatrixAt(i, dummy.matrix);
     color.setHex(PAL.leafAlt).multiplyScalar(0.75 + rand() * 0.6);
     crownsTop.setColorAt(i, color);
+    if(spots[i][3]){
+      dummy.scale.setScalar(s);
+      for(let k=0;k<2;k++){
+        dummy.position.set(x+(k?0.31:-0.24)*s, -0.82+(k?1.88:1.53)*s,z+(k?-0.2:0.22)*s);
+        dummy.rotation.set(0,rand()*Math.PI,0);
+        dummy.scale.set(s*(k?0.72:0.9),s*(k?0.62:0.75),s*(k?0.78:0.95));
+        dummy.updateMatrix();oaks.setMatrixAt(oakIndex,dummy.matrix);
+        color.setHex(k?PAL.leafAlt:PAL.leaf).multiplyScalar(0.88+rand()*0.22);
+        oaks.setColorAt(oakIndex++,color);
+      }
+    }
   }
   dummy.scale.setScalar(1);
-  [trunks, crownsLow, crownsTop].forEach(function (m) {
+  [trunks, crownsLow, crownsTop, oaks].forEach(function (m) {
     m.instanceMatrix.needsUpdate = true;
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
     group.add(m);

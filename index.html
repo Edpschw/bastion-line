@@ -221,6 +221,110 @@ body{
   .build-menu{width:190px;left:10px;bottom:10px;}
   .unit-popup{width:180px;right:10px;}
 }
+
+/* Linguagem visual da campanha: ferro azulado, couro, bronze e pergaminho.
+   O campo fica dominante; as molduras concentram informação e comandos. */
+:root{
+  --bg:#111b20;--bg-alt:#1b292c;--panel:#1e2b30;--panel-2:#29383b;
+  --border:#55615e;--ink:#eee4cc;--ink-dim:#b6bbaa;--ink-faint:#8d9b93;
+  --accent:#dbab62;--accent-soft:#8e6439;--hp-good:#7fae72;
+  --militia:#b18a55;--archer:#80a66a;--mage:#7775bd;--frost:#85bed1;
+}
+body{
+  background:radial-gradient(ellipse at 50% -30%,#2b3b3b 0%,transparent 60%),
+    linear-gradient(135deg,#10191e,#1c292a 55%,#141c1c);
+}
+.hud-bar{
+  min-height:64px;padding:8px 18px 9px;
+  background:linear-gradient(180deg,#334039 0%,#1b282c 62%,#141d22 100%);
+  border-bottom:3px solid #8e6840;
+  box-shadow:inset 0 1px #a5a38944,0 5px 14px #08101588;
+}
+.hud-bar h1{
+  display:flex;align-items:center;gap:11px;font-size:1.18rem;
+  color:#f3e6c7;text-shadow:0 2px 2px #070d0f;
+}
+.hud-bar h1::before{
+  content:'';display:block;width:24px;height:27px;flex:0 0 24px;
+  background:linear-gradient(140deg,#f0c67b,#8b673b);
+  clip-path:polygon(11% 0,89% 0,89% 64%,50% 100%,11% 64%);
+  box-shadow:0 0 0 2px #372819;
+}
+.resources{gap:6px;}
+.res{
+  min-width:70px;padding:5px 10px 4px;border:1px solid #657168;
+  border-top:2px solid var(--ink-faint);
+  background:linear-gradient(135deg,#22312fdd,#142127ee);
+  box-shadow:inset 0 1px #ffffff16,inset 0 -3px #0b151a99,0 2px 4px #0005;
+}
+.res--gold{border-top-color:var(--accent)}
+.res--lives{border-top-color:var(--hp-bad)}
+.res--wave{border-top-color:var(--frost)}
+.res-label{font-size:.66rem;letter-spacing:0;text-transform:none;color:#c2c6b4;}
+.res-value{font-size:1.02rem;line-height:1.14;}
+.phase-strip{
+  min-height:37px;padding:5px 18px;
+  background:linear-gradient(180deg,#253135,#1b2529);
+  border-bottom:1px solid #64756c;
+}
+#phaseText{font-size:.76rem;color:#d3d1ba;}
+.phase-bar{height:8px;border-radius:2px;border:1px solid #60716a;background:repeating-linear-gradient(90deg,#172125 0 24px,#2e3c3d 24px 25px);}
+.phase-bar-fill{background:linear-gradient(90deg,#805e39,#e1b665);box-shadow:inset 0 1px #f4dea477,0 0 7px #daa35a66;}
+.btn-send{
+  border-radius:3px;padding:7px 14px;
+  background:linear-gradient(180deg,#e9bd75,#af7a3e);
+  border:1px solid #f1d496;color:#2e241a;
+  box-shadow:inset 0 1px #fff2bd88,inset 0 -2px #76492177,0 2px 4px #0006;
+}
+.btn-send:disabled{background:#34403d;border-color:#4c5a55;color:#98a49b;box-shadow:none;}
+.build-menu,.unit-popup{
+  background:linear-gradient(135deg,#26363a 0%,#19252a 100%);
+  border:2px solid #967048;border-radius:5px;
+  box-shadow:inset 0 0 0 2px #18252a,inset 0 1px #dfb77b55,0 12px 32px #061015c9;
+  padding:13px;
+}
+.build-menu{width:300px;}
+.unit-popup{width:258px;}
+.build-menu-title,.unit-popup-head h3{
+  font-size:.84rem;letter-spacing:.01em;text-transform:none;color:#ead4a8;
+  padding-bottom:8px;border-bottom:1px solid #7b694e;margin-bottom:10px;
+}
+.build-menu-title span{color:#aeb8ad;font-style:normal;font-size:.72rem;}
+.shop-grid{gap:7px;}
+.unit-card{
+  min-height:80px;border-radius:3px;padding:9px 8px;
+  background:linear-gradient(150deg,#34423f,#233136);
+  border:1px solid #63716a;box-shadow:inset 0 1px #ffffff16;
+  transition:border-color .12s ease,background .12s ease;
+}
+.unit-card:hover:not(:disabled){border-color:#d0a363;background:#3c4a43;}
+.unit-card.active{border-color:#edc479;box-shadow:inset 0 0 0 1px #d4a65e;}
+.uc-swatch{width:16px;height:16px;border:1px solid #e8dcc399;}
+.uc-name{font-size:.82rem;}.uc-cost{font-size:.82rem;}
+.uc-stats{font-size:.67rem;line-height:1.35;color:#b9c2b5;}
+.uc-stats b{color:#a9d7d1;}
+.sel-row{font-size:.76rem;border-bottom:1px solid #c5be9a1a;padding:2px 0;}
+.btn-evolve,.btn-ghost{border-radius:3px;padding:8px 10px;}
+.btn-evolve{background:#35423e;border-color:#9b784c;box-shadow:inset 0 1px #ffffff14;}
+.btn-evolve:hover:not(:disabled){background:#455147;}
+.toast{border-radius:3px;background:#19282bea;border-color:#9c794d;color:#ede2cb;}
+.render-mode,.cam-hint{border-radius:3px;background:#18262ada;border-color:#68776b;color:#ddd2b6;}
+.modal{background:radial-gradient(ellipse at center,#213034e8,#0b1419f5 72%);}
+.relic-card{border-radius:3px;background:#29383b;border-color:#6a786d;}
+.relic-card:hover{background:#3a4947;}
+:focus-visible{outline:2px solid #f2ce8f;outline-offset:2px;}
+@media(max-width:620px){
+  .hud-bar{padding:6px 9px;gap:6px;min-height:54px;}
+  .hud-bar h1{font-size:.88rem;gap:5px;}
+  .hud-bar h1::before{width:16px;height:18px;flex-basis:16px;}
+  .resources{gap:3px;}
+  .res{min-width:44px;padding:3px 5px;}
+  .res-label{font-size:.55rem;}.res-value{font-size:.82rem;}
+  .phase-strip{padding:5px 9px;}
+  .build-menu{width:min(290px,calc(100vw - 20px));left:10px;bottom:10px;}
+  .unit-popup{width:min(258px,calc(100vw - 20px));right:10px;top:10px;}
+}
+@media(prefers-reduced-motion:reduce){.toast,.cam-hint,.unit-card{transition:none;}}
 </style>
 
 <div class="wrap">
@@ -335,94 +439,94 @@ ctx.scale(DPR,DPR);
 
 // targets: quem a torre consegue acertar. Corpo a corpo não alcança o ar.
 var UNIT_BASE={
-  militia:{name:'Milícia',cost:10,hp:42,dmg:5,range:46,atkSpd:1.3,shape:'square',color:'#b7623b',dmgType:'fisico',targets:'ground'},
-  archer:{name:'Arqueira',cost:14,hp:18,dmg:6,range:150,atkSpd:1.15,shape:'triangle',color:'#8a7ab0',dmgType:'fisico',targets:'both'},
-  mage:{name:'Mago',cost:20,hp:16,dmg:7,range:112,atkSpd:0.78,shape:'diamond',color:'#5f8fc9',splash:34,dmgType:'magico',targets:'both'},
-  frost:{name:'Gélida',cost:16,hp:20,dmg:3,range:96,atkSpd:1.0,shape:'hex',color:'#6fc7bd',slowFactor:0.5,slowDur:1.4,dmgType:'magico',targets:'both'},
-  lightning:{name:'Bobina',cost:24,hp:20,dmg:7,range:118,atkSpd:0.85,shape:'diamond',color:'#6fd0ff',shape2d:'mage',dmgType:'magico',targets:'both',
+  militia:{name:'Milícia',cost:10,hp:42,dmg:5,range:46,atkSpd:1.3,shape:'square',color:'#b18a55',dmgType:'fisico',targets:'ground'},
+  archer:{name:'Arqueira',cost:14,hp:18,dmg:6,range:150,atkSpd:1.15,shape:'triangle',color:'#80a66a',dmgType:'fisico',targets:'both'},
+  mage:{name:'Mago',cost:20,hp:16,dmg:7,range:112,atkSpd:0.78,shape:'diamond',color:'#7775bd',splash:34,dmgType:'magico',targets:'both'},
+  frost:{name:'Gélida',cost:16,hp:20,dmg:3,range:96,atkSpd:1.0,shape:'hex',color:'#85bed1',slowFactor:0.5,slowDur:1.4,dmgType:'magico',targets:'both'},
+  lightning:{name:'Bobina',cost:24,hp:20,dmg:7,range:118,atkSpd:0.85,shape:'diamond',color:'#50b6dd',shape2d:'mage',dmgType:'magico',targets:'both',
              chain:{jumps:1,range:72,falloff:0.6}},
-  nature:{name:'Druida',cost:18,hp:26,dmg:3,range:104,atkSpd:0.9,shape:'hex',color:'#7fc45a',shape2d:'frost',dmgType:'magico',targets:'ground',
+  nature:{name:'Druida',cost:18,hp:26,dmg:3,range:104,atkSpd:0.9,shape:'hex',color:'#8cbb62',shape2d:'frost',dmgType:'magico',targets:'ground',
           heal:{rate:3,range:112}},
   // walkable: ocupa a célula mas não fecha a rota. É o que separa armadilha de
   // muro — o inimigo passa por cima, e é justamente aí que ela dispara.
-  trap:{name:'Armadilha',cost:14,hp:30,dmg:11,range:34,atkSpd:0.55,shape:'square',color:'#9a8256',shape2d:'militia',dmgType:'fisico',targets:'ground',
+  trap:{name:'Armadilha',cost:14,hp:30,dmg:11,range:34,atkSpd:0.55,shape:'square',color:'#9b8462',shape2d:'militia',dmgType:'fisico',targets:'ground',
         walkable:true, splash:30, ignoresCloak:true},
-  necro:{name:'Necromante',cost:28,hp:22,dmg:6,range:108,atkSpd:0.7,shape:'diamond',color:'#8f7ab8',shape2d:'mage',dmgType:'magico',targets:'both',
+  necro:{name:'Necromante',cost:28,hp:22,dmg:6,range:108,atkSpd:0.7,shape:'diamond',color:'#aa7ed2',shape2d:'mage',dmgType:'magico',targets:'both',
          summon:{max:1,interval:6,hp:18,dmg:4,atkSpd:0.8,range:42,leash:96}}
 };
 
 var BRANCHES={
   militia:{
     guardiao:{ label:'Guardião',
-      tier2:{name:'Guardião',hp:90,dmg:7,range:50,atkSpd:1.3,splash:20,cost:22,color:'#8a6a3a'},
-      tier3:{name:'Muralha Viva',hp:170,dmg:10,range:54,atkSpd:1.35,splash:34,cost:46,color:'#6e5228'} },
+      tier2:{name:'Guardião',hp:90,dmg:7,range:50,atkSpd:1.3,splash:20,cost:22,color:'#e9aa48'},
+      tier3:{name:'Muralha Viva',hp:170,dmg:10,range:54,atkSpd:1.35,splash:34,cost:46,color:'#e9aa48'} },
     guerreiro:{ label:'Guerreiro',
-      tier2:{name:'Guerreiro',hp:55,dmg:11,range:48,atkSpd:1.55,cost:22,color:'#c1503d'},
-      tier3:{name:'Fúria',hp:70,dmg:19,range:50,atkSpd:1.85,cost:46,color:'#9c3624'} }
+      tier2:{name:'Guerreiro',hp:55,dmg:11,range:48,atkSpd:1.55,cost:22,color:'#f05b38'},
+      tier3:{name:'Fúria',hp:70,dmg:19,range:50,atkSpd:1.85,cost:46,color:'#f05b38'} }
   },
   archer:{
     patrulheira:{ label:'Patrulheira',
-      tier2:{name:'Patrulheira',hp:22,dmg:8,range:170,atkSpd:1.55,cost:26,color:'#8a7ab0'},
-      tier3:{name:'Vendaval',hp:28,dmg:11,range:190,atkSpd:2.05,cost:52,color:'#a596c9'} },
+      tier2:{name:'Patrulheira',hp:22,dmg:8,range:170,atkSpd:1.55,cost:26,color:'#86d84a'},
+      tier3:{name:'Vendaval',hp:28,dmg:11,range:190,atkSpd:2.05,cost:52,color:'#86d84a'} },
     francoatiradora:{ label:'Franco-atiradora',
-      tier2:{name:'Franco-atiradora',hp:20,dmg:16,range:185,atkSpd:0.85,armorPierce:0.3,cost:26,color:'#5c4f7a'},
-      tier3:{name:'Perfurante',hp:26,dmg:30,range:210,atkSpd:0.85,armorPierce:0.55,cost:52,color:'#453a5c'} }
+      tier2:{name:'Franco-atiradora',hp:20,dmg:16,range:185,atkSpd:0.85,armorPierce:0.3,cost:26,color:'#55baff'},
+      tier3:{name:'Perfurante',hp:26,dmg:30,range:210,atkSpd:0.85,armorPierce:0.55,cost:52,color:'#55baff'} }
   },
   mage:{
     piromante:{ label:'Piromante',
-      tier2:{name:'Piromante',hp:20,dmg:9,range:118,atkSpd:0.85,splash:48,cost:34,color:'#c1703d',
+      tier2:{name:'Piromante',hp:20,dmg:9,range:118,atkSpd:0.85,splash:48,cost:34,color:'#ff6a28',
              burn:{dps:3,dur:2.5}},
-      tier3:{name:'Inferno',hp:26,dmg:13,range:124,atkSpd:0.95,splash:68,cost:66,color:'#e0863f',
+      tier3:{name:'Inferno',hp:26,dmg:13,range:124,atkSpd:0.95,splash:68,cost:66,color:'#ff6a28',
              burn:{dps:7,dur:3.2}} },
     arcanista:{ label:'Arcanista',
-      tier2:{name:'Arcanista',hp:18,dmg:16,range:130,atkSpd:0.7,splash:20,armorPierce:0.25,cost:34,color:'#5f8fc9'},
-      tier3:{name:'Supremacia Arcana',hp:24,dmg:30,range:145,atkSpd:0.7,splash:26,armorPierce:0.45,cost:66,color:'#3d6aa3'} }
+      tier2:{name:'Arcanista',hp:18,dmg:16,range:130,atkSpd:0.7,splash:20,armorPierce:0.25,cost:34,color:'#665bff'},
+      tier3:{name:'Supremacia Arcana',hp:24,dmg:30,range:145,atkSpd:0.7,splash:26,armorPierce:0.45,cost:66,color:'#665bff'} }
   },
   frost:{
     eterna:{ label:'Gélida Eterna',
-      tier2:{name:'Gélida Eterna',hp:24,dmg:4,range:104,atkSpd:1.05,slowFactor:0.38,slowDur:2.1,cost:27,color:'#6fc7bd'},
-      tier3:{name:'Inverno Eterno',hp:30,dmg:5,range:112,atkSpd:1.1,slowFactor:0.25,slowDur:2.8,cost:54,color:'#4fa89e'} },
+      tier2:{name:'Gélida Eterna',hp:24,dmg:4,range:104,atkSpd:1.05,slowFactor:0.38,slowDur:2.1,cost:27,color:'#8edaff'},
+      tier3:{name:'Inverno Eterno',hp:30,dmg:5,range:112,atkSpd:1.1,slowFactor:0.25,slowDur:2.8,cost:54,color:'#8edaff'} },
     cristalina:{ label:'Cristalina',
-      tier2:{name:'Cristalina',hp:24,dmg:7,range:100,atkSpd:1.15,slowFactor:0.6,slowDur:1.2,cost:27,color:'#9fd6ce'},
-      tier3:{name:'Fragmentos Cristalinos',hp:30,dmg:12,range:106,atkSpd:1.3,slowFactor:0.65,slowDur:1.1,splash:18,cost:54,color:'#c8ebe5'} }
+      tier2:{name:'Cristalina',hp:24,dmg:7,range:100,atkSpd:1.15,slowFactor:0.6,slowDur:1.2,cost:27,color:'#31b9ff'},
+      tier3:{name:'Fragmentos Cristalinos',hp:30,dmg:12,range:106,atkSpd:1.3,slowFactor:0.65,slowDur:1.1,splash:18,cost:54,color:'#31b9ff'} }
   }
 };
 
 BRANCHES.lightning={
   corrente:{ label:'Corrente',
-    tier2:{name:'Corrente',hp:24,dmg:8,range:126,atkSpd:0.95,cost:36,color:'#6fd0ff',
+    tier2:{name:'Corrente',hp:24,dmg:8,range:126,atkSpd:0.95,cost:36,color:'#39b8ff',
            chain:{jumps:3,range:78,falloff:0.7}},
-    tier3:{name:'Senhor da Tempestade',hp:30,dmg:11,range:138,atkSpd:1.05,cost:70,color:'#9ae4ff',
+    tier3:{name:'Senhor da Tempestade',hp:30,dmg:11,range:138,atkSpd:1.05,cost:70,color:'#39b8ff',
            chain:{jumps:5,range:86,falloff:0.75}, stun:{chance:0.25,dur:0.5}} },
   canhao:{ label:'Canhão de Trovão',
-    tier2:{name:'Canhão de Trovão',hp:24,dmg:20,range:132,atkSpd:0.5,cost:36,color:'#4f9fd8',
+    tier2:{name:'Canhão de Trovão',hp:24,dmg:20,range:132,atkSpd:0.5,cost:36,color:'#ffb347',
            stun:{chance:0.3,dur:0.5}},
-    tier3:{name:'Deus do Trovão',hp:30,dmg:38,range:146,atkSpd:0.5,armorPierce:0.35,cost:70,color:'#2f78b8',
+    tier3:{name:'Deus do Trovão',hp:30,dmg:38,range:146,atkSpd:0.5,armorPierce:0.35,cost:70,color:'#ffb347',
            stun:{chance:0.5,dur:0.8}} }
 };
 
 BRANCHES.nature={
   bosque:{ label:'Guardiã do Bosque',
-    tier2:{name:'Guardiã do Bosque',hp:32,dmg:4,range:110,atkSpd:0.9,cost:30,color:'#7fc45a',
+    tier2:{name:'Guardiã do Bosque',hp:32,dmg:4,range:110,atkSpd:0.9,cost:30,color:'#a8e852',
            heal:{rate:6,range:124}},
-    tier3:{name:'Coração da Floresta',hp:40,dmg:5,range:118,atkSpd:0.95,cost:58,color:'#a8dd6a',
+    tier3:{name:'Coração da Floresta',hp:40,dmg:5,range:118,atkSpd:0.95,cost:58,color:'#a8e852',
            heal:{rate:11,range:140}} },
   praga:{ label:'Praga',
-    tier2:{name:'Ervas Venenosas',hp:28,dmg:5,range:112,atkSpd:1.0,cost:30,color:'#87a83a',
+    tier2:{name:'Ervas Venenosas',hp:28,dmg:5,range:112,atkSpd:1.0,cost:30,color:'#9d54d4',
            poison:{dps:4,dur:3}, heal:{rate:2,range:100}},
-    tier3:{name:'Praga',hp:34,dmg:7,range:120,atkSpd:1.05,cost:58,color:'#6f8f2a',
+    tier3:{name:'Praga',hp:34,dmg:7,range:120,atkSpd:1.05,cost:58,color:'#9d54d4',
            poison:{dps:9,dur:3.5}, armorBreak:{power:0.35,dur:3}, heal:{rate:3,range:104}} }
 };
 
 BRANCHES.trap={
   toxica:{ label:'Tóxica',
-    tier2:{name:'Armadilha Tóxica',hp:34,dmg:9,range:36,atkSpd:0.6,splash:34,cost:24,color:'#8aa84a',
+    tier2:{name:'Armadilha Tóxica',hp:34,dmg:9,range:36,atkSpd:0.6,splash:34,cost:24,color:'#83e34f',
            poison:{dps:5,dur:3}},
-    tier3:{name:'Miasma',hp:42,dmg:12,range:40,atkSpd:0.65,splash:44,cost:48,color:'#6f9030',
+    tier3:{name:'Miasma',hp:42,dmg:12,range:40,atkSpd:0.65,splash:44,cost:48,color:'#83e34f',
            poison:{dps:11,dur:4}, armorBreak:{power:0.3,dur:3}} },
   explosiva:{ label:'Explosiva',
-    tier2:{name:'Armadilha Explosiva',hp:34,dmg:20,range:36,atkSpd:0.4,splash:52,cost:24,color:'#c0783a'},
-    tier3:{name:'Barril de Pólvora',hp:42,dmg:36,range:40,atkSpd:0.38,splash:74,cost:48,color:'#d9632a'} }
+    tier2:{name:'Armadilha Explosiva',hp:34,dmg:20,range:36,atkSpd:0.4,splash:52,cost:24,color:'#ff6c2f'},
+    tier3:{name:'Barril de Pólvora',hp:42,dmg:36,range:40,atkSpd:0.38,splash:74,cost:48,color:'#ff6c2f'} }
 };
 
 // O GDD encadeia o Necromante como nível 1 → Invocador → Lich ou Senhor da
@@ -430,16 +534,103 @@ BRANCHES.trap={
 // via: um vai para a magia, o outro para o exército.
 BRANCHES.necro={
   lich:{ label:'Lich',
-    tier2:{name:'Necromante Superior',hp:26,dmg:12,range:124,atkSpd:0.7,cost:42,color:'#8f7ab8',
+    tier2:{name:'Necromante Superior',hp:26,dmg:12,range:124,atkSpd:0.7,cost:42,color:'#9c56ff',
            summon:{max:1,interval:6,hp:24,dmg:5,atkSpd:0.8,range:42,leash:96}},
-    tier3:{name:'Lich',hp:32,dmg:24,range:150,atkSpd:0.72,armorPierce:0.3,cost:80,color:'#6f5aa0',
+    tier3:{name:'Lich',hp:32,dmg:24,range:150,atkSpd:0.72,armorPierce:0.3,cost:80,color:'#9c56ff',
            armorBreak:{power:0.4,dur:3},
            summon:{max:2,interval:5,hp:32,dmg:7,atkSpd:0.85,range:44,leash:104}} },
   senhor:{ label:'Senhor da Morte',
-    tier2:{name:'Invocador',hp:26,dmg:7,range:110,atkSpd:0.7,cost:42,color:'#a98fd0',
+    tier2:{name:'Invocador',hp:26,dmg:7,range:110,atkSpd:0.7,cost:42,color:'#dfc887',
            summon:{max:3,interval:4,hp:26,dmg:5,atkSpd:0.9,range:44,leash:104}},
-    tier3:{name:'Senhor da Morte',hp:34,dmg:9,range:118,atkSpd:0.75,cost:80,color:'#c0a8e8',
+    tier3:{name:'Senhor da Morte',hp:34,dmg:9,range:118,atkSpd:0.75,cost:80,color:'#dfc887',
            summon:{max:5,interval:3,hp:36,dmg:7,atkSpd:1.0,range:46,leash:112}} }
+};
+
+// Cada torre tem 20 níveis reais. O ramo é escolhido ao comprar o nível 5;
+// 10, 15 e 20 acrescentam habilidades e uma nova forma visual. Os níveis entre
+// marcos também melhoram atributos. A tabela concentra as diferenças dos ramos.
+var MAX_TOWER_LEVEL=20;
+var TOWER_LEVELS={
+  militia:{
+    guardiao:{
+      10:{name:'Escudo Pesado',armor:0.18,block:2},
+      15:{name:'Muralha Viva',armor:0.25,block:3,taunt:95,counter:0.35},
+      20:{name:'Guardião Supremo',armor:0.35,block:5,taunt:120,counter:0.55,counterSplash:42}},
+    guerreiro:{
+      10:{name:'Golpe Duplo',multi:2},
+      15:{name:'Lâmina em Cone',multi:3,splash:48},
+      20:{name:'Berserker',multi:3,splash:58,berserk:0.8}}
+  },
+  archer:{
+    patrulheira:{
+      10:{name:'Flecha Dupla',multi:2},
+      15:{name:'Chuva de Flechas',multi:3,splash:35},
+      20:{name:'Mestre da Floresta',multi:4,splash:44,crit:{chance:0.22,mult:1.7},fastPriority:true}},
+    francoatiradora:{
+      10:{name:'Penetração',armorPierce:0.42},
+      15:{name:'Tiro Mortal',armorPierce:0.5,crit:{chance:0.25,mult:2},execute:0.12},
+      20:{name:'Exterminadora',armorPierce:0.65,crit:{chance:0.4,mult:2.2},execute:0.18,bossBonus:1.45}}
+  },
+  mage:{
+    piromante:{
+      10:{name:'Chamas Persistentes',burn:{dps:7,dur:3.5}},
+      15:{name:'Explosão Infernal',splash:88,burn:{dps:10,dur:4}},
+      20:{name:'Arquimago das Chamas',splash:108,burn:{dps:14,dur:5},deathBurst:65,burnBypass:true}},
+    arcanista:{
+      10:{name:'Míssil Arcano',armorPierce:0.5},
+      15:{name:'Tempestade Arcana',splash:52,armorPierce:0.55},
+      20:{name:'Arquimago',splash:62,armorPierce:0.65,chain:{jumps:2,range:78,falloff:0.65}}}
+  },
+  frost:{
+    eterna:{
+      10:{name:'Gelo Profundo',slowFactor:0.28,slowDur:2.8},
+      15:{name:'Congelamento',slowFactor:0.23,slowDur:3,stun:{chance:0.25,dur:0.7}},
+      20:{name:'Rainha do Gelo',slowFactor:0.18,slowDur:3.5,splash:72,stun:{chance:0.35,dur:0.85},frozenBonus:0.3}},
+    cristalina:{
+      10:{name:'Espinhos de Cristal',splash:28},
+      15:{name:'Prisão de Cristal',splash:36,stun:{chance:0.3,dur:0.75}},
+      20:{name:'Avatar de Cristal',splash:58,stun:{chance:0.45,dur:1.1},armorPierce:0.35}}
+  },
+  lightning:{
+    corrente:{
+      10:{name:'Corrente Dupla',chain:{jumps:2,range:80,falloff:0.75}},
+      15:{name:'Tempestade de Raios',chain:{jumps:4,range:88,falloff:0.75},stun:{chance:0.18,dur:0.4}},
+      20:{name:'Tempestade Elétrica',chain:{jumps:6,range:96,falloff:0.75},stun:{chance:0.28,dur:0.55}}},
+    canhao:{
+      10:{name:'Canhão de Choque',stun:{chance:0.35,dur:0.6}},
+      15:{name:'Supercarga',stun:{chance:0.45,dur:0.8},crit:{chance:0.2,mult:1.7}},
+      20:{name:'Colosso Tesla',stun:{chance:0.65,dur:1},crit:{chance:0.35,mult:2},attackerBonus:1.5}}
+  },
+  nature:{
+    bosque:{
+      10:{name:'Cura do Bosque',heal:{rate:10,range:135}},
+      15:{name:'Regeneração',heal:{rate:15,range:148},support:{range:120,rangeBonus:10,attackBonus:0.08}},
+      20:{name:'Espírito da Floresta',heal:{rate:22,range:170},support:{range:150,rangeBonus:18,attackBonus:0.15}}},
+    praga:{
+      10:{name:'Ervas Venenosas',poison:{dps:8,dur:3.5}},
+      15:{name:'Quebra de Armadura',poison:{dps:11,dur:4},armorBreak:{power:0.4,dur:4}},
+      20:{name:'Pestilência',poison:{dps:16,dur:5},armorBreak:{power:0.55,dur:5},slowFactor:0.55,slowDur:2.5}}
+  },
+  trap:{
+    toxica:{
+      10:{name:'Veneno Concentrado',poison:{dps:9,dur:4}},
+      15:{name:'Contágio',splash:68,poison:{dps:13,dur:4.5}},
+      20:{name:'Zona de Pestilência',splash:94,poison:{dps:20,dur:5},armorBreak:{power:0.4,dur:4}}},
+    explosiva:{
+      10:{name:'Grande Explosão',splash:72},
+      15:{name:'Fragmentação',splash:84,fragment:0.45},
+      20:{name:'Mina Devastadora',splash:112,fragment:0.7,crit:{chance:0.2,mult:1.6}}}
+  },
+  necro:{
+    lich:{
+      10:{name:'Esqueleto Arcano',summon:{max:2,interval:5,hp:42,dmg:9,atkSpd:0.95,range:46,leash:112}},
+      15:{name:'Cavaleiro da Morte',summon:{max:3,interval:4.5,hp:58,dmg:13,atkSpd:1,range:48,leash:120},armorBreak:{power:0.45,dur:4}},
+      20:{name:'Lich Supremo',summon:{max:4,interval:4,hp:75,dmg:18,atkSpd:1.1,range:50,leash:130},armorBreak:{power:0.6,dur:5},splash:52}},
+    senhor:{
+      10:{name:'Invocador Maior',summon:{max:3,interval:4,hp:36,dmg:7,atkSpd:0.95,range:44,leash:112}},
+      15:{name:'Exército dos Mortos',summon:{max:5,interval:3,hp:48,dmg:9,atkSpd:1,range:46,leash:120}},
+      20:{name:'Legião dos Mortos',summon:{max:7,interval:2.5,hp:62,dmg:12,atkSpd:1.1,range:48,leash:132}}}
+  }
 };
 
 // Cada criatura carrega uma função estratégica, conforme a seção 18 do GDD:
@@ -646,24 +837,49 @@ function findNearestEmptyCell(row,col){
 }
 
 function getBaseStats(u){
-  if(u.tier===1){
-    var b=UNIT_BASE[u.type];
-    return {name:b.name,hp:b.hp,dmg:b.dmg,range:b.range,atkSpd:b.atkSpd,splash:b.splash||0,slowFactor:b.slowFactor||0,slowDur:b.slowDur||0,armorPierce:0,burn:b.burn||null,
-            chain:b.chain||null,stun:b.stun||null,poison:b.poison||null,armorBreak:b.armorBreak||null,heal:b.heal||null,
-            summon:b.summon||null,color:b.color};
+  var level=u.level||1, b=UNIT_BASE[u.type], stats=Object.assign({},b);
+  if(level<5){
+    stats.hp=Math.round(b.hp*(1+(level-1)*0.10));
+    stats.dmg=+(b.dmg*(1+(level-1)*0.08)).toFixed(1);
+    stats.range=b.range+(level-1)*2;
+    stats.atkSpd=+(b.atkSpd*(1+(level-1)*0.025)).toFixed(2);
+    return stats;
   }
-  var br=BRANCHES[u.type][u.branch];
-  var td=u.tier===2?br.tier2:br.tier3;
-  return {name:td.name,hp:td.hp,dmg:td.dmg,range:td.range,atkSpd:td.atkSpd,splash:td.splash||0,slowFactor:td.slowFactor||0,slowDur:td.slowDur||0,armorPierce:td.armorPierce||0,burn:td.burn||null,
-          chain:td.chain||null,stun:td.stun||null,poison:td.poison||null,armorBreak:td.armorBreak||null,heal:td.heal||null,
-          summon:td.summon||null,color:td.color||UNIT_BASE[u.type].color};
+  var br=BRANCHES[u.type][u.branch], early=br.tier2, advanced=br.tier3;
+  if(level<10){
+    var p=(level-5)/5;
+    stats=Object.assign({},early);
+    ['hp','dmg','range','atkSpd'].forEach(function(k){ stats[k]=+(early[k]+(advanced[k]-early[k])*p).toFixed(2); });
+  } else {
+    stats=Object.assign({},advanced);
+    var extra=level-10;
+    stats.hp=Math.round(advanced.hp*(1+extra*0.075));
+    stats.dmg=+(advanced.dmg*(1+extra*0.065)).toFixed(1);
+    stats.range=advanced.range+extra*2;
+    stats.atkSpd=+(advanced.atkSpd*(1+extra*0.025)).toFixed(2);
+  }
+  // A troca de ramo não pode reduzir a vida já comprada nos níveis 1–4.
+  stats.hp=Math.max(Math.round(b.hp*1.3),Math.round(stats.hp));
+  var milestones=TOWER_LEVELS[u.type][u.branch];
+  [10,15,20].forEach(function(at){ if(level>=at) Object.assign(stats,milestones[at]); });
+  if(u.type==='necro' && u.branch==='senhor' && level<10){
+    stats.summon=Object.assign({},stats.summon,{max:2});
+  }
+  return stats;
+}
+
+function visualTier(level){ return level>=20?5:level>=15?4:level>=10?3:level>=5?2:1; }
+function evolutionCost(u, nextLevel, branchKey){
+  if(nextLevel===5) return BRANCHES[u.type][branchKey].tier2.cost;
+  if(nextLevel===10) return BRANCHES[u.type][u.branch].tier3.cost;
+  return Math.round(5+nextLevel*1.7+(nextLevel>=15?8:0));
 }
 
 function makeUnit(type, row, col){
   var b=UNIT_BASE[type];
   var u={
     id:idCounter++,
-    type:type, tier:1, branch:null, row:row, col:col,
+    type:type, level:1, tier:1, branch:null, row:row, col:col,
     x:col*CELL+CELL/2, y:row*CELL+CELL/2, cd:0,
     cost:b.cost, shape:b.shape,
     kills:0, vetLevel:0, bobPhase:Math.random()*Math.PI*2
@@ -691,6 +907,10 @@ function recomputeUnitStats(u){
   u.slowFactor=base.slowFactor||0;
   u.slowDur=(base.slowDur||0)*relicMult('slowDur');
   u.armorPierce=base.armorPierce||0;
+  ['armor','block','taunt','counter','counterSplash','multi','berserk','execute','bossBonus',
+   'fastPriority','deathBurst','burnBypass','frozenBonus','attackerBonus','fragment'].forEach(function(k){ u[k]=base[k]||0; });
+  u.crit=base.crit||null;
+  u.support=base.support||null;
   u.targets=UNIT_BASE[u.type].targets||'ground';
   // Queimadura escala com a veterania, como o dano direto.
   u.burn = base.burn ? {dps:+(base.burn.dps*dmgMult).toFixed(1), dur:base.burn.dur} : null;
@@ -708,23 +928,18 @@ function recomputeUnitStats(u){
 }
 
 function evolveUnit(u, branchKey){
-  var cost;
-  if(u.tier===1){
-    var opt=BRANCHES[u.type][branchKey];
-    if(!opt) return;
-    cost=opt.tier2.cost;
-    if(gold<cost){ log('Ouro insuficiente para evoluir.'); return; }
-    gold-=cost; u.branch=branchKey; u.tier=2; u.cost+=cost;
-  } else if(u.tier===2){
-    cost=BRANCHES[u.type][u.branch].tier3.cost;
-    if(gold<cost){ log('Ouro insuficiente para evoluir.'); return; }
-    gold-=cost; u.tier=3; u.cost+=cost;
-  } else {
-    return;
-  }
+  if(u.level>=MAX_TOWER_LEVEL || u.hp<=0) return;
+  var next=u.level+1;
+  if(next===5 && !BRANCHES[u.type][branchKey]) return;
+  if(next>5 && !u.branch) return;
+  var cost=evolutionCost(u,next,branchKey);
+  if(gold<cost){ log('Ouro insuficiente para evoluir.'); return; }
+  gold-=cost;
+  if(next===5) u.branch=branchKey;
+  u.level=next; u.tier=visualTier(next); u.cost+=cost;
   recomputeUnitStats(u);
   attackFX.push({kind:'build',x1:u.x,y1:u.y,x2:u.x,y2:u.y,life:0.35,maxLife:0.35,color:'#f2c15a',splashR:24});
-  log('Evoluiu para '+u.name+'!');
+  log('Nível '+u.level+': '+u.name+'!');
   refreshSelectedPanel();
 }
 
@@ -734,10 +949,18 @@ function evolveUnit(u, branchKey){
  */
 function damageUnit(u, dmg, source){
   if(u.hp<=0) return;
+  if(!u.isMinion) dmg=Math.max(1,Math.round(dmg*(1-(u.armor||0))-(u.block||0)));
   u.hp-=dmg;
   attackFX.push({kind:'shot',unitType:'militia',tier:1,x1:source.x,y1:source.y,x2:u.x,y2:u.y,
                  life:0.12,maxLife:0.12,color:'#c1503d',splashR:0});
   floatingTexts.push(mkFloat(u.x, u.y-14, '-'+Math.round(dmg), '#e0a89c'));
+  if(!u.isMinion && u.counter && source && source.hp>0){
+    var retaliation=Math.max(1,Math.round(u.dmg*u.counter));
+    source.hp-=retaliation; source.lastHitBy=u;
+    if(u.counterSplash){
+      enemies.forEach(function(e){ if(e!==source && e.hp>0 && dist(e,source)<=u.counterSplash){ e.hp-=Math.round(retaliation*0.5); e.lastHitBy=u; } });
+    }
+  }
   if(u.hp<=0){ u.isMinion ? destroyMinion(u) : destroyUnit(u); }
 }
 
@@ -1296,15 +1519,28 @@ function tickStatus(e, dt, now){
  */
 function hitEnemy(u, e, dmgMult, now){
   var effArmor=effectiveArmor(e,now)*(1-(u.armorPierce||0));
-  var dmg=Math.max(1, Math.round(u.dmg*dmgMult-effArmor));
+  var raw=u.dmg*dmgMult;
+  if(u.berserk) raw*=1+u.berserk*(1-u.hp/u.maxHp);
+  if(u.bossBonus && e.boss) raw*=u.bossBonus;
+  if(u.attackerBonus && e.attacker) raw*=u.attackerBonus;
+  if(u.crit && Math.random()<u.crit.chance) raw*=u.crit.mult;
+  if(u.execute && e.hp/e.maxHp<=u.execute) raw*=1.8;
+  if(e.frozenWeakUntil>now && UNIT_BASE[u.type].dmgType==='fisico') raw*=1+(e.frozenWeakPower||0);
+  var dmg=Math.max(1, Math.round(raw-effArmor));
   e.hp-=dmg;
   e.lastHitBy=u;
   e.lastDamageAt=now;
   if(u.slowFactor) applyStatus(e,'slow',u.slowFactor,u.slowDur,u,now);
-  if(u.burn) applyStatus(e,'burn',u.burn.dps,u.burn.dur,u,now);
+  if(u.frozenBonus){ e.frozenWeakUntil=now+u.slowDur*1000; e.frozenWeakPower=u.frozenBonus; }
+  if(u.burn && (u.burnBypass || !e.immune || e.immune.indexOf('burn')<0)){
+    if(u.burnBypass && e.immune && e.immune.indexOf('burn')>=0){
+      e.hp-=u.burn.dps*0.5; // parte da resistência é ignorada, sem retirar a imunidade global
+    } else applyStatus(e,'burn',u.burn.dps,u.burn.dur,u,now);
+  }
   if(u.poison) applyStatus(e,'poison',u.poison.dps,u.poison.dur,u,now);
   if(u.armorBreak) applyStatus(e,'armorBreak',u.armorBreak.power,u.armorBreak.dur,u,now);
   if(u.stun && Math.random()<u.stun.chance) applyStatus(e,'stun',1,u.stun.dur,u,now);
+  if(u.stun && u.attackerBonus && e.attacker && hasStatus(e,'stun',now)) e.atkCd=Math.max(e.atkCd||0,u.stun.dur);
 }
 
 /** A torre alcança este inimigo? Voadores só caem para alcance aéreo. */
@@ -1411,7 +1647,15 @@ function update(dt, now){
   // O Xamã não bate nas torres: enfraquece as que estão por perto. Como é um
   // efeito de presença, é recalculado por frame em vez de virar status com
   // duração — sai de cena, o efeito some junto.
-  for(var i=0;i<units.length;i++) units[i].hexed=0;
+  for(var i=0;i<units.length;i++){ units[i].hexed=0; units[i].rangeAura=0; units[i].attackAura=0; }
+  for(var i=0;i<units.length;i++){
+    var supporter=units[i]; if(!supporter.support) continue;
+    for(var sj=0;sj<units.length;sj++){
+      var ally=units[sj]; if(ally===supporter || dist(ally,supporter)>supporter.support.range) continue;
+      ally.rangeAura=Math.max(ally.rangeAura,supporter.support.rangeBonus);
+      ally.attackAura=Math.max(ally.attackAura,supporter.support.attackBonus);
+    }
+  }
   for(var i=0;i<enemies.length;i++) enemies[i].rallied=1;
   for(var i=0;i<enemies.length;i++){
     var ae=enemies[i];
@@ -1441,18 +1685,33 @@ function update(dt, now){
         var e=enemies[j]; if(e.hp<=0) continue;
         if(!canHit(u,e)) continue;
         var dx=e.x-u.x, dy=e.y-u.y;
-        if(dx*dx+dy*dy<=u.range*u.range && e.traveled>bestProg){ bestProg=e.traveled; target=e; }
+        var reach=u.range+(u.rangeAura||0);
+        var priority=u.fastPriority ? e.speed*10+e.traveled : e.traveled;
+        if(dx*dx+dy*dy<=reach*reach && priority>bestProg){ bestProg=priority; target=e; }
       }
       if(target){
         // Limite de 0.85: uma aura de 100% zeraria a cadência e a torre ficaria
         // travada para sempre, já que o tempo de recarga nunca mais desceria.
-        u.cd=1/(u.atkSpd*(1-Math.min(0.85, u.hexed||0)));
+        u.cd=1/(u.atkSpd*(1+(u.attackAura||0))*(1-Math.min(0.85, u.hexed||0)));
         var hitList=[target];
         if(u.splash){
           // O respingo não alcança o que a torre não conseguiria mirar.
           hitList=enemies.filter(function(e){ return e.hp>0 && canHit(u,e) && dist(e,target)<=u.splash; });
         }
         for(var k=0;k<hitList.length;k++){ hitEnemy(u, hitList[k], 1, now); }
+        if(u.multi>1){
+          var extras=enemies.filter(function(e){ return e.hp>0 && e!==target && hitList.indexOf(e)<0 && canHit(u,e) && dist(e,u)<=u.range+(u.rangeAura||0); });
+          extras.sort(function(a,b){ return dist(a,target)-dist(b,target); });
+          for(var mi=0;mi<Math.min(u.multi-1,extras.length);mi++){
+            hitEnemy(u,extras[mi],0.8,now);
+            attackFX.push({kind:'shot',unitType:u.type,tier:u.tier,x1:u.x,y1:u.y,x2:extras[mi].x,y2:extras[mi].y,life:0.12,maxLife:0.12,color:u.color,splashR:0});
+          }
+        }
+        if(u.fragment){
+          hitList.forEach(function(e){
+            enemies.forEach(function(other){ if(other!==e && other.hp>0 && canHit(u,other) && dist(other,e)<=34) hitEnemy(u,other,u.fragment,now); });
+          });
+        }
 
         // Cadeia: salta para o inimigo mais próximo ainda não atingido,
         // perdendo força a cada salto.
@@ -1477,7 +1736,7 @@ function update(dt, now){
           }
         }
         attackFX.push({kind:'shot',unitType:u.type,tier:u.tier,x1:u.x,y1:u.y,x2:target.x,y2:target.y,life:0.12,maxLife:0.12,color:u.color, splashR:u.splash||0});
-        attackFX.push({kind:'impact',unitType:u.type,x1:target.x,y1:target.y,x2:target.x,y2:target.y,life:0.14,maxLife:0.14,color:'#fff2cf',splashR:5,impact:true});
+        attackFX.push({kind:'impact',unitType:u.type,x1:target.x,y1:target.y,x2:target.x,y2:target.y,life:0.14,maxLife:0.14,color:u.color,splashR:5,impact:true});
       }
     }
   }
@@ -1496,7 +1755,8 @@ function update(dt, now){
         var bestD=Infinity;
         for(var k=0;k<units.length;k++){
           var cand=units[k], cd=dist(e,cand);
-          if(cd<=e.attacker.range && cd<bestD){ bestD=cd; e.target=cand; }
+          var score=cd-(cand.taunt?1000:0);
+          if(cd<=e.attacker.range && score<bestD){ bestD=score; e.target=cand; }
         }
         // Esqueletos entram na mesma busca: é o que faz deles linha de frente
         // em vez de enfeite atrás da torre.
@@ -1537,6 +1797,11 @@ function update(dt, now){
   for(var i=0;i<enemies.length;i++){
     var e=enemies[i];
     if(e.hp<=0){
+      if(e.lastHitBy && e.lastHitBy.deathBurst){
+        var burst=e.lastHitBy.deathBurst, owner=e.lastHitBy;
+        enemies.forEach(function(other){ if(other!==e && other.hp>0 && dist(other,e)<=burst){ other.hp-=Math.max(1,Math.round(owner.dmg*0.6)); other.lastHitBy=owner; } });
+        attackFX.push({kind:'death',x1:e.x,y1:e.y,x2:e.x,y2:e.y,life:0.24,maxLife:0.24,color:owner.color,splashR:burst});
+      }
       var premio=ganharOuro(e.bounty);
       floatingTexts.push(mkFloat(e.x,e.y,'+'+premio,'#d9992f'));
       attackFX.push({kind:'death',x1:e.x,y1:e.y,x2:e.x,y2:e.y,life:0.28,maxLife:0.28,color:'#e8e2c9',splashR:e.r*1.9});
@@ -2094,31 +2359,37 @@ function refreshEvolveButtons(){
   var u=selectedUnit;
   evolveButtonsEl.innerHTML='';
   if(!u) return;
-  if(u.tier===1){
+  if(u.level>=MAX_TOWER_LEVEL){
+    var note=document.createElement('div');
+    note.className='hint'; note.textContent='Forma suprema alcançada — nível 20.';
+    evolveButtonsEl.appendChild(note);
+    return;
+  }
+  var next=u.level+1;
+  if(next===5){
     var branches=BRANCHES[u.type];
     Object.keys(branches).forEach(function(key){
       var opt=branches[key];
+      var cost=evolutionCost(u,next,key);
       var btn=document.createElement('button');
       btn.className='btn-evolve';
-      btn.innerHTML='Evoluir: <b>'+opt.label+'</b><span>'+opt.tier2.cost+'g</span>';
-      btn.dataset.cost=opt.tier2.cost;
-      btn.disabled = gold<opt.tier2.cost;
+      btn.innerHTML='Nível 5: <b>'+opt.label+'</b><span>'+cost+'g</span>';
+      btn.dataset.cost=cost;
+      btn.disabled = gold<cost;
       btn.addEventListener('click', function(){ evolveUnit(u,key); });
       evolveButtonsEl.appendChild(btn);
     });
-  } else if(u.tier===2){
-    var opt2=BRANCHES[u.type][u.branch].tier3;
+  } else {
+    var cost2=evolutionCost(u,next,u.branch);
+    var milestone=next>=20?20:next>=15?15:next>=10?10:0;
+    var name=milestone && next===milestone ? TOWER_LEVELS[u.type][u.branch][milestone].name : 'Aprimorar';
     var btn2=document.createElement('button');
     btn2.className='btn-evolve';
-    btn2.innerHTML='Evoluir: <b>'+opt2.name+'</b><span>'+opt2.cost+'g</span>';
-    btn2.dataset.cost=opt2.cost;
-    btn2.disabled = gold<opt2.cost;
+    btn2.innerHTML='Nível '+next+': <b>'+name+'</b><span>'+cost2+'g</span>';
+    btn2.dataset.cost=cost2;
+    btn2.disabled = gold<cost2;
     btn2.addEventListener('click', function(){ evolveUnit(u,u.branch); });
     evolveButtonsEl.appendChild(btn2);
-  } else {
-    var note=document.createElement('div');
-    note.className='hint'; note.textContent='Evolução máxima alcançada.';
-    evolveButtonsEl.appendChild(note);
   }
 }
 
@@ -2137,7 +2408,7 @@ function refreshSelectedPanel(){
   for(var i=0;i<VET_THRESHOLDS.length;i++){ if(u.kills<VET_THRESHOLDS[i]){ nextT=VET_THRESHOLDS[i]; break; } }
   var killsLine = nextT!==null ? (u.kills+' / '+nextT) : (u.kills+' (máx.)');
   selectedBody.innerHTML=
-    '<div class="sel-row"><span>'+u.name+'</span><b>Nível '+u.tier+'</b></div>'+
+    '<div class="sel-row"><span>'+u.name+'</span><b>Nível '+u.level+'/'+MAX_TOWER_LEVEL+'</b></div>'+
     '<div class="sel-row"><span>Patente</span><b>'+VET_TITLES[u.vetLevel]+'</b></div>'+
     '<div class="sel-row"><span>Abates</span><b>'+killsLine+'</b></div>'+
     '<div class="sel-row"><span>Vida</span><b>'+Math.max(0,Math.round(u.hp))+'/'+u.maxHp+'</b></div>'+
@@ -2148,6 +2419,9 @@ function refreshSelectedPanel(){
     (u.burn ? '<div class="sel-row"><span>Queimadura</span><b>'+u.burn.dps+'/s · '+u.burn.dur+'s</b></div>' : '')+
     (u.poison ? '<div class="sel-row"><span>Veneno</span><b>'+u.poison.dps+'/s · '+u.poison.dur+'s</b></div>' : '')+
     (u.chain ? '<div class="sel-row"><span>Saltos</span><b>'+u.chain.jumps+'</b></div>' : '')+
+    (u.multi>1 ? '<div class="sel-row"><span>Alvos</span><b>'+u.multi+'</b></div>' : '')+
+    (u.armor ? '<div class="sel-row"><span>Defesa</span><b>'+Math.round(u.armor*100)+'%</b></div>' : '')+
+    (u.crit ? '<div class="sel-row"><span>Crítico</span><b>'+Math.round(u.crit.chance*100)+'%</b></div>' : '')+
     (u.stun ? '<div class="sel-row"><span>Atordoa</span><b>'+Math.round(u.stun.chance*100)+'% · '+u.stun.dur+'s</b></div>' : '')+
     (u.armorBreak ? '<div class="sel-row"><span>Quebra armadura</span><b>-'+Math.round(u.armorBreak.power*100)+'%</b></div>' : '')+
     (u.heal ? '<div class="sel-row"><span>Cura aliados</span><b>'+u.heal.rate+'/s</b></div>' : '')+
@@ -2333,4 +2607,4 @@ requestAnimationFrame(frame);
   Se o navegador não suportar módulos ou WebGL, este script simplesmente não
   roda e o jogo continua no canvas 2D.
 -->
-<script type="module" src="js/render3d/index.js"></script>
+<script type="module" src="js/render3d/index.js?v=campaign-art-1"></script>

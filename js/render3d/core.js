@@ -10,22 +10,22 @@ export const CELL_WORLD = 1;
 
 // Cor do céu na linha do horizonte. A névoa usa exatamente esta cor, para que
 // o cenário distante se dissolva no céu sem costura visível.
-export const HORIZON = 0x9fb6c4;
+export const HORIZON = 0x9aabaf;
 
 export const PAL = {
-  grass:     0x6d9440,
-  grassAlt:  0x5e8636,
-  grassDry:  0x87a349,
-  grassDark: 0x44622a,
-  soil:      0x6b5233,
-  road:      0x938c78,
-  roadAlt:   0x847d69,
-  roadEdge:  0x6d6757,
-  stone:     0xb2ab98,
-  stoneMid:  0x8e8876,
-  stoneDark: 0x5f5a4c,
-  wood:      0x936731,
-  woodDark:  0x64451f,
+  grass:     0x566b4b,
+  grassAlt:  0x596d4d,
+  grassDry:  0x666e4e,
+  grassDark: 0x354d37,
+  soil:      0x5b493b,
+  road:      0x887c67,
+  roadAlt:   0x796f60,
+  roadEdge:  0x615d50,
+  stone:     0x9b998b,
+  stoneMid:  0x777c76,
+  stoneDark: 0x39434a,
+  wood:      0x8b6843,
+  woodDark:  0x49392d,
   bone:      0xd9d3b9,
   skin:      0xe0b478,
   cloth:     0xb8a985,
@@ -37,8 +37,8 @@ export const PAL = {
   frost:     0x8fe0d8,
   arcane:    0x7fb2ff,
   poison:    0x8ad24a,
-  leaf:      0x4d7a2b,
-  leafAlt:   0x5d8f33,
+  leaf:      0x52734a,
+  leafAlt:   0x6d824e,
   sky:       0x8fb6d8,
   night:     0x141a10
 };

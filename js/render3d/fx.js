@@ -3,7 +3,7 @@
 // Projéteis, impactos, explosões e poeira. Tudo sai de pools pré-alocados:
 // nenhum objeto é criado durante o jogo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, glow, hexInt } from './core.js';
+import { THREE, PAL, glow, hexInt } from './core.js?v=campaign-art-1';
 
 const MAX_BOLTS = 72;
 const MAX_RINGS = 56;
@@ -11,16 +11,15 @@ const MAX_SPARKS = 320;
 
 // Assinatura visual de cada tipo de torre.
 const SHOT_STYLE = {
-  militia: { melee: true, width: 0.05, color: 0xfff0c4 },
-  archer: { width: 0.028, length: 0.34, color: 0xe6d6a8, tip: 0xfff4d0 },
-  mage: { width: 0.085, length: 0.26, color: null, tip: 0xfff2d8, soft: true },
-  frost: { width: 0.06, length: 0.22, color: PAL.frost, tip: 0xeafffd },
+  militia: { melee: true, width: 0.05, color: 0xffe5a8 },
+  archer: { width: 0.028, length: 0.42, color: 0xdfce9b, tip: 0xfff4d0 },
+  mage: { width: 0.10, length: 0.26, color: null, tip: 0xffe8c9, soft: true },
+  frost: { width: 0.075, length: 0.27, color: PAL.frost, tip: 0xeafffd },
   // O raio é fino, longo e claríssimo: lê como descarga, não como projétil.
-  lightning: { width: 0.022, length: 0.5, color: 0x6fd0ff, tip: 0xeaffff, soft: true },
-  nature: { width: 0.05, length: 0.24, color: 0x9fd84a, tip: 0xe2ffb0, soft: true },
-  // A armadilha tem alcance 34, menos de uma célula: é golpe, não projétil.
-  trap: { melee: true, width: 0.05, color: 0xd8c48a },
-  necro: { width: 0.075, length: 0.22, color: 0x8f7ab8, tip: 0xd9c8ff, soft: true }
+  lightning: { width: 0.035, length: 0.52, color: null, tip: 0xf8ffff, soft: true },
+  nature: { width: 0.075, length: 0.25, color: null, tip: 0xe2ffb0, soft: true },
+  trap: { width: 0.11, length: 0.18, color: null, tip: 0xffecc2, soft: true },
+  necro: { width: 0.09, length: 0.27, color: null, tip: 0xe9d5ff, soft: true }
 };
 
 export function createEffects(scene, map) {

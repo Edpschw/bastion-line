@@ -1,11 +1,10 @@
 // -----------------------------------------------------------------------------
 // Bastion Line — atores 3D
 // Malhas procedurais de torres, inimigos e do Mestre de Obras.
-// Tudo é montado a partir de primitivas com flat shading: nada de assets
-// externos, e o visual fica coerente entre as peças.
+// As oito fundações têm arquitetura própria; ocupantes e armas animam no topo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js';
-import { piece, stackPieces } from './towerKit.js';
+import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=campaign-art-1';
+import { buildTowerArchitecture } from './towerArchitecture.js?v=campaign-art-1';
 
 const BOX = function (w, h, d) {
   return geo('box:' + w + ':' + h + ':' + d, function () { return new THREE.BoxGeometry(w, h, d); });
@@ -29,18 +28,7 @@ const ICO = function (r, d) {
 // ---------------------------------------------------------------------------
 // Torres
 // ---------------------------------------------------------------------------
-// A arquitetura vem do Castle Kit (Kenney, CC0): peças empilháveis de pedra,
-// madeira e telhado. Quem ocupa a torre continua procedural — o soldado, a
-// arqueira, o orbe do mago e os cristais são o que se mexe, e é por eles que
-// se lê o tipo e a evolução à distância.
-
-// Uma peça do kit nasce como um cubo de ~1 unidade, do tamanho de uma casa do
-// tabuleiro. Reduzir por igual deixaria a torre fina demais para a casa; a
-// altura encolhe mais que a largura, e o torreão fica atarracado — o que
-// também evita que uma torre alta esconda os inimigos atrás dela.
-const KIT_W = 0.62;
-const KIT_H = 0.4;
-const OCCUPANT_SCALE = 0.62;
+const OCCUPANT_SCALE = 0.82;
 
 /** Corpo humanoide genérico usado pelos ocupantes (pernas, tronco, cabeça). */
 function humanoid(cloth, skin, scale) {
@@ -197,77 +185,6 @@ function frostOccupant(tier, branch, color) {
 
   return { root: root, sats: sats, mist: mist };
 }
-
-/**
- * Peças do kit para cada torre. A silhueta separa os quatro tipos mesmo de
- * longe: quadrada para a Milícia, plataforma de madeira para a Arqueira,
- * hexagonal com pináculo para o Mago, tambor redondo para a Gélida.
- */
-const RECIPES = {
-  militia: function (tier, branch) {
-    const wall = branch === 'guerreiro' ? 'tower-square-mid-windows' : 'tower-square-mid';
-    if (tier <= 1) return { stack: ['tower-square-base', 'tower-square-top'] };
-    if (tier === 2) return { stack: ['tower-square-base', wall, 'tower-square-top'] };
-    return {
-      stack: ['tower-square-base', wall, wall, 'tower-square-top'],
-      flag: branch === 'guerreiro' ? 'flag-pennant' : 'flag-banner-short'
-    };
-  },
-  archer: function (tier, branch) {
-    const mount = branch === 'francoatiradora' ? 'siege-ballista' : null;
-    if (tier <= 1) return { stack: ['tower-square-base', 'tower-square-mid-open-simple'] };
-    if (tier === 2) {
-      return { stack: ['tower-square-base', 'tower-square-mid', 'tower-square-mid-open'], mount: mount };
-    }
-    return {
-      stack: ['tower-square-base', 'tower-square-mid', 'tower-square-mid', 'tower-square-mid-open'],
-      mount: mount,
-      flag: 'flag-pennant'
-    };
-  },
-  mage: function (tier) {
-    if (tier <= 1) return { stack: ['tower-hexagon-base', 'tower-hexagon-mid'] };
-    if (tier === 2) {
-      return { stack: ['tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-top', 'tower-hexagon-roof'] };
-    }
-    return {
-      stack: ['tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-mid', 'tower-hexagon-top', 'tower-hexagon-roof-secondary']
-    };
-  },
-  frost: function (tier) {
-    if (tier <= 1) return { stack: ['tower-base'] };
-    if (tier === 2) return { stack: ['tower-base', 'tower-top'] };
-    return { stack: ['tower-base', 'tower-base', 'tower-top'] };
-  },
-  // Hexagonal sem telhado: o topo aberto deixa a bobina à vista, e é o que a
-  // separa do Mago, que usa o mesmo corpo mas coroado.
-  lightning: function (tier) {
-    if (tier <= 1) return { stack: ['tower-hexagon-base', 'tower-hexagon-top'] };
-    if (tier === 2) return { stack: ['tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-top'] };
-    return {
-      stack: ['tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-mid', 'tower-hexagon-top'],
-      flag: 'flag-pennant'
-    };
-  },
-  // Baixa e larga: o Druida é suporte, não deve competir de altura com as
-  // torres de ataque nem esconder o que está atrás.
-  nature: function (tier) {
-    if (tier <= 1) return { stack: ['tower-base'] };
-    if (tier === 2) return { stack: ['tower-base', 'tower-top'] };
-    return { stack: ['tower-base', 'tower-top'], flag: 'flag-banner-short' };
-  },
-  // Pilha vazia de propósito: a armadilha é rente ao chão. Se tivesse corpo de
-  // torre, leria como muro — e muro é exatamente o que ela não é.
-  trap: function () { return { stack: [] }; },
-  necro: function (tier) {
-    if (tier <= 1) return { stack: ['tower-square-base', 'tower-hexagon-top'] };
-    if (tier === 2) return { stack: ['tower-square-base', 'tower-square-mid-windows', 'tower-hexagon-top'] };
-    return {
-      stack: ['tower-square-base', 'tower-square-mid-windows', 'tower-square-mid-windows', 'tower-hexagon-top'],
-      flag: 'flag-pennant'
-    };
-  }
-};
 
 /** Bobina: hastes metálicas, anéis girando e um núcleo que crepita. */
 function lightningOccupant(tier, branch, color) {
@@ -465,19 +382,89 @@ const OCCUPANTS = {
   necro: necroOccupant
 };
 
+// Paletas e coroas inspiradas na prancha de evolução: cada ramo é reconhecível
+// pela cor e a forma suprema tem silhueta própria, mesmo vista de cima.
+const EVOLUTION_COLORS = {
+  militia: { guardiao: 0xe9aa48, guerreiro: 0xf05b38 },
+  archer: { patrulheira: 0x86d84a, francoatiradora: 0x55baff },
+  mage: { piromante: 0xff6a28, arcanista: 0x665bff },
+  frost: { eterna: 0x8edaff, cristalina: 0x31b9ff },
+  lightning: { corrente: 0x39b8ff, canhao: 0xffb347 },
+  nature: { bosque: 0xa8e852, praga: 0x9d54d4 },
+  trap: { toxica: 0x83e34f, explosiva: 0xff6c2f },
+  necro: { lich: 0x9c56ff, senhor: 0xdfc887 }
+};
+
+function addEvolutionSilhouette(group, turret, type, tier, branch, accent) {
+  if (tier < 5) return;
+  const metal = std(PAL.goldLight, { metalness: 0.7, roughness: 0.35 });
+  const magic = std(accent, { emissive: accent, emissiveIntensity: 1.2, roughness: 0.3 });
+  const crown = new THREE.Group();
+  crown.position.y = type === 'trap' ? 0.16 : 0.58;
+  if (type === 'militia') {
+    // Guardião: escudo dourado; Guerreiro: lâminas escarlates cruzadas.
+    for (let s = -1; s <= 1; s += 2) {
+      const blade = mesh(BOX(0.06, branch === 'guerreiro' ? 0.48 : 0.28, 0.025), branch === 'guerreiro' ? magic : metal, s * 0.14, 0, 0);
+      blade.rotation.z = s * (branch === 'guerreiro' ? 0.45 : 0.1); crown.add(blade);
+    }
+  } else if (type === 'archer') {
+    // Patrulheira: folhas/arcos; Franco: mira e virote longo.
+    if (branch === 'patrulheira') {
+      for (let s = -1; s <= 1; s += 2) crown.add(mesh(CONE(0.1, 0.35, 5), magic, s * 0.16, 0, 0));
+    } else {
+      crown.add(mesh(CYL(0.03, 0.04, 0.46, 8), metal, 0, 0, 0.06));
+      crown.add(mesh(OCT(0.11), magic, 0, 0.27, 0.06));
+    }
+  } else if (type === 'mage') {
+    for(let i=0;i<4;i++){
+      const a=i*Math.PI/2;
+      crown.add(mesh(branch==='piromante'?CONE(0.075,0.31,5):OCT(0.11),magic,
+        Math.cos(a)*0.23,branch==='piromante'?0.1:0.05,Math.sin(a)*0.23));
+    }
+  } else if (type === 'frost') {
+    const count=branch==='cristalina'?5:3;
+    for(let i=0;i<count;i++){
+      const a=i*Math.PI*2/count;
+      const shard=mesh(OCT(branch==='cristalina'?0.13:0.09),magic,Math.cos(a)*0.23,0.08,Math.sin(a)*0.23);
+      shard.scale.y=branch==='cristalina'?2.3:1.4;crown.add(shard);
+    }
+  } else if (type === 'lightning') {
+    if(branch==='canhao'){
+      const barrel=mesh(CYL(0.11,0.13,0.5,8),metal,0,-0.11,0.21);
+      barrel.rotation.x=Math.PI/2;crown.add(barrel);
+      crown.add(mesh(OCT(0.1),magic,0,-0.11,0.47));
+    }else{
+      for(const s of [-1,1])crown.add(mesh(OCT(0.11),magic,s*0.22,0.08,0));
+    }
+  } else if (type === 'nature') {
+    for (let i = 0; i < 5; i++) {
+      const a = i * Math.PI * 2 / 5;
+      crown.add(mesh(CONE(0.09, 0.28, 5), magic, Math.cos(a) * 0.18, 0.05, Math.sin(a) * 0.18));
+    }
+  } else if (type === 'necro') {
+    crown.add(mesh(CONE(0.16, 0.38, 6), magic, 0, 0.14, 0));
+    if (branch === 'senhor') for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2;
+      crown.add(mesh(SPH(0.055), metal, Math.cos(a) * 0.22, -0.08, Math.sin(a) * 0.22));
+    }
+  } else if (type === 'trap') {
+    crown.add(mesh(ICO(0.15), magic, 0, 0.08, 0));
+  }
+  (type === 'trap' ? group : turret).add(crown);
+}
+
 /** Monta a malha de uma torre a partir do tipo, tier, ramo e cor do núcleo 2D. */
 export function buildTower(type, tier, branch, color) {
-  const recipe = (RECIPES[type] || RECIPES.militia)(tier, branch);
+  color = (EVOLUTION_COLORS[type] && EVOLUTION_COLORS[type][branch]) || color;
   const g = new THREE.Group();
 
-  const shell = stackPieces(recipe.stack);
-  shell.group.scale.set(KIT_W, KIT_H, KIT_W);
+  const shell = buildTowerArchitecture(type, tier, branch, color);
   g.add(shell.group);
 
   // O casco fica parado; só o que ocupa o topo gira para mirar. O ocupante
   // fica fora do grupo achatado, para não sair esticado junto com a pedra.
   const turret = new THREE.Group();
-  turret.position.y = shell.lastBase * KIT_H;
+  turret.position.y = shell.lastBase;
   g.add(turret);
 
   const occupant = (OCCUPANTS[type] || OCCUPANTS.militia)(tier, branch, color);
@@ -485,30 +472,18 @@ export function buildTower(type, tier, branch, color) {
   // Orbe e cristais coroam a torre; soldado e arqueira ficam no piso da ameia.
   if (type === 'mage' || type === 'frost' || type === 'lightning' ||
       type === 'nature' || type === 'necro') {
-    turret.position.y = shell.top * KIT_H;
+    turret.position.y = shell.top;
   }
   turret.add(occupant.root);
-
-  if (recipe.mount) {
-    const mount = piece(recipe.mount);
-    mount.scale.setScalar(KIT_W * 0.62);
-    mount.position.set(0, 0, 0.06);
-    turret.add(mount);
-  }
-  if (recipe.flag) {
-    const flag = piece(recipe.flag);
-    flag.scale.setScalar(KIT_W * 0.8);
-    flag.position.set(0.21, shell.lastBase * KIT_H, -0.21);
-    g.add(flag);
-  }
+  addEvolutionSilhouette(g, turret, type, tier, branch, color);
 
   // Auréola dourada das evoluções, lida de longe.
   if (tier >= 2) {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.33, 0.4, 28),
       new THREE.MeshBasicMaterial({
-        color: tier >= 3 ? PAL.goldLight : PAL.gold,
-        transparent: true, opacity: tier >= 3 ? 0.85 : 0.6,
+        color: tier >= 4 ? color : tier >= 3 ? PAL.goldLight : PAL.gold,
+        transparent: true, opacity: tier >= 5 ? 0.95 : tier >= 3 ? 0.85 : 0.6,
         depthWrite: false, side: THREE.DoubleSide, toneMapped: false
       })
     );
@@ -1430,8 +1405,8 @@ export function animateTower(g, info, t, dt) {
     }
   }
   if (d.sats) {
-    // A Gélida não mira: os cristais giram devagar o tempo todo.
-    if (d.turret) d.turret.rotation.y = t * 0.35;
+    // Só a Gélida gira livremente; Bobina Canhão e invocadores miram no alvo.
+    if (d.type === 'frost' && d.turret) d.turret.rotation.y = t * 0.35;
     for (let i = 0; i < d.sats.length; i++) {
       const c = d.sats[i];
       c.position.y = c.userData.baseY + Math.sin(t * 1.7 + i) * 0.015;

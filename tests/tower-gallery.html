@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <base href="../">
+  <title>Galeria de torres — Bastion Line</title>
+  <style>
+    body{margin:0;background:#101820;color:#e8e5da;font:15px system-ui,sans-serif}
+    header{padding:18px 24px;border-bottom:1px solid #344456}
+    h1{font-size:22px;margin:0 0 4px}p{margin:0;color:#9eb0b8}
+    nav{display:flex;gap:8px;margin-top:12px}nav a{color:#eddbb9;border:1px solid #66776d;padding:5px 10px;text-decoration:none}
+    nav a[aria-current]{background:#88683f;border-color:#d6aa6b;color:#fff}
+    #gallery{position:relative;width:min(1280px,100vw);aspect-ratio:1;margin:20px auto;background:#172632}
+    canvas{display:block;width:100%;height:100%}
+    #labels{position:absolute;inset:0;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);pointer-events:none}
+    #labels div{padding:10px;color:#f2f2eb;text-shadow:0 2px 5px #000;background:linear-gradient(180deg,#0008,transparent 26%);border:1px solid #ffffff15}
+  </style>
+</head>
+<body>
+  <header><h1 id="heading">Formas supremas · nível 20</h1><p>Prévia visual das 16 especializações. Página de inspeção, sem influência na partida.</p>
+    <nav aria-label="Marcos de evolução"><a href="tests/tower-gallery.html?tier=1&amp;v=gallery-2">Nível 1</a><a href="tests/tower-gallery.html?tier=2&amp;v=gallery-2">Nível 5</a><a href="tests/tower-gallery.html?tier=3&amp;v=gallery-2">Nível 10</a><a href="tests/tower-gallery.html?tier=4&amp;v=gallery-2">Nível 15</a><a href="tests/tower-gallery.html?tier=5&amp;v=gallery-2">Nível 20</a></nav>
+  </header>
+  <div id="gallery"><div id="labels"></div></div>
+  <script type="module">
+    import {THREE} from './js/render3d/core.js?v=campaign-art-1';
+    import {buildTower} from './js/render3d/actors.js?v=campaign-art-1';
+    const variants=[
+      ['militia','guardiao','Milícia · Guardião'],['militia','guerreiro','Milícia · Guerreiro'],
+      ['archer','patrulheira','Arqueira · Patrulheira'],['archer','francoatiradora','Arqueira · Franco'],
+      ['mage','piromante','Mago · Piromante'],['mage','arcanista','Mago · Arcanista'],
+      ['frost','eterna','Gélida · Eterna'],['frost','cristalina','Gélida · Cristalina'],
+      ['lightning','corrente','Bobina · Corrente'],['lightning','canhao','Bobina · Canhão'],
+      ['nature','bosque','Druida · Bosque'],['nature','praga','Druida · Praga'],
+      ['trap','toxica','Armadilha · Tóxica'],['trap','explosiva','Armadilha · Explosiva'],
+      ['necro','lich','Necromante · Lich'],['necro','senhor','Necromante · Senhor']
+    ];
+    const tier=Math.min(5,Math.max(1,Number(new URLSearchParams(location.search).get('tier'))||5));
+    const levels=[0,1,5,10,15,20];
+    document.getElementById('heading').textContent='Torres · nível '+levels[tier];
+    document.querySelectorAll('nav a').forEach(a=>{if(new URLSearchParams(a.search).get('tier')===String(tier))a.setAttribute('aria-current','page');});
+    const baseColors={militia:0xb18a55,archer:0x80a66a,mage:0x7775bd,frost:0x85bed1,
+      lightning:0x50b6dd,nature:0x8cbb62,trap:0x9b8462,necro:0xaa7ed2};
+    const host=document.getElementById('gallery');
+    const labels=document.getElementById('labels');
+    variants.forEach(v=>{const label=document.createElement('div');label.textContent=v[2];labels.appendChild(label);});
+    const renderer=new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(1280,1280,false);
+    renderer.setPixelRatio(1);
+    renderer.outputColorSpace=THREE.SRGBColorSpace;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=1.15;
+    renderer.setScissorTest(true);
+    host.prepend(renderer.domElement);
+    try{
+      const scenes=variants.map(v=>{
+        const scene=new THREE.Scene();scene.background=new THREE.Color(0x263843);
+        scene.add(new THREE.HemisphereLight(0xddeeff,0x33401f,2));
+        const key=new THREE.DirectionalLight(0xffe9c5,2.4);key.position.set(-3,7,5);scene.add(key);
+        const floor=new THREE.Mesh(new THREE.CylinderGeometry(0.65,0.73,0.08,8),new THREE.MeshStandardMaterial({color:0x5c6b5a,roughness:1}));floor.position.y=-0.05;scene.add(floor);
+        scene.add(buildTower(v[0],tier,tier===1?null:v[1],baseColors[v[0]]));return scene;
+      });
+      const camera=new THREE.OrthographicCamera(-0.9,0.9,1.0,-0.8,0.1,20);camera.position.set(3,4.2,5.2);camera.lookAt(0,0.8,0);
+      for(let i=0;i<16;i++){
+        const x=(i%4)*320,y=(3-Math.floor(i/4))*320;
+        renderer.setViewport(x,y,320,320);renderer.setScissor(x,y,320,320);renderer.render(scenes[i],camera);
+      }
+      document.body.dataset.ready='true';
+    }catch(error){document.body.dataset.error=String(error);console.error(error);}
+  </script>
+</body>
+</html>
