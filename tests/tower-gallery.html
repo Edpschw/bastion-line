@@ -18,12 +18,13 @@
 </head>
 <body>
   <header><h1 id="heading">Formas supremas · nível 20</h1><p>Prévia visual das 16 especializações. Página de inspeção, sem influência na partida.</p>
-    <nav aria-label="Marcos de evolução"><a href="tests/tower-gallery.html?tier=1&amp;v=gallery-2">Nível 1</a><a href="tests/tower-gallery.html?tier=2&amp;v=gallery-2">Nível 5</a><a href="tests/tower-gallery.html?tier=3&amp;v=gallery-2">Nível 10</a><a href="tests/tower-gallery.html?tier=4&amp;v=gallery-2">Nível 15</a><a href="tests/tower-gallery.html?tier=5&amp;v=gallery-2">Nível 20</a></nav>
+    <nav aria-label="Marcos de evolução"><a href="tests/tower-gallery.html?tier=1&amp;v=detailed-towers-1">Nível 1</a><a href="tests/tower-gallery.html?tier=2&amp;v=detailed-towers-1">Nível 5</a><a href="tests/tower-gallery.html?tier=3&amp;v=detailed-towers-1">Nível 10</a><a href="tests/tower-gallery.html?tier=4&amp;v=detailed-towers-1">Nível 15</a><a href="tests/tower-gallery.html?tier=5&amp;v=detailed-towers-1">Nível 20</a></nav>
   </header>
+  <p id="model-status" style="padding:12px 24px">Carregando modelos 3D…</p>
   <div id="gallery"><div id="labels"></div></div>
   <script type="module">
-    import {THREE} from './js/render3d/core.js?v=campaign-art-1';
-    import {buildTower} from './js/render3d/actors.js?v=campaign-art-1';
+    import {THREE} from './js/render3d/core.js?v=detailed-towers-1';
+    import {buildTower} from './js/render3d/actors.js?v=detailed-towers-1';
     const variants=[
       ['militia','guardiao','Milícia · Guardião'],['militia','guerreiro','Milícia · Guerreiro'],
       ['archer','patrulheira','Arqueira · Patrulheira'],['archer','francoatiradora','Arqueira · Franco'],
@@ -52,13 +53,19 @@
     renderer.setScissorTest(true);
     host.prepend(renderer.domElement);
     try{
+      const towers=[];
       const scenes=variants.map(v=>{
         const scene=new THREE.Scene();scene.background=new THREE.Color(0x263843);
         scene.add(new THREE.HemisphereLight(0xddeeff,0x33401f,2));
         const key=new THREE.DirectionalLight(0xffe9c5,2.4);key.position.set(-3,7,5);scene.add(key);
         const floor=new THREE.Mesh(new THREE.CylinderGeometry(0.65,0.73,0.08,8),new THREE.MeshStandardMaterial({color:0x5c6b5a,roughness:1}));floor.position.y=-0.05;scene.add(floor);
-        scene.add(buildTower(v[0],tier,tier===1?null:v[1],baseColors[v[0]]));return scene;
+        const tower=buildTower(v[0],tier,tier===1?null:v[1],baseColors[v[0]]);
+        towers.push(tower);scene.add(tower);return scene;
       });
+      const loaded=await Promise.all(towers.map(t=>t.userData.modelReady));
+      const count=loaded.filter(Boolean).length;
+      document.getElementById('model-status').textContent=count===16?'16 modelos GLB carregados.':count+' modelos GLB carregados; os demais usam a representação procedural.';
+      document.body.dataset.loadedModels=String(count);
       const camera=new THREE.OrthographicCamera(-0.9,0.9,1.0,-0.8,0.1,20);camera.position.set(3,4.2,5.2);camera.lookAt(0,0.8,0);
       for(let i=0;i<16;i++){
         const x=(i%4)*320,y=(3-Math.floor(i/4))*320;

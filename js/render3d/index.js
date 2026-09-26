@@ -6,13 +6,14 @@
 // cena three.js em sincronia. Se o WebGL não estiver disponível, nada é
 // anexado e o jogo segue no canvas 2D original.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js?v=campaign-art-1';
-import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './world.js?v=campaign-art-1';
+import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js?v=detailed-towers-1';
+import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './world.js?v=detailed-towers-1';
 import {
   buildTower, buildEnemy, buildWorker, buildMinion,
   animateTower, animateEnemy, animateWorker, pokeRecoil
-} from './actors.js?v=campaign-art-1';
-import { createEffects } from './fx.js?v=campaign-art-1';
+} from './actors.js?v=detailed-towers-1';
+import { disposeTower, towerModelCache } from './towerModels.js?v=detailed-towers-1';
+import { createEffects } from './fx.js?v=detailed-towers-1';
 import { createOverlay } from './overlay.js';
 
 // Câmera calcada na de Warcraft III, cujos padrões são ângulo de ataque 304,
@@ -72,6 +73,7 @@ function createRenderer3D() {
   const tmp = new THREE.Vector3();
   const tmp2 = new THREE.Vector3();
   const seenFX = new WeakSet();
+  const shotOrigins = new WeakMap();
   const camDir = new THREE.Vector3(0, Math.sin(PITCH), Math.cos(PITCH)).normalize();
 
   // Câmera: distância fixa (recalculada só quando a tela muda de tamanho) e
@@ -488,6 +490,31 @@ function createRenderer3D() {
     }
   }
 
+  // Congela a origem quando o disparo nasce, mesmo se a torre evoluir ou for
+  // vendida enquanto o projétil está em trânsito.
+  function resolveShotOrigin(f, out) {
+    let origin = shotOrigins.get(f);
+    if (!origin) {
+      for (const entry of towerMeshes.values()) {
+        const g = entry.group, target = g.userData.pickTarget;
+        if (!target || target.x !== f.x1 || target.y !== f.y1) continue;
+        origin = new THREE.Vector3();
+        if (g.userData.muzzle) {
+          g.updateMatrixWorld(true);
+          g.userData.muzzle.getWorldPosition(origin);
+        } else {
+          origin.copy(g.position);
+          origin.y += (g.userData.height || 1.15) * 0.8;
+        }
+        shotOrigins.set(f, origin);
+        break;
+      }
+    }
+    if (!origin) return false;
+    out.copy(origin);
+    return true;
+  }
+
   function syncTowers(units, enemies, t, dt) {
     const alive = new Set();
 
@@ -498,7 +525,7 @@ function createRenderer3D() {
       let entry = towerMeshes.get(u.id);
       const sig = towerSignature(u);
       if (!entry || entry.sig !== sig) {
-        if (entry) { scene.remove(entry.group); removePickable(entry.group); }
+        if (entry) { scene.remove(entry.group); removePickable(entry.group); disposeTower(entry.group); }
         const g = buildTower(u.type, u.tier, u.branch, hexInt(u.color));
         g.position.set(map.x(u.x), 0, map.z(u.y));
         g.userData.pickTarget = { x: u.x, y: u.y };
@@ -529,6 +556,7 @@ function createRenderer3D() {
       if (!alive.has(id)) {
         scene.remove(entry.group);
         removePickable(entry.group);
+        disposeTower(entry.group);
         towerMeshes.delete(id);
       }
     });
@@ -645,14 +673,11 @@ function createRenderer3D() {
 
     let g = ghostCache.get(type);
     if (!g) {
-      g = buildTower(type, 1, null, hexInt(game.UNIT_BASE[type].color));
       const ghostMat = new THREE.MeshBasicMaterial({
         color: hexInt(game.UNIT_BASE[type].color),
         transparent: true, opacity: 0.42, depthWrite: false, toneMapped: false
       });
-      g.traverse(function (o) {
-        if (o.isMesh) { o.material = ghostMat; o.castShadow = false; o.receiveShadow = false; }
-      });
+      g = buildTower(type, 1, null, hexInt(game.UNIT_BASE[type].color), { ghostMaterial: ghostMat });
       scene.add(g);
       ghostCache.set(type, g);
     }
@@ -698,9 +723,10 @@ function createRenderer3D() {
       if (u.hp >= u.maxHp) continue;
       const entry = towerMeshes.get(u.id);
       if (!entry) continue;
-      const p = project(tmp.set(entry.group.position.x, 1.15, entry.group.position.z));
+      const top = (entry.group.userData.height || 1.15) + 0.12;
+      const p = project(tmp.set(entry.group.position.x, top, entry.group.position.z));
       if (!p.visible) continue;
-      const scale = pixelsPerUnit(tmp.set(entry.group.position.x, 1.15, entry.group.position.z)) / ppuRef;
+      const scale = pixelsPerUnit(tmp.set(entry.group.position.x, top, entry.group.position.z)) / ppuRef;
       overlay.healthBar(p.x, p.y, Math.max(18, 32 * scale), u.hp / u.maxHp);
     }
 
@@ -794,7 +820,7 @@ function createRenderer3D() {
     indicators.update(hoverInfo, rangeInfo, selInfo, t);
 
     environment.update(t);
-    effects.update(state.attackFX, t);
+    effects.update(state.attackFX, t, resolveShotOrigin);
 
     renderer.render(scene, camera);
     drawOverlay(state, perfNow);
@@ -846,6 +872,9 @@ function createRenderer3D() {
         renderer.domElement.parentNode.removeChild(renderer.domElement);
       }
     }
+    towerMeshes.forEach(entry => disposeTower(entry.group));
+    ghostCache.forEach(disposeTower);
+    towerModelCache.clearUnused();
     towerMeshes.clear();
     enemyMeshes.clear();
     minionMeshes.clear();
