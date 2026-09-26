@@ -1,0 +1,1087 @@
+{
+  "repository": "Edpschw/bastion-line",
+  "branch": "main",
+  "retrieved": "2026-09-25",
+  "UNIT_BASE": {
+    "militia": {
+      "name": "Milícia",
+      "cost": 10,
+      "hp": 42,
+      "dmg": 5,
+      "range": 46,
+      "atkSpd": 1.3,
+      "shape": "square",
+      "color": "#b18a55",
+      "dmgType": "fisico",
+      "targets": "ground"
+    },
+    "archer": {
+      "name": "Arqueira",
+      "cost": 14,
+      "hp": 18,
+      "dmg": 6,
+      "range": 150,
+      "atkSpd": 1.15,
+      "shape": "triangle",
+      "color": "#80a66a",
+      "dmgType": "fisico",
+      "targets": "both"
+    },
+    "mage": {
+      "name": "Mago",
+      "cost": 20,
+      "hp": 16,
+      "dmg": 7,
+      "range": 112,
+      "atkSpd": 0.78,
+      "shape": "diamond",
+      "color": "#7775bd",
+      "splash": 34,
+      "dmgType": "magico",
+      "targets": "both"
+    },
+    "frost": {
+      "name": "Gélida",
+      "cost": 16,
+      "hp": 20,
+      "dmg": 3,
+      "range": 96,
+      "atkSpd": 1,
+      "shape": "hex",
+      "color": "#85bed1",
+      "slowFactor": 0.5,
+      "slowDur": 1.4,
+      "dmgType": "magico",
+      "targets": "both"
+    },
+    "lightning": {
+      "name": "Bobina",
+      "cost": 24,
+      "hp": 20,
+      "dmg": 7,
+      "range": 118,
+      "atkSpd": 0.85,
+      "shape": "diamond",
+      "color": "#50b6dd",
+      "shape2d": "mage",
+      "dmgType": "magico",
+      "targets": "both",
+      "chain": {
+        "jumps": 1,
+        "range": 72,
+        "falloff": 0.6
+      }
+    },
+    "nature": {
+      "name": "Druida",
+      "cost": 18,
+      "hp": 26,
+      "dmg": 3,
+      "range": 104,
+      "atkSpd": 0.9,
+      "shape": "hex",
+      "color": "#8cbb62",
+      "shape2d": "frost",
+      "dmgType": "magico",
+      "targets": "ground",
+      "heal": {
+        "rate": 3,
+        "range": 112
+      }
+    },
+    "trap": {
+      "name": "Armadilha",
+      "cost": 14,
+      "hp": 30,
+      "dmg": 11,
+      "range": 34,
+      "atkSpd": 0.55,
+      "shape": "square",
+      "color": "#9b8462",
+      "shape2d": "militia",
+      "dmgType": "fisico",
+      "targets": "ground",
+      "walkable": true,
+      "splash": 30,
+      "ignoresCloak": true
+    },
+    "necro": {
+      "name": "Necromante",
+      "cost": 28,
+      "hp": 22,
+      "dmg": 6,
+      "range": 108,
+      "atkSpd": 0.7,
+      "shape": "diamond",
+      "color": "#aa7ed2",
+      "shape2d": "mage",
+      "dmgType": "magico",
+      "targets": "both",
+      "summon": {
+        "max": 1,
+        "interval": 6,
+        "hp": 18,
+        "dmg": 4,
+        "atkSpd": 0.8,
+        "range": 42,
+        "leash": 96
+      }
+    }
+  },
+  "BRANCHES": {
+    "militia": {
+      "guardiao": {
+        "label": "Guardião",
+        "tier2": {
+          "name": "Guardião",
+          "hp": 90,
+          "dmg": 7,
+          "range": 50,
+          "atkSpd": 1.3,
+          "splash": 20,
+          "cost": 22,
+          "color": "#e9aa48"
+        },
+        "tier3": {
+          "name": "Muralha Viva",
+          "hp": 170,
+          "dmg": 10,
+          "range": 54,
+          "atkSpd": 1.35,
+          "splash": 34,
+          "cost": 46,
+          "color": "#e9aa48"
+        }
+      },
+      "guerreiro": {
+        "label": "Guerreiro",
+        "tier2": {
+          "name": "Guerreiro",
+          "hp": 55,
+          "dmg": 11,
+          "range": 48,
+          "atkSpd": 1.55,
+          "cost": 22,
+          "color": "#f05b38"
+        },
+        "tier3": {
+          "name": "Fúria",
+          "hp": 70,
+          "dmg": 19,
+          "range": 50,
+          "atkSpd": 1.85,
+          "cost": 46,
+          "color": "#f05b38"
+        }
+      }
+    },
+    "archer": {
+      "patrulheira": {
+        "label": "Patrulheira",
+        "tier2": {
+          "name": "Patrulheira",
+          "hp": 22,
+          "dmg": 8,
+          "range": 170,
+          "atkSpd": 1.55,
+          "cost": 26,
+          "color": "#86d84a"
+        },
+        "tier3": {
+          "name": "Vendaval",
+          "hp": 28,
+          "dmg": 11,
+          "range": 190,
+          "atkSpd": 2.05,
+          "cost": 52,
+          "color": "#86d84a"
+        }
+      },
+      "francoatiradora": {
+        "label": "Franco-atiradora",
+        "tier2": {
+          "name": "Franco-atiradora",
+          "hp": 20,
+          "dmg": 16,
+          "range": 185,
+          "atkSpd": 0.85,
+          "armorPierce": 0.3,
+          "cost": 26,
+          "color": "#55baff"
+        },
+        "tier3": {
+          "name": "Perfurante",
+          "hp": 26,
+          "dmg": 30,
+          "range": 210,
+          "atkSpd": 0.85,
+          "armorPierce": 0.55,
+          "cost": 52,
+          "color": "#55baff"
+        }
+      }
+    },
+    "mage": {
+      "piromante": {
+        "label": "Piromante",
+        "tier2": {
+          "name": "Piromante",
+          "hp": 20,
+          "dmg": 9,
+          "range": 118,
+          "atkSpd": 0.85,
+          "splash": 48,
+          "cost": 34,
+          "color": "#ff6a28",
+          "burn": {
+            "dps": 3,
+            "dur": 2.5
+          }
+        },
+        "tier3": {
+          "name": "Inferno",
+          "hp": 26,
+          "dmg": 13,
+          "range": 124,
+          "atkSpd": 0.95,
+          "splash": 68,
+          "cost": 66,
+          "color": "#ff6a28",
+          "burn": {
+            "dps": 7,
+            "dur": 3.2
+          }
+        }
+      },
+      "arcanista": {
+        "label": "Arcanista",
+        "tier2": {
+          "name": "Arcanista",
+          "hp": 18,
+          "dmg": 16,
+          "range": 130,
+          "atkSpd": 0.7,
+          "splash": 20,
+          "armorPierce": 0.25,
+          "cost": 34,
+          "color": "#665bff"
+        },
+        "tier3": {
+          "name": "Supremacia Arcana",
+          "hp": 24,
+          "dmg": 30,
+          "range": 145,
+          "atkSpd": 0.7,
+          "splash": 26,
+          "armorPierce": 0.45,
+          "cost": 66,
+          "color": "#665bff"
+        }
+      }
+    },
+    "frost": {
+      "eterna": {
+        "label": "Gélida Eterna",
+        "tier2": {
+          "name": "Gélida Eterna",
+          "hp": 24,
+          "dmg": 4,
+          "range": 104,
+          "atkSpd": 1.05,
+          "slowFactor": 0.38,
+          "slowDur": 2.1,
+          "cost": 27,
+          "color": "#8edaff"
+        },
+        "tier3": {
+          "name": "Inverno Eterno",
+          "hp": 30,
+          "dmg": 5,
+          "range": 112,
+          "atkSpd": 1.1,
+          "slowFactor": 0.25,
+          "slowDur": 2.8,
+          "cost": 54,
+          "color": "#8edaff"
+        }
+      },
+      "cristalina": {
+        "label": "Cristalina",
+        "tier2": {
+          "name": "Cristalina",
+          "hp": 24,
+          "dmg": 7,
+          "range": 100,
+          "atkSpd": 1.15,
+          "slowFactor": 0.6,
+          "slowDur": 1.2,
+          "cost": 27,
+          "color": "#31b9ff"
+        },
+        "tier3": {
+          "name": "Fragmentos Cristalinos",
+          "hp": 30,
+          "dmg": 12,
+          "range": 106,
+          "atkSpd": 1.3,
+          "slowFactor": 0.65,
+          "slowDur": 1.1,
+          "splash": 18,
+          "cost": 54,
+          "color": "#31b9ff"
+        }
+      }
+    },
+    "lightning": {
+      "corrente": {
+        "label": "Corrente",
+        "tier2": {
+          "name": "Corrente",
+          "hp": 24,
+          "dmg": 8,
+          "range": 126,
+          "atkSpd": 0.95,
+          "cost": 36,
+          "color": "#39b8ff",
+          "chain": {
+            "jumps": 3,
+            "range": 78,
+            "falloff": 0.7
+          }
+        },
+        "tier3": {
+          "name": "Senhor da Tempestade",
+          "hp": 30,
+          "dmg": 11,
+          "range": 138,
+          "atkSpd": 1.05,
+          "cost": 70,
+          "color": "#39b8ff",
+          "chain": {
+            "jumps": 5,
+            "range": 86,
+            "falloff": 0.75
+          },
+          "stun": {
+            "chance": 0.25,
+            "dur": 0.5
+          }
+        }
+      },
+      "canhao": {
+        "label": "Canhão de Trovão",
+        "tier2": {
+          "name": "Canhão de Trovão",
+          "hp": 24,
+          "dmg": 20,
+          "range": 132,
+          "atkSpd": 0.5,
+          "cost": 36,
+          "color": "#ffb347",
+          "stun": {
+            "chance": 0.3,
+            "dur": 0.5
+          }
+        },
+        "tier3": {
+          "name": "Deus do Trovão",
+          "hp": 30,
+          "dmg": 38,
+          "range": 146,
+          "atkSpd": 0.5,
+          "armorPierce": 0.35,
+          "cost": 70,
+          "color": "#ffb347",
+          "stun": {
+            "chance": 0.5,
+            "dur": 0.8
+          }
+        }
+      }
+    },
+    "nature": {
+      "bosque": {
+        "label": "Guardiã do Bosque",
+        "tier2": {
+          "name": "Guardiã do Bosque",
+          "hp": 32,
+          "dmg": 4,
+          "range": 110,
+          "atkSpd": 0.9,
+          "cost": 30,
+          "color": "#a8e852",
+          "heal": {
+            "rate": 6,
+            "range": 124
+          }
+        },
+        "tier3": {
+          "name": "Coração da Floresta",
+          "hp": 40,
+          "dmg": 5,
+          "range": 118,
+          "atkSpd": 0.95,
+          "cost": 58,
+          "color": "#a8e852",
+          "heal": {
+            "rate": 11,
+            "range": 140
+          }
+        }
+      },
+      "praga": {
+        "label": "Praga",
+        "tier2": {
+          "name": "Ervas Venenosas",
+          "hp": 28,
+          "dmg": 5,
+          "range": 112,
+          "atkSpd": 1,
+          "cost": 30,
+          "color": "#9d54d4",
+          "poison": {
+            "dps": 4,
+            "dur": 3
+          },
+          "heal": {
+            "rate": 2,
+            "range": 100
+          }
+        },
+        "tier3": {
+          "name": "Praga",
+          "hp": 34,
+          "dmg": 7,
+          "range": 120,
+          "atkSpd": 1.05,
+          "cost": 58,
+          "color": "#9d54d4",
+          "poison": {
+            "dps": 9,
+            "dur": 3.5
+          },
+          "armorBreak": {
+            "power": 0.35,
+            "dur": 3
+          },
+          "heal": {
+            "rate": 3,
+            "range": 104
+          }
+        }
+      }
+    },
+    "trap": {
+      "toxica": {
+        "label": "Tóxica",
+        "tier2": {
+          "name": "Armadilha Tóxica",
+          "hp": 34,
+          "dmg": 9,
+          "range": 36,
+          "atkSpd": 0.6,
+          "splash": 34,
+          "cost": 24,
+          "color": "#83e34f",
+          "poison": {
+            "dps": 5,
+            "dur": 3
+          }
+        },
+        "tier3": {
+          "name": "Miasma",
+          "hp": 42,
+          "dmg": 12,
+          "range": 40,
+          "atkSpd": 0.65,
+          "splash": 44,
+          "cost": 48,
+          "color": "#83e34f",
+          "poison": {
+            "dps": 11,
+            "dur": 4
+          },
+          "armorBreak": {
+            "power": 0.3,
+            "dur": 3
+          }
+        }
+      },
+      "explosiva": {
+        "label": "Explosiva",
+        "tier2": {
+          "name": "Armadilha Explosiva",
+          "hp": 34,
+          "dmg": 20,
+          "range": 36,
+          "atkSpd": 0.4,
+          "splash": 52,
+          "cost": 24,
+          "color": "#ff6c2f"
+        },
+        "tier3": {
+          "name": "Barril de Pólvora",
+          "hp": 42,
+          "dmg": 36,
+          "range": 40,
+          "atkSpd": 0.38,
+          "splash": 74,
+          "cost": 48,
+          "color": "#ff6c2f"
+        }
+      }
+    },
+    "necro": {
+      "lich": {
+        "label": "Lich",
+        "tier2": {
+          "name": "Necromante Superior",
+          "hp": 26,
+          "dmg": 12,
+          "range": 124,
+          "atkSpd": 0.7,
+          "cost": 42,
+          "color": "#9c56ff",
+          "summon": {
+            "max": 1,
+            "interval": 6,
+            "hp": 24,
+            "dmg": 5,
+            "atkSpd": 0.8,
+            "range": 42,
+            "leash": 96
+          }
+        },
+        "tier3": {
+          "name": "Lich",
+          "hp": 32,
+          "dmg": 24,
+          "range": 150,
+          "atkSpd": 0.72,
+          "armorPierce": 0.3,
+          "cost": 80,
+          "color": "#9c56ff",
+          "armorBreak": {
+            "power": 0.4,
+            "dur": 3
+          },
+          "summon": {
+            "max": 2,
+            "interval": 5,
+            "hp": 32,
+            "dmg": 7,
+            "atkSpd": 0.85,
+            "range": 44,
+            "leash": 104
+          }
+        }
+      },
+      "senhor": {
+        "label": "Senhor da Morte",
+        "tier2": {
+          "name": "Invocador",
+          "hp": 26,
+          "dmg": 7,
+          "range": 110,
+          "atkSpd": 0.7,
+          "cost": 42,
+          "color": "#dfc887",
+          "summon": {
+            "max": 3,
+            "interval": 4,
+            "hp": 26,
+            "dmg": 5,
+            "atkSpd": 0.9,
+            "range": 44,
+            "leash": 104
+          }
+        },
+        "tier3": {
+          "name": "Senhor da Morte",
+          "hp": 34,
+          "dmg": 9,
+          "range": 118,
+          "atkSpd": 0.75,
+          "cost": 80,
+          "color": "#dfc887",
+          "summon": {
+            "max": 5,
+            "interval": 3,
+            "hp": 36,
+            "dmg": 7,
+            "atkSpd": 1,
+            "range": 46,
+            "leash": 112
+          }
+        }
+      }
+    }
+  },
+  "TOWER_LEVELS": {
+    "militia": {
+      "guardiao": {
+        "10": {
+          "name": "Escudo Pesado",
+          "armor": 0.18,
+          "block": 2
+        },
+        "15": {
+          "name": "Muralha Viva",
+          "armor": 0.25,
+          "block": 3,
+          "taunt": 95,
+          "counter": 0.35
+        },
+        "20": {
+          "name": "Guardião Supremo",
+          "armor": 0.35,
+          "block": 5,
+          "taunt": 120,
+          "counter": 0.55,
+          "counterSplash": 42
+        }
+      },
+      "guerreiro": {
+        "10": {
+          "name": "Golpe Duplo",
+          "multi": 2
+        },
+        "15": {
+          "name": "Lâmina em Cone",
+          "multi": 3,
+          "splash": 48
+        },
+        "20": {
+          "name": "Berserker",
+          "multi": 3,
+          "splash": 58,
+          "berserk": 0.8
+        }
+      }
+    },
+    "archer": {
+      "patrulheira": {
+        "10": {
+          "name": "Flecha Dupla",
+          "multi": 2
+        },
+        "15": {
+          "name": "Chuva de Flechas",
+          "multi": 3,
+          "splash": 35
+        },
+        "20": {
+          "name": "Mestre da Floresta",
+          "multi": 4,
+          "splash": 44,
+          "crit": {
+            "chance": 0.22,
+            "mult": 1.7
+          },
+          "fastPriority": true
+        }
+      },
+      "francoatiradora": {
+        "10": {
+          "name": "Penetração",
+          "armorPierce": 0.42
+        },
+        "15": {
+          "name": "Tiro Mortal",
+          "armorPierce": 0.5,
+          "crit": {
+            "chance": 0.25,
+            "mult": 2
+          },
+          "execute": 0.12
+        },
+        "20": {
+          "name": "Exterminadora",
+          "armorPierce": 0.65,
+          "crit": {
+            "chance": 0.4,
+            "mult": 2.2
+          },
+          "execute": 0.18,
+          "bossBonus": 1.45
+        }
+      }
+    },
+    "mage": {
+      "piromante": {
+        "10": {
+          "name": "Chamas Persistentes",
+          "burn": {
+            "dps": 7,
+            "dur": 3.5
+          }
+        },
+        "15": {
+          "name": "Explosão Infernal",
+          "splash": 88,
+          "burn": {
+            "dps": 10,
+            "dur": 4
+          }
+        },
+        "20": {
+          "name": "Arquimago das Chamas",
+          "splash": 108,
+          "burn": {
+            "dps": 14,
+            "dur": 5
+          },
+          "deathBurst": 65,
+          "burnBypass": true
+        }
+      },
+      "arcanista": {
+        "10": {
+          "name": "Míssil Arcano",
+          "armorPierce": 0.5
+        },
+        "15": {
+          "name": "Tempestade Arcana",
+          "splash": 52,
+          "armorPierce": 0.55
+        },
+        "20": {
+          "name": "Arquimago",
+          "splash": 62,
+          "armorPierce": 0.65,
+          "chain": {
+            "jumps": 2,
+            "range": 78,
+            "falloff": 0.65
+          }
+        }
+      }
+    },
+    "frost": {
+      "eterna": {
+        "10": {
+          "name": "Gelo Profundo",
+          "slowFactor": 0.28,
+          "slowDur": 2.8
+        },
+        "15": {
+          "name": "Congelamento",
+          "slowFactor": 0.23,
+          "slowDur": 3,
+          "stun": {
+            "chance": 0.25,
+            "dur": 0.7
+          }
+        },
+        "20": {
+          "name": "Rainha do Gelo",
+          "slowFactor": 0.18,
+          "slowDur": 3.5,
+          "splash": 72,
+          "stun": {
+            "chance": 0.35,
+            "dur": 0.85
+          },
+          "frozenBonus": 0.3
+        }
+      },
+      "cristalina": {
+        "10": {
+          "name": "Espinhos de Cristal",
+          "splash": 28
+        },
+        "15": {
+          "name": "Prisão de Cristal",
+          "splash": 36,
+          "stun": {
+            "chance": 0.3,
+            "dur": 0.75
+          }
+        },
+        "20": {
+          "name": "Avatar de Cristal",
+          "splash": 58,
+          "stun": {
+            "chance": 0.45,
+            "dur": 1.1
+          },
+          "armorPierce": 0.35
+        }
+      }
+    },
+    "lightning": {
+      "corrente": {
+        "10": {
+          "name": "Corrente Dupla",
+          "chain": {
+            "jumps": 2,
+            "range": 80,
+            "falloff": 0.75
+          }
+        },
+        "15": {
+          "name": "Tempestade de Raios",
+          "chain": {
+            "jumps": 4,
+            "range": 88,
+            "falloff": 0.75
+          },
+          "stun": {
+            "chance": 0.18,
+            "dur": 0.4
+          }
+        },
+        "20": {
+          "name": "Tempestade Elétrica",
+          "chain": {
+            "jumps": 6,
+            "range": 96,
+            "falloff": 0.75
+          },
+          "stun": {
+            "chance": 0.28,
+            "dur": 0.55
+          }
+        }
+      },
+      "canhao": {
+        "10": {
+          "name": "Canhão de Choque",
+          "stun": {
+            "chance": 0.35,
+            "dur": 0.6
+          }
+        },
+        "15": {
+          "name": "Supercarga",
+          "stun": {
+            "chance": 0.45,
+            "dur": 0.8
+          },
+          "crit": {
+            "chance": 0.2,
+            "mult": 1.7
+          }
+        },
+        "20": {
+          "name": "Colosso Tesla",
+          "stun": {
+            "chance": 0.65,
+            "dur": 1
+          },
+          "crit": {
+            "chance": 0.35,
+            "mult": 2
+          },
+          "attackerBonus": 1.5
+        }
+      }
+    },
+    "nature": {
+      "bosque": {
+        "10": {
+          "name": "Cura do Bosque",
+          "heal": {
+            "rate": 10,
+            "range": 135
+          }
+        },
+        "15": {
+          "name": "Regeneração",
+          "heal": {
+            "rate": 15,
+            "range": 148
+          },
+          "support": {
+            "range": 120,
+            "rangeBonus": 10,
+            "attackBonus": 0.08
+          }
+        },
+        "20": {
+          "name": "Espírito da Floresta",
+          "heal": {
+            "rate": 22,
+            "range": 170
+          },
+          "support": {
+            "range": 150,
+            "rangeBonus": 18,
+            "attackBonus": 0.15
+          }
+        }
+      },
+      "praga": {
+        "10": {
+          "name": "Ervas Venenosas",
+          "poison": {
+            "dps": 8,
+            "dur": 3.5
+          }
+        },
+        "15": {
+          "name": "Quebra de Armadura",
+          "poison": {
+            "dps": 11,
+            "dur": 4
+          },
+          "armorBreak": {
+            "power": 0.4,
+            "dur": 4
+          }
+        },
+        "20": {
+          "name": "Pestilência",
+          "poison": {
+            "dps": 16,
+            "dur": 5
+          },
+          "armorBreak": {
+            "power": 0.55,
+            "dur": 5
+          },
+          "slowFactor": 0.55,
+          "slowDur": 2.5
+        }
+      }
+    },
+    "trap": {
+      "toxica": {
+        "10": {
+          "name": "Veneno Concentrado",
+          "poison": {
+            "dps": 9,
+            "dur": 4
+          }
+        },
+        "15": {
+          "name": "Contágio",
+          "splash": 68,
+          "poison": {
+            "dps": 13,
+            "dur": 4.5
+          }
+        },
+        "20": {
+          "name": "Zona de Pestilência",
+          "splash": 94,
+          "poison": {
+            "dps": 20,
+            "dur": 5
+          },
+          "armorBreak": {
+            "power": 0.4,
+            "dur": 4
+          }
+        }
+      },
+      "explosiva": {
+        "10": {
+          "name": "Grande Explosão",
+          "splash": 72
+        },
+        "15": {
+          "name": "Fragmentação",
+          "splash": 84,
+          "fragment": 0.45
+        },
+        "20": {
+          "name": "Mina Devastadora",
+          "splash": 112,
+          "fragment": 0.7,
+          "crit": {
+            "chance": 0.2,
+            "mult": 1.6
+          }
+        }
+      }
+    },
+    "necro": {
+      "lich": {
+        "10": {
+          "name": "Esqueleto Arcano",
+          "summon": {
+            "max": 2,
+            "interval": 5,
+            "hp": 42,
+            "dmg": 9,
+            "atkSpd": 0.95,
+            "range": 46,
+            "leash": 112
+          }
+        },
+        "15": {
+          "name": "Cavaleiro da Morte",
+          "summon": {
+            "max": 3,
+            "interval": 4.5,
+            "hp": 58,
+            "dmg": 13,
+            "atkSpd": 1,
+            "range": 48,
+            "leash": 120
+          },
+          "armorBreak": {
+            "power": 0.45,
+            "dur": 4
+          }
+        },
+        "20": {
+          "name": "Lich Supremo",
+          "summon": {
+            "max": 4,
+            "interval": 4,
+            "hp": 75,
+            "dmg": 18,
+            "atkSpd": 1.1,
+            "range": 50,
+            "leash": 130
+          },
+          "armorBreak": {
+            "power": 0.6,
+            "dur": 5
+          },
+          "splash": 52
+        }
+      },
+      "senhor": {
+        "10": {
+          "name": "Invocador Maior",
+          "summon": {
+            "max": 3,
+            "interval": 4,
+            "hp": 36,
+            "dmg": 7,
+            "atkSpd": 0.95,
+            "range": 44,
+            "leash": 112
+          }
+        },
+        "15": {
+          "name": "Exército dos Mortos",
+          "summon": {
+            "max": 5,
+            "interval": 3,
+            "hp": 48,
+            "dmg": 9,
+            "atkSpd": 1,
+            "range": 46,
+            "leash": 120
+          }
+        },
+        "20": {
+          "name": "Legião dos Mortos",
+          "summon": {
+            "max": 7,
+            "interval": 2.5,
+            "hp": 62,
+            "dmg": 12,
+            "atkSpd": 1.1,
+            "range": 48,
+            "leash": 132
+          }
+        }
+      }
+    }
+  }
+}

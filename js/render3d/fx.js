@@ -3,7 +3,7 @@
 // Projéteis, impactos, explosões e poeira. Tudo sai de pools pré-alocados:
 // nenhum objeto é criado durante o jogo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, glow, hexInt } from './core.js?v=campaign-art-1';
+import { THREE, PAL, glow, hexInt } from './core.js?v=detailed-towers-1';
 
 const MAX_BOLTS = 72;
 const MAX_RINGS = 56;
@@ -85,7 +85,7 @@ export function createEffects(scene, map) {
   }
 
   /** Reconstrói todos os efeitos do frame a partir da lista do núcleo do jogo. */
-  function update(attackFX, t) {
+  function update(attackFX, t, resolveShotOrigin) {
     boltUsed = ringUsed = sparkUsed = 0;
 
     for (let i = 0; i < attackFX.length; i++) {
@@ -99,6 +99,7 @@ export function createEffects(scene, map) {
 
       if (f.kind === 'shot' || (!f.kind && !f.impact)) {
         const style = SHOT_STYLE[f.unitType] || SHOT_STYLE.archer;
+        if (!style.melee && resolveShotOrigin) resolveShotOrigin(f, a);
 
         if (style.melee) {
           // Corpo a corpo: arco de lâmina junto ao alvo
