@@ -3,8 +3,8 @@
 // Malhas procedurais de torres, inimigos e do Mestre de Obras.
 // As oito fundações têm arquitetura própria; ocupantes e armas animam no topo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=campaign-art-1';
-import { buildTowerArchitecture } from './towerArchitecture.js?v=campaign-art-1';
+import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=campaign-art-3';
+import { buildTowerArchitecture } from './towerArchitecture.js?v=campaign-art-3';
 
 const BOX = function (w, h, d) {
   return geo('box:' + w + ':' + h + ':' + d, function () { return new THREE.BoxGeometry(w, h, d); });
@@ -35,6 +35,7 @@ function humanoid(cloth, skin, scale) {
   const g = new THREE.Group();
   const s = scale || 1;
   const clothMat = std(cloth, { roughness: 0.8 });
+  const clothDark = std(shade(cloth,0.62), { roughness: 0.92, side: THREE.DoubleSide });
   const skinMat = std(skin || PAL.skin, { roughness: 0.75 });
 
   const legL = mesh(BOX(0.075, 0.2, 0.09), std(PAL.woodDark), -0.055, 0.1, 0);
@@ -43,6 +44,12 @@ function humanoid(cloth, skin, scale) {
 
   const torso = mesh(BOX(0.2, 0.24, 0.14), clothMat, 0, 0.32, 0);
   g.add(torso);
+  g.add(mesh(BOX(0.29, 0.065, 0.18), clothDark, 0, 0.43, 0));
+  g.add(mesh(BOX(0.22, 0.045, 0.17), std(PAL.woodDark), 0, 0.245, 0));
+  const cloak=mesh(BOX(0.23, 0.29, 0.018),clothDark,0,0.29,-0.10);
+  cloak.rotation.x=-0.15;g.add(cloak);
+  for(const side of [-1,1])
+    g.add(mesh(BOX(0.085,0.07,0.1),std(PAL.woodDark),side*0.055,0.07,0.02));
   const head = mesh(SPH(0.088), skinMat, 0, 0.5, 0);
   g.add(head);
 
@@ -1304,10 +1311,20 @@ export function buildEnemy(type, color, radiusWorld, auraWorld) {
   cloakMark.castShadow = false;
 
   const holder = new THREE.Group();
+  // Sombra pintada no chão: ancora as figuras em movimento e separa silhuetas
+  // pequenas da textura do terreno sem um círculo luminoso de seleção.
+  const footprint = new THREE.Mesh(
+    geo('enemy-footprint', function(){ return new THREE.CircleGeometry(0.27, 16); }),
+    new THREE.MeshBasicMaterial({ color: 0x20302b, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide })
+  );
+  footprint.rotation.x = -Math.PI / 2;
+  footprint.position.y = 0.012;
+  footprint.castShadow = false;
+  if(type !== 'harpy' && type !== 'boss') holder.add(footprint);
   holder.add(inner);
   holder.add(cloakMark);
   // Raio de referência das malhas acima ≈ 0.34 unidades de mundo.
-  const holderScale = Math.max(0.68, radiusWorld / 0.25);
+  const holderScale = Math.max(0.74, radiusWorld / 0.22);
   holder.scale.setScalar(holderScale);
 
   // O anel vive dentro do holder, então precisa desfazer a escala dele para
@@ -1325,33 +1342,41 @@ export function buildEnemy(type, color, radiusWorld, auraWorld) {
 
 export function buildWorker() {
   const g = new THREE.Group();
-  const skin = std(PAL.skin, { roughness: 0.8 });
-  const shirt = std(0x8a6a3a, { roughness: 0.88 });
+  const skin = std(PAL.skin, { roughness: 0.84 });
+  const leather = std(0x674b35, { roughness: 0.94 });
+  const tunic = std(0xb78a4c, { roughness: 0.9 });
+  const apron = std(0xd2bd86, { roughness: 0.94 });
+  const metal = std(PAL.ironDark, { metalness: 0.55, roughness: 0.5 });
 
-  const legL = mesh(BOX(0.085, 0.2, 0.1), std(0x3f2f18), -0.06, 0.1, 0);
-  const legR = mesh(BOX(0.085, 0.2, 0.1), std(0x3f2f18), 0.06, 0.1, 0);
+  const legL = mesh(BOX(0.095, 0.23, 0.11), leather, -0.065, 0.115, 0);
+  const legR = mesh(BOX(0.095, 0.23, 0.11), leather, 0.065, 0.115, 0);
   g.add(legL, legR);
-
-  g.add(mesh(BOX(0.24, 0.26, 0.17), shirt, 0, 0.32, 0));
-  g.add(mesh(BOX(0.26, 0.06, 0.19), std(PAL.woodDark), 0, 0.23, 0));
-
-  const head = mesh(SPH(0.115, 10, 8), skin, 0, 0.55, 0);
+  g.add(mesh(BOX(0.27, 0.29, 0.19), tunic, 0, 0.36, 0));
+  g.add(mesh(BOX(0.19, 0.25, 0.025), apron, 0, 0.34, 0.11));
+  g.add(mesh(BOX(0.3, 0.055, 0.22), leather, 0, 0.265, 0));
+  g.add(mesh(BOX(0.08, 0.08, 0.035), metal, 0, 0.265, 0.135));
+  // Mochila de ferramentas: o trabalhador se reconhece mesmo de costas.
+  g.add(mesh(BOX(0.24, 0.27, 0.14), leather, 0, 0.40, -0.16));
+  for (const side of [-1,1]) {
+    g.add(mesh(BOX(0.055, 0.32, 0.04), apron, side*0.09, 0.42, -0.10));
+    g.add(mesh(BOX(0.07, 0.12, 0.08), metal, side*0.17, 0.53, 0));
+  }
+  const head = mesh(SPH(0.11, 10, 8), skin, 0, 0.615, 0);
   g.add(head);
-  // Chapéu de mestre de obras
-  const hat = mesh(SPH(0.13, 10, 6), std(PAL.gold, { roughness: 0.6 }), 0, 0.6, 0);
-  hat.scale.set(1, 0.62, 1);
-  g.add(hat);
-  g.add(mesh(CYL(0.155, 0.155, 0.025, 12), std(PAL.gold, { roughness: 0.6 }), 0, 0.575, 0));
-
-  // Braço com martelo
+  const helmet = mesh(CYL(0.13, 0.16, 0.11, 8), metal, 0, 0.705, 0);
+  g.add(helmet);
+  g.add(mesh(BOX(0.31, 0.027, 0.22), metal, 0, 0.665, 0));
+  g.add(mesh(CONE(0.11, 0.16, 8), tunic, 0, 0.84, 0));
+  // Martelo pesado acima do ombro, para leitura em escala RTS.
   const armR = new THREE.Group();
-  armR.position.set(0.17, 0.4, 0.03);
-  armR.add(mesh(BOX(0.07, 0.16, 0.07), skin, 0, -0.06, 0));
-  const handle = mesh(CYL(0.018, 0.018, 0.3, 6), std(PAL.woodDark), 0.02, -0.2, 0.04);
+  armR.position.set(0.18, 0.47, 0.03);
+  armR.add(mesh(BOX(0.09, 0.18, 0.09), tunic, 0, -0.07, 0));
+  const handle = mesh(CYL(0.023, 0.023, 0.44, 6), leather, 0.04, -0.06, 0.12);
+  handle.rotation.z = -0.22;
   armR.add(handle);
-  armR.add(mesh(BOX(0.13, 0.08, 0.08), std(PAL.iron, { metalness: 0.5, roughness: 0.45 }), 0.02, -0.34, 0.04));
+  armR.add(mesh(BOX(0.22, 0.11, 0.11), metal, 0.09, 0.17, 0.17));
   g.add(armR);
-  g.add(mesh(BOX(0.07, 0.16, 0.07), skin, -0.17, 0.34, 0.03));
+  g.add(mesh(BOX(0.08, 0.17, 0.08), tunic, -0.18, 0.40, 0.03));
 
   g.userData = { legL: legL, legR: legR, armR: armR, head: head };
   return g;

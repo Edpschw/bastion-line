@@ -325,6 +325,128 @@ body{
   .unit-popup{width:min(258px,calc(100vw - 20px));right:10px;top:10px;}
 }
 @media(prefers-reduced-motion:reduce){.toast,.cam-hint,.unit-card{transition:none;}}
+
+/* Cerco ao Vale — mesa de comando. O cobre identifica ações; o pergaminho
+   identifica leitura. Ângulos cortados remetem a escudos, não a cards de app. */
+:root{
+  --bg:#19272a;--panel:#26332f;--panel-2:#33413a;--border:#8d7953;
+  --ink:#f2e6c9;--ink-dim:#d0c6aa;--ink-faint:#a5ae9d;
+  --accent:#e1b66a;--accent-soft:#9b7644;
+  --hp-good:#8eba76;--hp-bad:#bc6250;
+  --militia:#b18a55;--archer:#80a66a;--mage:#7775bd;--frost:#85bed1;
+}
+body{
+  background:
+    repeating-linear-gradient(90deg,#1d302f 0 3px,#1a292a 3px 6px);
+}
+.hud-bar{
+  min-height:69px;padding:7px 18px;
+  background:
+    linear-gradient(90deg,#223234 0%,#364236 49%,#202f31 100%);
+  border-bottom:4px solid #7b603d;
+  box-shadow:inset 0 2px #c1aa7852,inset 0 -2px #2a261f,0 5px 12px #1017189c;
+}
+.hud-bar h1{
+  font-size:1.17rem;letter-spacing:.045em;text-transform:uppercase;
+  color:#f6e9ca;text-shadow:0 2px 1px #172021;
+  gap:13px;
+}
+.hud-bar h1::before{
+  width:29px;height:33px;flex-basis:29px;
+  background:
+    linear-gradient(90deg,transparent 46%,#dfc17e 46% 54%,transparent 54%),
+    linear-gradient(135deg,#9c5343 0%,#6f3931 58%,#3b4643 59%);
+  clip-path:polygon(4% 0,96% 0,92% 65%,50% 100%,8% 65%);
+  box-shadow:none;
+  border:1px solid #d7b879;
+}
+.resources{gap:5px;}
+.res{
+  min-width:78px;padding:5px 11px 4px;
+  background:#243230;
+  border:1px solid #6d765f;border-top:2px solid #aa946e;
+  box-shadow:inset 0 0 0 2px #172729,inset 0 -3px #162021;
+  clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px));
+}
+.res--gold{border-top-color:#e0b362}.res--lives{border-top-color:#b95d4c}
+.res--wave{border-top-color:#87b5b6}.res--best{border-top-color:#9b9e90}
+.res-label{font-size:.64rem;color:#c3c9b7;letter-spacing:.03em;}
+.res-value{font-family:'Cinzel',serif;font-size:1.02rem;color:#f0e4c5;line-height:1.14;}
+.res--gold .res-value{color:#f2cb7d}
+.res--lives .res-value{color:#e8a396}
+.phase-strip{
+  min-height:41px;padding:6px 18px;
+  background:#2c3935;border-bottom:2px solid #7d775f;
+  box-shadow:inset 0 1px #b9aa7855;
+}
+#phaseText{font-size:.76rem;font-weight:600;color:#eadfc3;}
+.phase-bar{
+  height:9px;border:1px solid #997d55;border-radius:0;
+  background:repeating-linear-gradient(90deg,#1f2b2c 0 39px,#5b6558 39px 40px);
+  box-shadow:inset 0 2px #121d1e;
+}
+.phase-bar-fill{background:#d2a25d;box-shadow:inset 0 1px #f2d494,0 0 8px #d9ad6d88;}
+.btn-send{
+  font-family:'Cinzel',serif;font-size:.73rem;font-weight:700;
+  background:#d0a25d;border:1px solid #f4d28e;border-bottom-color:#775634;
+  border-radius:0;color:#2e2920;padding:7px 16px;
+  clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px));
+  box-shadow:inset 0 1px #f9dda1;
+}
+.btn-send:hover:not(:disabled){background:#ecc47b;filter:none;}
+.btn-send:disabled{background:#3d4a45;border-color:#66766d;color:#b4bdad;box-shadow:none;}
+.build-menu,.unit-popup{
+  background:#e1d1a9;color:#272f2a;
+  border:5px solid #3b4b46;border-top-color:#a07c4d;
+  border-radius:0;
+  box-shadow:inset 0 0 0 2px #b79c6c,0 15px 32px #0b1416bb;
+  padding:13px;
+  clip-path:polygon(0 0,calc(100% - 11px) 0,100% 11px,100% 100%,11px 100%,0 calc(100% - 11px));
+}
+.build-menu{width:310px;}.unit-popup{width:270px;}
+.build-menu-title,.unit-popup-head h3{
+  color:#35413a;border-bottom:2px solid #8e7b56;
+  font-size:.85rem;font-weight:700;
+  padding-bottom:7px;margin-bottom:10px;
+}
+.build-menu-title span{color:#5d695d;}
+.unit-card{
+  min-height:82px;background:#eadbb9;border:1px solid #a29573;border-bottom:3px solid #867556;
+  border-radius:0;box-shadow:inset 0 1px #fff6d8;
+  color:#2e372f;padding:9px 8px;
+}
+.unit-card:hover:not(:disabled){background:#f2e5c6;border-color:#766846;}
+.unit-card.active{background:#f0ddb4;border-color:#704d2c;box-shadow:inset 0 0 0 1px #aa7840;}
+.uc-name{font-family:'Cinzel',serif;font-size:.77rem;color:#273930;}
+.uc-cost{color:#7f5729;font-weight:700;}.uc-stats{color:#596653;}
+.uc-stats b{color:#486d67;}
+.uc-swatch{border-color:#4b594f;box-shadow:inset 1px 1px #ffffff8c,inset -2px -2px #0005;}
+.sel-row{color:#4e5b50;border-bottom-color:#786a4b66;}
+.sel-row b{color:#25352f;}
+.popup-close{color:#555e50;}.popup-close:hover{color:#162621;}
+.btn-evolve{background:#43594f;border-color:#2d453e;color:#f4e7c8;border-radius:0;box-shadow:inset 0 1px #ffffff24;}
+.btn-evolve:hover:not(:disabled){background:#546b5b;}
+.btn-evolve b{color:#f6cb78}.btn-evolve span{color:#e6dbc1}
+.btn-ghost{border-radius:0;color:#824136;border-color:#a4624e;}
+.hint{color:#5a6458;}
+.toast{background:#263831f2;border:1px solid #bd9e68;border-radius:0;color:#f4e7c9;}
+.render-mode,.cam-hint{background:#253831dd;border:1px solid #a48b60;border-radius:0;color:#e6d8b9;}
+.modal{background:#152323ef;}
+.relic-card{background:#e4d4af;color:#29372f;border:3px solid #7c755b;border-radius:0;}
+.relic-card b{color:#29372f}.relic-card span{color:#556150}.relic-card:hover{background:#f2e2bd;}
+:focus-visible{outline:3px solid #f3cc83;outline-offset:2px;}
+@media(max-width:620px){
+  .hud-bar{padding:6px 8px;gap:5px;min-height:55px;}
+  .hud-bar h1{font-size:.79rem;gap:5px;letter-spacing:0;}
+  .hud-bar h1::before{width:16px;height:19px;flex-basis:16px;}
+  .resources{gap:3px;}
+  .res{min-width:43px;padding:3px 5px;}
+  .res-label{font-size:.52rem;}.res-value{font-size:.78rem;}
+  .phase-strip{padding:5px 8px;}
+  .btn-send{padding:7px 8px;font-size:.6rem;}
+  .build-menu{width:min(300px,calc(100vw - 20px));left:10px;bottom:10px;}
+  .unit-popup{width:min(270px,calc(100vw - 20px));right:10px;top:10px;}
+}
 </style>
 
 <div class="wrap">
@@ -2593,4 +2715,4 @@ requestAnimationFrame(frame);
   Se o navegador não suportar módulos ou WebGL, este script simplesmente não
   roda e o jogo continua no canvas 2D.
 -->
-<script type="module" src="js/render3d/index.js?v=campaign-art-1"></script>
+<script type="module" src="js/render3d/index.js?v=campaign-art-3"></script>

@@ -10,37 +10,37 @@ export const CELL_WORLD = 1;
 
 // Cor do céu na linha do horizonte. A névoa usa exatamente esta cor, para que
 // o cenário distante se dissolva no céu sem costura visível.
-export const HORIZON = 0x9aabaf;
+export const HORIZON = 0xa6b5b3;
 
 export const PAL = {
-  grass:     0x566b4b,
-  grassAlt:  0x596d4d,
-  grassDry:  0x666e4e,
-  grassDark: 0x354d37,
-  soil:      0x5b493b,
-  road:      0x887c67,
-  roadAlt:   0x796f60,
-  roadEdge:  0x615d50,
-  stone:     0x9b998b,
-  stoneMid:  0x777c76,
-  stoneDark: 0x39434a,
-  wood:      0x8b6843,
-  woodDark:  0x49392d,
-  bone:      0xd9d3b9,
-  skin:      0xe0b478,
-  cloth:     0xb8a985,
-  iron:      0x9aa0a6,
-  ironDark:  0x5c6167,
-  gold:      0xd9992f,
-  goldLight: 0xf2c15a,
-  ember:     0xff9a3d,
-  frost:     0x8fe0d8,
-  arcane:    0x7fb2ff,
-  poison:    0x8ad24a,
-  leaf:      0x52734a,
-  leafAlt:   0x6d824e,
-  sky:       0x8fb6d8,
-  night:     0x141a10
+  grass:     0x64784e,
+  grassAlt:  0x718256,
+  grassDry:  0x9b9261,
+  grassDark: 0x405941,
+  soil:      0x64513f,
+  road:      0xa49a7e,
+  roadAlt:   0x7c806f,
+  roadEdge:  0x59655d,
+  stone:     0xa8a995,
+  stoneMid:  0x808b82,
+  stoneDark: 0x3f5053,
+  wood:      0x8b6846,
+  woodDark:  0x513b2c,
+  bone:      0xddd3b5,
+  skin:      0xe6b681,
+  cloth:     0xc3b48d,
+  iron:      0x879494,
+  ironDark:  0x4f5d5f,
+  gold:      0xd2a15a,
+  goldLight: 0xf1ca80,
+  ember:     0xff9a52,
+  frost:     0xa6e3ee,
+  arcane:    0x9b8de2,
+  poison:    0xa8d66a,
+  leaf:      0x4f704b,
+  leafAlt:   0x7c8c56,
+  sky:       0xa7c3c6,
+  night:     0x17282b
 };
 
 // ---- caches ----------------------------------------------------------------

@@ -6,13 +6,13 @@
 // cena three.js em sincronia. Se o WebGL não estiver disponível, nada é
 // anexado e o jogo segue no canvas 2D original.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js?v=campaign-art-1';
-import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './world.js?v=campaign-art-1';
+import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js?v=campaign-art-3';
+import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './siegeWorld.js?v=campaign-art-3';
 import {
   buildTower, buildEnemy, buildWorker, buildMinion,
   animateTower, animateEnemy, animateWorker, pokeRecoil
-} from './actors.js?v=campaign-art-1';
-import { createEffects } from './fx.js?v=campaign-art-1';
+} from './actors.js?v=campaign-art-3';
+import { createEffects } from './fx.js?v=campaign-art-3';
 import { createOverlay } from './overlay.js';
 
 // Câmera calcada na de Warcraft III, cujos padrões são ângulo de ataque 304,
@@ -110,7 +110,7 @@ function createRenderer3D() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 1.16;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.domElement.className = 'layer3d';
     container.appendChild(renderer.domElement);
@@ -119,7 +119,7 @@ function createRenderer3D() {
     // O tabuleiro fica entre ~9 e ~15 unidades da câmera e o chão visível acaba
     // por volta de 25: a névoa precisa caber nessa janela estreita para o cenário
     // distante chegar saturado ao horizonte sem tocar na área de jogo.
-    scene.fog = new THREE.Fog(HORIZON, 16.5, 30);
+    scene.fog = new THREE.Fog(HORIZON, 19, 34);
     scene.add(createSky());
 
     camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 220);
@@ -132,7 +132,7 @@ function createRenderer3D() {
     effects = createEffects(scene, map);
 
     worker = buildWorker();
-    worker.scale.setScalar(1.12);
+    worker.scale.setScalar(1.3);
     worker.userData.pickTarget = { x: 0, y: 0 };
     scene.add(worker);
     pickables.push(worker);
