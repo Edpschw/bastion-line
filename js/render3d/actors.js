@@ -3,8 +3,9 @@
 // Malhas procedurais de torres, inimigos e do Mestre de Obras.
 // As oito fundações têm arquitetura própria; ocupantes e armas animam no topo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=campaign-art-3';
-import { buildTowerArchitecture } from './towerArchitecture.js?v=campaign-art-3';
+import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=siege-art-4';
+import { attachDetailedTower } from './towerModels.js?v=siege-art-4';
+import { buildTowerArchitecture } from './towerArchitecture.js?v=siege-art-4';
 
 const BOX = function (w, h, d) {
   return geo('box:' + w + ':' + h + ':' + d, function () { return new THREE.BoxGeometry(w, h, d); });
@@ -461,7 +462,7 @@ function addEvolutionSilhouette(group, turret, type, tier, branch, accent) {
 }
 
 /** Monta a malha de uma torre a partir do tipo, tier, ramo e cor do núcleo 2D. */
-export function buildTower(type, tier, branch, color) {
+export function buildTower(type, tier, branch, color, options) {
   color = (EVOLUTION_COLORS[type] && EVOLUTION_COLORS[type][branch]) || color;
   const g = new THREE.Group();
 
@@ -512,7 +513,8 @@ export function buildTower(type, tier, branch, color) {
   g.userData.recoil = 0;
   g.userData.tier = tier;
   g.userData.type = type;
-  return g;
+  g.userData.height = type === 'trap' ? 0.32 : 1.15;
+  return attachDetailedTower(g, type, tier, branch, options);
 }
 
 // ---------------------------------------------------------------------------
@@ -1395,6 +1397,21 @@ export function animateTower(g, info, t, dt) {
   const anim = d.anim || (d.anim = { yaw: info.yaw, recoil: 0, phase: Math.random() * 6.28 });
 
   anim.yaw = lerpAngle(anim.yaw, info.yaw, 1 - Math.pow(0.0005, dt));
+  if (d.detailedModel) {
+    anim.recoil = Math.max(0, anim.recoil - dt * 4.5);
+    if (d.turret) {
+      d.turret.position.copy(d.turretRest);
+      if (d.type === 'trap') {
+        d.turret.rotation.y = 0;
+        d.turret.position.y -= anim.recoil * 0.012;
+      } else {
+        d.turret.rotation.y = anim.yaw;
+        d.turret.position.x -= Math.sin(anim.yaw) * anim.recoil * 0.025;
+        d.turret.position.z -= Math.cos(anim.yaw) * anim.recoil * 0.025;
+      }
+    }
+    return;
+  }
   if (d.turret) d.turret.rotation.y = anim.yaw;
 
   anim.recoil = Math.max(0, anim.recoil - dt * 4.5);

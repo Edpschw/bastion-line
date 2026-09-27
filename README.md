@@ -148,14 +148,20 @@ index.html  ──readState()──▶  js/render3d/index.js  ──▶  cena th
 |---|---|
 | `core.js` | paleta, cache de geometrias/materiais, conversão de coordenadas |
 | `siegeWorld.js` | céu, luzes, terreno contínuo, floresta, acampamentos, portal e bastião |
-| `towerArchitecture.js` | oito estruturas procedurais próprias, com detalhes por ramo e nível |
+| `towerModels.js` | GLB sob demanda, cache, clones, pivôs e descarte de recursos |
+| `towerArchitecture.js` | oito estruturas procedurais próprias usadas durante carregamento ou falha de um GLB |
 | `actors.js` | ocupantes, inimigos, Mestre de Obras e animações |
 | `fx.js` | projéteis, impactos e partículas (pools pré-alocados) |
 | `overlay.js` | barras de vida, dano e galões, em canvas 2D por cima da cena |
 | `index.js` | câmera, sincronização com o estado do jogo e entrada |
 
-Nenhum modelo externo é carregado: torres, inimigos e cenário são montados a
-partir de primitivas (caixas, cones, octaedros) com *flat shading*.
+As torres usam **72 modelos GLB detalhados**, versionados em
+`assets/towers/detailed/`: oito bases e 16 ramos nos marcos 5, 10, 15 e 20.
+O loader carrega cada variante sob demanda, compartilha geometria/material e
+mantém a torre procedural visível enquanto o arquivo carrega ou se a rede falhar.
+Mira e recuo movem apenas o equipamento; os disparos partem do marcador
+`muzzle`, e as barras de vida acompanham a altura real. Inimigos e cenário
+continuam procedurais.
 O visual de campanha usa pedra esculpida, madeira escura, bronze, tecido e cores
 de ramo em silhuetas distintas. O terreno é contínuo, com a grade jogável
 gravada no chão, portão em ruínas, bastião fortificado, acampamentos, bosque e
@@ -221,3 +227,11 @@ as sombras. Só desce, nunca sobe — voltar atrás causaria oscilação visíve
 - `godot/` — protótipo paralelo em Godot 4.7, seguindo o mesmo GDD.
 - `godot-web/` — build web do protótipo Godot.
 - `Fantasy_Tower_Defense_GDD_Claude.md` — documento de design.
+
+### Verificar os modelos detalhados
+
+Execute `node tests/tower-levels.test.js` e `node tests/tower-models.test.mjs`.
+O segundo teste carrega os 72 GLB e cobre mapeamento, pivôs, prévia de
+construção, falha de download, descarte durante carregamento e cache.
+Use um servidor HTTP local e abra `tests/tower-gallery.html` para inspecionar
+as cinco formas visuais. A galeria informa quantos GLB foram carregados.
