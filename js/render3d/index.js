@@ -64,6 +64,7 @@ function createRenderer3D() {
   const minionMeshes = new Map();  // minion.id -> group
   const ghostCache = new Map();    // tipo     -> grupo translúcido de pré-visualização
   let worker = null;
+  let workerSig = null;
   let ghost = null;
 
   const pickables = [];
@@ -135,6 +136,7 @@ function createRenderer3D() {
     effects = createEffects(scene, map);
 
     worker = buildWorker();
+    workerSig = null; // força a reconstrução no primeiro syncWorker(), já com a cor real do jogo
     worker.scale.setScalar(1.3);
     worker.userData.pickTarget = { x: 0, y: 0 };
     scene.add(worker);
@@ -475,13 +477,17 @@ function createRenderer3D() {
     return u.type + '|' + u.tier + '|' + (u.branch || '-') + '|' + u.color;
   }
 
-  /** Dá recuo às torres que acabaram de disparar neste frame. */
+  /** Dá recuo às torres (e ao Mestre de Obras) que acabaram de disparar neste frame. */
   function processNewShots(attackFX, units) {
     for (let i = 0; i < attackFX.length; i++) {
       const f = attackFX[i];
       if (seenFX.has(f)) continue;
       seenFX.add(f);
       if (f.kind !== 'shot') continue;
+      if (f.unitType && f.unitType.indexOf('builder') === 0) {
+        if (worker) pokeRecoil(worker, 1);
+        continue;
+      }
       for (let j = 0; j < units.length; j++) {
         const u = units[j];
         if (u.x === f.x1 && u.y === f.y1) {
@@ -644,6 +650,20 @@ function createRenderer3D() {
   }
 
   function syncWorker(builder, t, dt) {
+    // O Mestre de Obras troca de malha ao evoluir de vocação, do mesmo jeito
+    // que uma torre troca ao subir de tier — só que é sempre a mesma peça.
+    const sig = builder.tier + '|' + (builder.branch || '-') + '|' + builder.color;
+    if (sig !== workerSig) {
+      const oldPickTarget = worker ? worker.userData.pickTarget : { x: 0, y: 0 };
+      if (worker) { scene.remove(worker); removePickable(worker); }
+      worker = buildWorker(builder.tier, builder.branch, hexInt(builder.color));
+      worker.scale.setScalar(1.3);
+      worker.userData.pickTarget = oldPickTarget;
+      scene.add(worker);
+      pickables.push(worker);
+      workerSig = sig;
+    }
+
     const wx = map.x(builder.x), wz = map.z(builder.y);
     worker.position.x = wx;
     worker.position.z = wz;

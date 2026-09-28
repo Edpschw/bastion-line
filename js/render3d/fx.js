@@ -19,7 +19,13 @@ const SHOT_STYLE = {
   lightning: { width: 0.035, length: 0.52, color: null, tip: 0xf8ffff, soft: true },
   nature: { width: 0.075, length: 0.25, color: null, tip: 0xe2ffb0, soft: true },
   trap: { width: 0.11, length: 0.18, color: null, tip: 0xffecc2, soft: true },
-  necro: { width: 0.09, length: 0.27, color: null, tip: 0xe9d5ff, soft: true }
+  necro: { width: 0.09, length: 0.27, color: null, tip: 0xe9d5ff, soft: true },
+  // O Mestre de Obras usa a mesma linguagem visual das torres, por vocação.
+  'builder-peao': { melee: true, width: 0.035, color: 0xd9c9a0 },
+  'builder-cavaleiro': { melee: true, width: 0.05, color: 0xffd6c4 },
+  'builder-paladino': { width: 0.028, length: 0.34, color: 0xf2dca0, tip: 0xfff4d0 },
+  'builder-feiticeiro': { width: 0.085, length: 0.26, color: null, tip: 0xe6d0ff, soft: true },
+  'builder-naturalista': { width: 0.06, length: 0.22, color: 0x8fe0a0, tip: 0xeafff0 }
 };
 
 export function createEffects(scene, map) {

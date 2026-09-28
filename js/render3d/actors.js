@@ -1342,7 +1342,8 @@ export function buildEnemy(type, color, radiusWorld, auraWorld) {
 // Mestre de Obras
 // ---------------------------------------------------------------------------
 
-export function buildWorker() {
+/** Peão: forma inicial do Mestre de Obras, sem vocação. */
+function buildPeao() {
   const g = new THREE.Group();
   const skin = std(PAL.skin, { roughness: 0.84 });
   const leather = std(0x674b35, { roughness: 0.94 });
@@ -1381,6 +1382,166 @@ export function buildWorker() {
   g.add(mesh(BOX(0.08, 0.17, 0.08), tunic, -0.18, 0.40, 0.03));
 
   g.userData = { legL: legL, legR: legR, armR: armR, head: head };
+  return g;
+}
+
+// ---------------------------------------------------------------------------
+// Vocações do Mestre de Obras — inspiradas nas 4 vocações clássicas de Tibia
+// (Knight/Paladin/Sorcerer/Druid) e sua promoção. Arquétipo só: nenhum asset
+// ou nome do jogo original é reaproduzido, e o corpo é sempre o humanoid()
+// com pernas, para poder andar como as outras formas do construtor.
+// ---------------------------------------------------------------------------
+
+/** Cavaleiro: escudo e espada, a versão marcial do peão. */
+function buildKnight(tier, color) {
+  const body = humanoid(color, PAL.skin, 1 + (tier - 2) * 0.08);
+
+  const helm = mesh(SPH(0.1, 10, 6), std(PAL.iron, { metalness: 0.45, roughness: 0.5 }), 0, 0.52, 0);
+  helm.scale.set(1, 0.72, 1);
+  body.add(helm);
+  if (tier >= 3) {
+    body.add(mesh(BOX(0.03, 0.09, 0.22), std(PAL.gold, { metalness: 0.5, roughness: 0.4 }), 0, 0.61, 0));
+  }
+  body.add(mesh(BOX(0.12, 0.2, 0.025), std(shade(color, 0.7), { roughness: 0.9 }), 0, 0.31, 0.078));
+
+  const arms = new THREE.Group();
+  arms.position.y = 0.34;
+  const shield = mesh(BOX(0.05, 0.3 + tier * 0.03, 0.24 + tier * 0.03), std(PAL.wood, { roughness: 0.8 }), -0.18, 0.02, 0.05);
+  arms.add(shield);
+  arms.add(mesh(BOX(0.02, 0.12, 0.12), std(PAL.gold, { metalness: 0.5, roughness: 0.4 }), -0.21, 0.02, 0.05));
+  const sword = mesh(BOX(0.045, 0.38, 0.015), std(PAL.iron, { metalness: 0.6, roughness: 0.35 }), 0.19, 0.14, 0.04);
+  sword.rotation.z = -0.35;
+  arms.add(sword);
+  body.add(arms);
+
+  return { body: body, arms: arms };
+}
+
+/** Paladino: capuz e arco longo, o caçador à distância. */
+function buildPaladin(tier, color) {
+  const body = humanoid(color, PAL.skin, 0.95 + (tier - 2) * 0.05);
+  body.add(mesh(CONE(0.11, 0.16, 6), std(color, { roughness: 0.85 }), 0, 0.54, 0));
+
+  const arms = new THREE.Group();
+  arms.position.y = 0.33;
+  const bow = new THREE.Mesh(
+    geo('bow', function () { return new THREE.TorusGeometry(0.19, 0.016, 5, 12, Math.PI * 1.15); }),
+    std(PAL.woodDark, { roughness: 0.8 })
+  );
+  bow.position.set(0.02, 0.03, 0.18);
+  bow.rotation.set(0, Math.PI / 2, Math.PI / 2 + 0.58);
+  bow.castShadow = true;
+  arms.add(bow);
+  arms.add(mesh(BOX(0.008, 0.36, 0.008), std(PAL.cloth), 0.02, 0.03, 0.15));
+  if (tier >= 3) {
+    arms.add(mesh(CYL(0.03, 0.03, 0.12, 6), std(PAL.gold, { metalness: 0.6, roughness: 0.3 }), -0.1, -0.08, -0.05));
+  }
+  body.add(arms);
+
+  return { body: body, arms: arms };
+}
+
+/** Feiticeiro: manto e orbe arcano flutuante — magia ofensiva. */
+function buildSorcerer(tier, color) {
+  const body = humanoid(shade(color, 0.75), PAL.skin, 0.95 + (tier - 2) * 0.05);
+  body.add(mesh(CONE(0.16, 0.34, 8), std(color, { roughness: 0.85 }), 0, 0.27, 0));
+
+  const staff = mesh(CYL(0.016, 0.02, 0.5, 6), std(PAL.woodDark), 0.17, 0.32, 0.04);
+  staff.rotation.z = -0.1;
+  body.add(staff);
+
+  const orb = new THREE.Mesh(ICO(0.09, 0), std(color, {
+    emissive: color, emissiveIntensity: 1.5, roughness: 0.3
+  }));
+  orb.position.set(0.17, 0.58, 0.05);
+  orb.castShadow = false;
+  body.add(orb);
+
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTexture(), color: color, transparent: true, opacity: 0.45,
+    blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+  }));
+  halo.scale.setScalar(0.36);
+  halo.position.copy(orb.position);
+  body.add(halo);
+
+  const shards = [];
+  const shardCount = tier >= 3 ? 4 : 0;
+  for (let i = 0; i < shardCount; i++) {
+    const sh = mesh(OCT(0.04), std(color, { emissive: color, emissiveIntensity: 0.9, roughness: 0.35 }));
+    sh.castShadow = false;
+    sh.userData.angle = (i / shardCount) * Math.PI * 2;
+    body.add(sh);
+    shards.push(sh);
+  }
+
+  return { body: body, arms: null, orb: orb, halo: halo, shards: shards, orbY: 0.58 };
+}
+
+/** Naturalista: manto e cajado de cristal — magia da natureza que retarda. */
+function buildNaturalist(tier, color) {
+  const body = humanoid(shade(color, 0.8), PAL.skin, 0.95 + (tier - 2) * 0.05);
+  body.add(mesh(CONE(0.16, 0.3, 8), std(color, { roughness: 0.85 }), 0, 0.26, 0));
+
+  const crystalMat = std(color, {
+    emissive: color, emissiveIntensity: 0.5,
+    roughness: 0.15, metalness: 0.15, transparent: true, opacity: 0.9
+  });
+  const staff = mesh(CYL(0.014, 0.018, 0.44, 6), std(PAL.woodDark), 0.18, 0.38, 0.04);
+  body.add(staff);
+  const staffTop = mesh(OCT(0.065), crystalMat, 0.18, 0.6, 0.04);
+  body.add(staffTop);
+
+  const sats = [];
+  const satCount = tier >= 3 ? 3 : 0;
+  for (let i = 0; i < satCount; i++) {
+    const a = (i / satCount) * Math.PI * 2;
+    const c = mesh(OCT(0.038), crystalMat, 0.18 + Math.cos(a) * 0.08, 0.6 + Math.sin(a) * 0.05, 0.04 + Math.sin(a) * 0.08);
+    c.userData.baseY = c.position.y;
+    body.add(c);
+    sats.push(c);
+  }
+
+  return { body: body, arms: null, sats: sats };
+}
+
+const BUILDER_VOCATIONS = {
+  cavaleiro: buildKnight,
+  paladino: buildPaladin,
+  feiticeiro: buildSorcerer,
+  naturalista: buildNaturalist
+};
+
+/** Monta o Mestre de Obras: Peão (sem vocação) ou uma das 4 vocações, por tier. */
+export function buildWorker(tier, branch, color) {
+  const build = branch && BUILDER_VOCATIONS[branch];
+  if (!build || tier < 2) return buildPeao();
+
+  const parts = build(tier, color);
+  const g = parts.body;
+  g.userData.arms = parts.arms || null;
+  g.userData.orb = parts.orb || null;
+  g.userData.halo = parts.halo || null;
+  g.userData.shards = parts.shards || null;
+  g.userData.sats = parts.sats || null;
+  g.userData.orbY = parts.orbY || 0;
+
+  if (tier >= 3) {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.24, 0.29, 24),
+      new THREE.MeshBasicMaterial({
+        color: PAL.goldLight, transparent: true, opacity: 0.8,
+        depthWrite: false, side: THREE.DoubleSide, toneMapped: false
+      })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.02;
+    g.add(ring);
+    g.userData.tierRing = ring;
+  }
+
+  g.userData.tier = tier;
+  g.userData.vocation = branch;
   return g;
 }
 
@@ -1601,27 +1762,67 @@ export function animateEnemy(holder, info, t, dt) {
 }
 
 /** Anima o Mestre de Obras: andar, martelar ou esperar. */
+/**
+ * Anima o Mestre de Obras em qualquer forma: Peão (armR + martelo) ou uma das
+ * 4 vocações (arms com arma, ou orb/shards/sats de conjurador — mesmo esquema
+ * usado pelas torres). O recuo de ataque é o mesmo pokeRecoil() das torres.
+ */
 export function animateWorker(g, info, t, dt) {
   const p = g.userData;
-  const anim = p.anim || (p.anim = { yaw: 0 });
+  const anim = p.anim || (p.anim = { yaw: 0, recoil: 0, phase: Math.random() * 6.28 });
   anim.yaw = lerpAngle(anim.yaw, info.yaw, 1 - Math.pow(0.002, dt));
   g.rotation.y = anim.yaw;
+  anim.recoil = Math.max(0, anim.recoil - dt * 4.5);
 
   if (info.walking) {
     const gait = t * 11;
     p.legL.rotation.x = Math.sin(gait) * 0.7;
     p.legR.rotation.x = -Math.sin(gait) * 0.7;
-    p.armR.rotation.x = -Math.sin(gait) * 0.4;
+    if (p.armR) p.armR.rotation.x = -Math.sin(gait) * 0.4;
     g.position.y = Math.abs(Math.sin(gait)) * 0.04;
   } else if (info.building) {
-    // Martelada: sobe devagar, desce rápido
-    const swing = (Math.sin(t * 9) + 1) / 2;
-    p.armR.rotation.x = -2.0 + Math.pow(swing, 0.45) * 2.3;
     p.legL.rotation.x = p.legR.rotation.x = 0;
+    if (p.armR) {
+      // Martelada: sobe devagar, desce rápido
+      const swing = (Math.sin(t * 9) + 1) / 2;
+      p.armR.rotation.x = -2.0 + Math.pow(swing, 0.45) * 2.3;
+    } else if (p.torso) {
+      // Vocações não seguram martelo: um vaivém genérico de "trabalhando".
+      p.torso.rotation.x = Math.sin(t * 9) * 0.1;
+    }
     g.position.y = 0;
   } else {
     p.legL.rotation.x = p.legR.rotation.x = 0;
-    p.armR.rotation.x = Math.sin(t * 2) * 0.12;
+    if (p.armR) p.armR.rotation.x = Math.sin(t * 2) * 0.12 - anim.recoil * 0.85;
+    if (p.arms) p.arms.rotation.x = -anim.recoil * 0.85;
     g.position.y = Math.sin(t * 2) * 0.012;
   }
+
+  if (p.orb) {
+    const orbY = p.orbY || 0.58;
+    p.orb.position.y = orbY + Math.sin(t * 2.4 + anim.phase) * 0.045;
+    p.orb.rotation.set(t * 0.8, t * 1.3, 0);
+    const pulse = 1 + Math.sin(t * 3.4) * 0.12 + anim.recoil * 0.6;
+    p.orb.scale.setScalar(pulse);
+    if (p.halo) {
+      p.halo.position.y = p.orb.position.y;
+      p.halo.scale.setScalar(0.36 * pulse * (1 + anim.recoil));
+      p.halo.material.opacity = 0.3 + Math.sin(t * 3.4) * 0.08 + anim.recoil * 0.4;
+    }
+  }
+  if (p.shards) {
+    for (let i = 0; i < p.shards.length; i++) {
+      const sh = p.shards[i];
+      const a = sh.userData.angle + t * 1.4;
+      sh.position.set(Math.cos(a) * 0.14, (p.orbY || 0.58) + Math.sin(a * 2) * 0.04, 0.05 + Math.sin(a) * 0.14);
+      sh.rotation.set(t * 1.7, a, 0);
+    }
+  }
+  if (p.sats) {
+    for (let i = 0; i < p.sats.length; i++) {
+      const c = p.sats[i];
+      c.position.y = c.userData.baseY + Math.sin(t * 1.7 + i) * 0.015;
+    }
+  }
+  if (p.tierRing) p.tierRing.scale.setScalar(1 + Math.sin(t * 2.2) * 0.05);
 }
