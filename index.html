@@ -165,6 +165,12 @@ body{
 .btn-evolve span{font-family:'IBM Plex Mono';color:var(--ink-dim);font-variant-numeric:tabular-nums;flex:0 0 auto;}
 .btn-evolve:hover:not(:disabled){border-color:var(--accent);}
 .btn-evolve:disabled{opacity:.4;cursor:default;}
+.btn-evolve.has-thumb{justify-content:flex-start;}
+.btn-evolve em{font-style:normal;flex:1;}
+.evolve-thumb{width:30px;height:30px;object-fit:contain;flex:0 0 auto;margin:-3px 0;}
+.builder-portrait{display:block;width:96px;height:96px;object-fit:contain;margin:0 auto 4px;
+  filter:drop-shadow(0 3px 4px rgba(0,0,0,.45));}
+.builder-portrait.is-promoted{filter:drop-shadow(0 0 6px #d9992f) drop-shadow(0 3px 4px rgba(0,0,0,.45));}
 .btn-ghost{
   background:transparent;border:1px solid var(--hp-bad);color:#e0a89c;width:100%;
   border-radius:6px;padding:6px 9px;font-size:.74rem;cursor:pointer;font-family:inherit;
@@ -854,6 +860,26 @@ function spriteFor(type){
   var im=SPRITE_IMAGES[d.src];
   return (im && im.complete && im.naturalWidth>0) ? {img:im,scale:d.scale} : null;
 }
+// Retratos do Mestre de Obras, um por vocação (a promoção reaproveita o da
+// vocação). Servem ao painel em qualquer renderer e ao corpo no canvas 2D; o
+// renderer 3D continua com os modelos próprios de actors.js.
+var BUILDER_SPRITE_SRC={
+  peao:'sprites/builder/peao.png',
+  cavaleiro:'sprites/builder/cavaleiro.png',
+  paladino:'sprites/builder/paladino.png',
+  feiticeiro:'sprites/builder/feiticeiro.png',
+  naturalista:'sprites/builder/naturalista.png'
+};
+Object.keys(BUILDER_SPRITE_SRC).forEach(function(k){
+  var im=new Image(); im.src=BUILDER_SPRITE_SRC[k]; SPRITE_IMAGES[BUILDER_SPRITE_SRC[k]]=im;
+});
+function builderSpriteKey(){
+  return (builder.tier>=2 && builder.branch) ? builder.branch : 'peao';
+}
+function builderSprite(){
+  var im=SPRITE_IMAGES[BUILDER_SPRITE_SRC[builderSpriteKey()]];
+  return (im && im.complete && im.naturalWidth>0) ? im : null;
+}
 var VET_THRESHOLDS=[5,15,35,70];
 var VET_TITLES=['Recruta','Veterana','Elite','Campeã','Lendária'];
 function vetLevelForKills(k){
@@ -1409,8 +1435,9 @@ function refreshBuilderEvolveButtons(){
     Object.keys(BRANCHES.builder).forEach(function(key){
       var opt=BRANCHES.builder[key];
       var btn=document.createElement('button');
-      btn.className='btn-evolve';
-      btn.innerHTML='Evoluir: <b>'+opt.label+'</b><span>'+opt.tier2.cost+'g</span>';
+      btn.className='btn-evolve has-thumb';
+      btn.innerHTML='<img class="evolve-thumb" src="'+BUILDER_SPRITE_SRC[key]+'" alt="">'+
+        '<em>Evoluir: <b>'+opt.label+'</b></em><span>'+opt.tier2.cost+'g</span>';
       btn.dataset.cost=opt.tier2.cost;
       btn.disabled = gold<opt.tier2.cost;
       btn.addEventListener('click', function(){ evolveBuilder(key); });
@@ -1438,6 +1465,7 @@ function refreshBuilderPanel(){
   for(var i=0;i<VET_THRESHOLDS.length;i++){ if(builder.kills<VET_THRESHOLDS[i]){ nextT=VET_THRESHOLDS[i]; break; } }
   var killsLine = nextT!==null ? (builder.kills+' / '+nextT) : (builder.kills+' (máx.)');
   selectedBody.innerHTML=
+    '<img class="builder-portrait'+(builder.tier>=3?' is-promoted':'')+'" src="'+BUILDER_SPRITE_SRC[builderSpriteKey()]+'" alt="'+builder.name+'">'+
     '<div class="sel-row"><span>'+builder.name+'</span><b>Nível '+builder.tier+'</b></div>'+
     '<div class="sel-row"><span>Patente</span><b>'+VET_TITLES[builder.vetLevel]+'</b></div>'+
     '<div class="sel-row"><span>Abates</span><b>'+killsLine+'</b></div>'+
@@ -2430,9 +2458,9 @@ function drawEnemySpriteBody(e, perfNow){
   return e.r*2;
 }
 
-// A partir do tier 2 o Peão já escolheu vocação: o corpo passa a ser o mesmo
-// desenho das torres correspondentes (Milícia/Arqueira/Mago/Gélida), na cor
-// da vocação — reaproveita as silhuetas já legíveis em vez de duplicá-las.
+// Reserva enquanto o retrato da vocação não carregou: a partir do tier 2 o
+// corpo passa a ser o mesmo desenho das torres correspondentes
+// (Milícia/Arqueira/Mago/Gélida), na cor da vocação.
 function drawBuilderVocation(perfNow, bx, by0, moving, building){
   var rad=15+(builder.tier-2)*3;
   drawGroundShadow(bx, by0+15, rad*0.9, rad*0.36);
@@ -2453,10 +2481,34 @@ function drawBuilderVocation(perfNow, bx, by0, moving, building){
   }
 }
 
+// Corpo do construtor a partir do retrato da vocação atual. Devolve false
+// enquanto a imagem não carregou, para cair nos desenhos procedurais abaixo.
+function drawBuilderSprite(perfNow, bx, by0, moving, building){
+  var im=builderSprite();
+  if(!im) return false;
+  var h=40+(builder.tier-1)*5;
+  var w=h*(im.naturalWidth/im.naturalHeight);
+  drawGroundShadow(bx, by0+15, w*0.32, w*0.13);
+  var bob=Math.sin(perfNow/1000*(moving?7:2)+builder.bobPhase)*(moving?2.2:1.3);
+  var feet=by0+16+bob;
+  if(builder.tier>=3){ ctx.save(); ctx.shadowColor='#d9992f'; ctx.shadowBlur=9; }
+  ctx.drawImage(im, bx-w/2, feet-h, w, h);
+  if(builder.tier>=3){ ctx.restore(); }
+  if(building){
+    var pf=(Math.sin(perfNow/1000*9)+1)/2;
+    ctx.globalAlpha=0.28+pf*0.28;
+    ctx.beginPath(); ctx.arc(bx+11,feet-3,3.5+pf*3,0,Math.PI*2);
+    ctx.fillStyle='#c9bd9a'; ctx.fill();
+    ctx.globalAlpha=1;
+  }
+  return true;
+}
+
 function drawBuilder(perfNow){
   var bx=builder.x, by0=builder.y;
   var moving=builder.state==='walking';
   var building=builder.state==='building';
+  if(drawBuilderSprite(perfNow, bx, by0, moving, building)) return;
   if(builder.tier>=2 && builder.branch){
     drawBuilderVocation(perfNow, bx, by0, moving, building);
     return;
