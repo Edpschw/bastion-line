@@ -478,7 +478,7 @@ body{
       <canvas id="game"></canvas>
     </div>
     <div class="render-mode" id="renderMode" hidden></div>
-    <div class="cam-hint" id="camHint" hidden>roda ou pinça: zoom · setas/WASD, arrastar com o botão direito ou dois dedos: mover · Home: reenquadrar</div>
+    <div class="cam-hint" id="camHint" hidden>setas: andar com o Mestre de Obras · roda ou pinça: zoom · WASD, arrastar com o botão direito ou dois dedos: mover a câmera · Home: reenquadrar</div>
 
     <div class="build-menu" id="buildMenu" hidden>
       <div class="build-menu-title">Mestre de Obras <span>— o que erguer?</span></div>
@@ -961,10 +961,11 @@ function resetGame(){
   builder.row=br; builder.col=bc;
   builder.x=bc*CELL+CELL/2; builder.y=br*CELL+CELL/2;
   builder.state='idle'; builder.buildType=null; builder.buildTimer=0;
+  builder.manualMove=false; builder.faceX=0; builder.faceY=0;
   builder.tier=1; builder.branch=null; builder.cost=0; builder.cd=0;
   builder.kills=0; builder.vetLevel=0; builder.bobPhase=Math.random()*Math.PI*2;
   recomputeBuilderStats();
-  log('Bastião reconstruído. Clique no Mestre de Obras, escolha uma torre e diga onde construir.');
+  log('Bastião reconstruído. Ande com as setas; clique no Mestre de Obras, escolha uma torre e diga onde construir.');
   refreshSelectedPanel();
   updatePlacingUI();
   gameOverModal.hidden=true;
@@ -1921,7 +1922,34 @@ function commitBuild(row,col,type){
   else { builder.state='idle'; }
 }
 
+// Setas do teclado: andar livre com o Mestre de Obras. Assume o controle
+// quando ele está parado ou só voltando para uma casa vazia; uma ordem de
+// construção em andamento é cancelada (o ouro só sai no commitBuild).
+var BUILDER_MANUAL_SPEED=BUILDER_SPEED*0.8;
+var builderKeys={up:false,down:false,left:false,right:false};
+function updateBuilderManual(dt){
+  var mx=(builderKeys.right?1:0)-(builderKeys.left?1:0);
+  var my=(builderKeys.down?1:0)-(builderKeys.up?1:0);
+  if(!mx && !my){
+    if(builder.manualMove){ builder.manualMove=false; builder.state='idle'; }
+    return false;
+  }
+  if(builder.state==='building') return false; // não larga o martelo no meio
+  if(builder.state==='walking' && builder.buildType && !builder.manualMove){
+    builder.buildType=null;
+    log('Construção cancelada — você assumiu o Mestre de Obras.');
+  }
+  var len=Math.sqrt(mx*mx+my*my), step=BUILDER_MANUAL_SPEED*dt;
+  builder.x=Math.max(CELL/2, Math.min(COLS*CELL-CELL/2, builder.x+mx/len*step));
+  builder.y=Math.max(CELL/2, Math.min(ROWS*CELL-CELL/2, builder.y+my/len*step));
+  builder.row=Math.floor(builder.y/CELL); builder.col=Math.floor(builder.x/CELL);
+  builder.faceX=mx; builder.faceY=my;
+  builder.state='walking'; builder.manualMove=true;
+  return true;
+}
+
 function updateBuilder(dt){
+  if(updateBuilderManual(dt)) return;
   if(builder.state==='walking'){
     var tx=builder.targetCol*CELL+CELL/2, ty=builder.targetRow*CELL+CELL/2;
     var dx=tx-builder.x, dy=ty-builder.y, d=Math.sqrt(dx*dx+dy*dy);
@@ -2879,8 +2907,19 @@ viewport.addEventListener('click', function(e){
   var occ=(row>0 && row<ROWS-1) ? grid[row][col] : null;
   if(occ){ handleUnitClick(occ); } else { selectedUnit=null; refreshSelectedPanel(); }
 });
+var BUILDER_KEY={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'};
 window.addEventListener('keydown', function(e){
   if(e.key==='Escape'){ placing=null; selectedUnit=null; buildMenu.hidden=true; updatePlacingUI(); refreshSelectedPanel(); }
+  var dir=BUILDER_KEY[e.code];
+  if(dir){ builderKeys[dir]=true; e.preventDefault(); }
+});
+window.addEventListener('keyup', function(e){
+  var dir=BUILDER_KEY[e.code];
+  if(dir) builderKeys[dir]=false;
+});
+// Trocar de aba com a seta apertada não dispara o keyup: solta tudo.
+window.addEventListener('blur', function(){
+  builderKeys.up=builderKeys.down=builderKeys.left=builderKeys.right=false;
 });
 
 popupClose.addEventListener('click', function(){ selectedUnit=null; refreshSelectedPanel(); });
@@ -2999,4 +3038,4 @@ requestAnimationFrame(frame);
   Se o navegador não suportar módulos ou WebGL, este script simplesmente não
   roda e o jogo continua no canvas 2D.
 -->
-<script type="module" src="js/render3d/index.js?v=siege-art-4"></script>
+<script type="module" src="js/render3d/index.js?v=siege-art-5"></script>

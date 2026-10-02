@@ -3,9 +3,9 @@
 // Malhas procedurais de torres, inimigos e do Mestre de Obras.
 // As oito fundações têm arquitetura própria; ocupantes e armas animam no topo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=siege-art-4';
-import { attachDetailedTower } from './towerModels.js?v=siege-art-4';
-import { buildTowerArchitecture } from './towerArchitecture.js?v=siege-art-4';
+import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=siege-art-5';
+import { attachDetailedTower } from './towerModels.js?v=siege-art-5';
+import { buildTowerArchitecture } from './towerArchitecture.js?v=siege-art-5';
 
 const BOX = function (w, h, d) {
   return geo('box:' + w + ':' + h + ':' + d, function () { return new THREE.BoxGeometry(w, h, d); });
@@ -1342,46 +1342,132 @@ export function buildEnemy(type, color, radiusWorld, auraWorld) {
 // Mestre de Obras
 // ---------------------------------------------------------------------------
 
+// Peças do construtor: pivôs no quadril e na cintura deixam roupa e equipamento
+// acompanharem a animação.
+function builderBody(tier, cloth, trousers, boots) {
+  const body = new THREE.Group();
+  const legs = [-1, 1].map(side => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.065, 0.30, 0);
+    leg.add(mesh(CYL(0.055, 0.045, 0.20, 6), trousers, 0, -0.09, 0));
+    leg.add(mesh(BOX(0.09, 0.13, 0.10), boots, 0, -0.225, 0));
+    leg.add(mesh(BOX(0.10, 0.065, 0.15), boots, 0, -0.2675, 0.025));
+    body.add(leg);
+    return leg;
+  });
+  const torso = new THREE.Group();
+  torso.position.y = 0.30;
+  torso.add(mesh(CYL(0.13, 0.105, 0.27, 6), cloth, 0, 0.135, 0));
+  body.add(torso);
+  const head = new THREE.Group();
+  head.position.set(0, 0.64, 0);
+  head.add(mesh(SPH(0.085, 8, 6), std(PAL.skin, { roughness: 0.84 })));
+  head.add(mesh(BOX(0.035, 0.04, 0.03), std(PAL.skin), 0, -0.006, 0.081));
+  torso.add(head);
+  // A cabeça fica em coordenadas locais do tronco, que pivota na cintura.
+  head.position.y -= torso.position.y;
+  body.scale.setScalar(tier >= 3 ? 1.06 : 1);
+  body.userData = { legL: legs[0], legR: legs[1], torso, head };
+  return body;
+}
+
+function builderCape(torso, material, trim) {
+  const cape = mesh(CYL(0.13, 0.21, 0.43, 6), material, 0, 0.05, -0.10);
+  cape.scale.z = 0.38;
+  cape.rotation.x = -0.16;
+  torso.add(cape);
+  for (const side of [-1, 1]) {
+    const fold = mesh(BOX(0.065, 0.39, 0.035), material, side * 0.135, 0.05, -0.075);
+    fold.rotation.z = side * 0.22;
+    torso.add(fold);
+    if (trim) {
+      const edge = mesh(BOX(0.018, 0.39, 0.04), trim, side * 0.17, 0.05, -0.073);
+      edge.rotation.z = side * 0.22;
+      torso.add(edge);
+    }
+  }
+}
+
+function builderHood(head, cloth, hair) {
+  head.add(mesh(BOX(0.20, 0.055, 0.18), cloth, 0, 0.082, -0.02));
+  head.add(mesh(BOX(0.18, 0.19, 0.055), cloth, 0, -0.005, -0.08));
+  for (const side of [-1, 1]) {
+    const rim = mesh(BOX(0.045, 0.16, 0.14), cloth, side * 0.09, 0.005, -0.015);
+    rim.rotation.z = side * 0.12;
+    head.add(rim);
+    if (hair) head.add(mesh(CYL(0.028, 0.035, 0.21, 5), hair, side * 0.068, -0.07, 0.025));
+  }
+}
+
+function builderLeaf(parent, material, x, y, z, angle, size) {
+  const leaf = mesh(OCT(size || 0.035), material, x, y, z);
+  leaf.scale.set(0.5, 1.3, 0.20);
+  leaf.rotation.z = angle;
+  parent.add(leaf);
+  return leaf;
+}
+
 /** Peão: forma inicial do Mestre de Obras, sem vocação. */
 function buildPeao() {
-  const g = new THREE.Group();
+  const cream = std(0xe5d4af, { roughness: 0.94 });
+  const leather = std(0x765035, { roughness: 0.94 });
+  const orange = std(0xe38325, { roughness: 0.9 });
   const skin = std(PAL.skin, { roughness: 0.84 });
-  const leather = std(0x674b35, { roughness: 0.94 });
-  const tunic = std(0xb78a4c, { roughness: 0.9 });
-  const apron = std(0xd2bd86, { roughness: 0.94 });
-  const metal = std(PAL.ironDark, { metalness: 0.55, roughness: 0.5 });
-
-  const legL = mesh(BOX(0.095, 0.23, 0.11), leather, -0.065, 0.115, 0);
-  const legR = mesh(BOX(0.095, 0.23, 0.11), leather, 0.065, 0.115, 0);
-  g.add(legL, legR);
-  g.add(mesh(BOX(0.27, 0.29, 0.19), tunic, 0, 0.36, 0));
-  g.add(mesh(BOX(0.19, 0.25, 0.025), apron, 0, 0.34, 0.11));
-  g.add(mesh(BOX(0.3, 0.055, 0.22), leather, 0, 0.265, 0));
-  g.add(mesh(BOX(0.08, 0.08, 0.035), metal, 0, 0.265, 0.135));
-  // Mochila de ferramentas: o trabalhador se reconhece mesmo de costas.
-  g.add(mesh(BOX(0.24, 0.27, 0.14), leather, 0, 0.40, -0.16));
-  for (const side of [-1,1]) {
-    g.add(mesh(BOX(0.055, 0.32, 0.04), apron, side*0.09, 0.42, -0.10));
-    g.add(mesh(BOX(0.07, 0.12, 0.08), metal, side*0.17, 0.53, 0));
+  const metal = std(PAL.ironDark, { metalness: 0.6, roughness: 0.46 });
+  const g = builderBody(2, cream, std(0x686346), std(0x513b2c));
+  const { legL, legR, torso, head } = g.userData;
+  for (const leg of [legL, legR]) {
+    leg.add(mesh(CYL(0.065, 0.055, 0.12, 6), std(0x686346), 0, -0.06, 0));
+    leg.add(mesh(BOX(0.095, 0.025, 0.11), leather, 0, -0.18, 0));
   }
-  const head = mesh(SPH(0.11, 10, 8), skin, 0, 0.615, 0);
-  g.add(head);
-  const helmet = mesh(CYL(0.13, 0.16, 0.11, 8), metal, 0, 0.705, 0);
-  g.add(helmet);
-  g.add(mesh(BOX(0.31, 0.027, 0.22), metal, 0, 0.665, 0));
-  g.add(mesh(CONE(0.11, 0.16, 8), tunic, 0, 0.84, 0));
-  // Martelo pesado acima do ombro, para leitura em escala RTS.
-  const armR = new THREE.Group();
-  armR.position.set(0.18, 0.47, 0.03);
-  armR.add(mesh(BOX(0.09, 0.18, 0.09), tunic, 0, -0.07, 0));
-  const handle = mesh(CYL(0.023, 0.023, 0.44, 6), leather, 0.04, -0.06, 0.12);
-  handle.rotation.z = -0.22;
-  armR.add(handle);
-  armR.add(mesh(BOX(0.22, 0.11, 0.11), metal, 0.09, 0.17, 0.17));
-  g.add(armR);
-  g.add(mesh(BOX(0.08, 0.17, 0.08), tunic, -0.18, 0.40, 0.03));
+  torso.add(mesh(BOX(0.19, 0.20, 0.028), leather, 0, 0.13, 0.12));
+  for (const side of [-1, 1]) {
+    const skirt = mesh(BOX(0.12, 0.16, 0.035), leather, side * 0.064, -0.025, 0.105);
+    skirt.rotation.z = side * 0.12;
+    torso.add(skirt);
+    torso.add(mesh(BOX(0.025, 0.23, 0.03), leather, side * 0.074, 0.17, 0.10));
+  }
+  torso.add(mesh(BOX(0.27, 0.045, 0.205), orange, 0, 0.015, 0));
+  torso.add(mesh(BOX(0.05, 0.04, 0.025), metal, 0, 0.015, 0.125));
+  const sash = mesh(BOX(0.055, 0.18, 0.025), orange, 0.13, -0.07, 0.07);
+  sash.rotation.z = 0.3;
+  torso.add(sash);
+  torso.add(mesh(BOX(0.085, 0.075, 0.06), leather, -0.11, -0.015, 0.13));
+  for (let i = 0; i < 2; i++) {
+    torso.add(mesh(BOX(0.012, 0.095, 0.018), std(PAL.wood), -0.13 + i * 0.035, 0.04, 0.16));
+    torso.add(mesh(BOX(0.035, 0.025, 0.022), metal, -0.13 + i * 0.035, 0.086, 0.16));
+  }
+  const beard = mesh(CONE(0.076, 0.13, 6), std(0x533721), 0, -0.05, 0.055);
+  beard.rotation.z = Math.PI;
+  head.add(beard);
+  head.add(mesh(BOX(0.095, 0.025, 0.035), std(0x533721), 0, -0.01, 0.085));
+  head.add(mesh(CYL(0.087, 0.09, 0.055, 8), orange, 0, 0.05, 0));
+  head.add(mesh(SPH(0.09, 8, 4), orange, 0, 0.07, -0.005));
+  head.add(mesh(BOX(0.05, 0.11, 0.025), orange, -0.09, 0.01, -0.06));
 
-  g.userData = { legL: legL, legR: legR, armR: armR, head: head };
+  const armR = new THREE.Group();
+  armR.position.set(0.17, 0.54, 0);
+  armR.add(mesh(CYL(0.055, 0.048, 0.12, 6), cream, 0, -0.05, 0));
+  armR.add(mesh(CYL(0.055, 0.055, 0.035, 6), cream, 0, -0.11, 0));
+  armR.add(mesh(BOX(0.065, 0.12, 0.065), skin, 0, -0.17, 0.025));
+  armR.add(mesh(SPH(0.043, 6, 4), skin, 0, -0.215, 0.06));
+  armR.add(mesh(CYL(0.017, 0.019, 0.40, 6), std(PAL.wood), 0, -0.08, 0.085));
+  armR.add(mesh(BOX(0.18, 0.10, 0.105), metal, 0, 0.13, 0.085));
+  g.add(armR);
+  // Braço esquerdo dobrado segura a viga apoiada no ombro.
+  torso.add(mesh(CYL(0.055, 0.05, 0.12, 6), cream, -0.17, 0.19, 0));
+  const forearm = mesh(BOX(0.065, 0.15, 0.065), skin, -0.19, 0.23, 0.08);
+  forearm.rotation.x = -0.6;
+  torso.add(forearm);
+  torso.add(mesh(SPH(0.043, 6, 4), skin, -0.19, 0.31, 0.11));
+  const beam = new THREE.Group();
+  beam.position.set(-0.045, 0.31, -0.02);
+  beam.rotation.z = -0.10;
+  beam.add(mesh(BOX(0.48, 0.095, 0.12), std(PAL.wood)));
+  for (const y of [-0.024, 0.024])
+    beam.add(mesh(BOX(0.46, 0.008, 0.006), std(PAL.woodDark), 0, y, 0.063));
+  torso.add(beam);
+  g.userData = { legL, legR, armR, head };
   return g;
 }
 
@@ -1394,115 +1480,302 @@ function buildPeao() {
 
 /** Cavaleiro: escudo e espada, a versão marcial do peão. */
 function buildKnight(tier, color) {
-  const body = humanoid(color, PAL.skin, 1 + (tier - 2) * 0.08);
-
-  const helm = mesh(SPH(0.1, 10, 6), std(PAL.iron, { metalness: 0.45, roughness: 0.5 }), 0, 0.52, 0);
-  helm.scale.set(1, 0.72, 1);
-  body.add(helm);
-  if (tier >= 3) {
-    body.add(mesh(BOX(0.03, 0.09, 0.22), std(PAL.gold, { metalness: 0.5, roughness: 0.4 }), 0, 0.61, 0));
+  const steel = std(0x9da8aa, { metalness: 0.75, roughness: 0.38 });
+  const darkSteel = std(PAL.ironDark, { metalness: 0.65, roughness: 0.46 });
+  const cloth = std(color, { roughness: 0.92 });
+  const cream = std(0xeee0ba);
+  const gold = std(PAL.gold, { metalness: 0.65, roughness: 0.35 });
+  const body = builderBody(tier, steel, darkSteel, steel);
+  const { torso, head, legL, legR } = body.userData;
+  for (const leg of [legL, legR]) {
+    leg.add(mesh(BOX(0.085, 0.12, 0.04), steel, 0, -0.07, 0.054));
+    leg.add(mesh(SPH(0.052, 6, 4), steel, 0, -0.15, 0.045));
+    if (tier >= 3) leg.add(mesh(BOX(0.065, 0.025, 0.045), gold, 0, -0.18, 0.055));
   }
-  body.add(mesh(BOX(0.12, 0.2, 0.025), std(shade(color, 0.7), { roughness: 0.9 }), 0, 0.31, 0.078));
-
+  builderCape(torso, cloth, tier >= 3 ? gold : null);
+  torso.add(mesh(BOX(0.16, 0.28, 0.035), cloth, 0, 0.09, 0.123));
+  torso.add(mesh(BOX(0.025, 0.15, 0.012), cream, 0, 0.14, 0.147));
+  torso.add(mesh(BOX(0.10, 0.028, 0.012), cream, 0, 0.175, 0.147));
+  for (const side of [-1, 1]) {
+    const tail = mesh(BOX(0.083, 0.13, 0.03), cloth, side * 0.047, -0.07, 0.10);
+    tail.rotation.z = side * 0.10;
+    torso.add(tail);
+    const shoulder = mesh(SPH(0.085, 6, 4), steel, side * 0.15, 0.24, 0);
+    shoulder.scale.set(1, 0.65, 1.15);
+    torso.add(shoulder);
+    if (tier >= 3) torso.add(mesh(BOX(0.12, 0.025, 0.17), gold, side * 0.15, 0.235, 0));
+  }
+  torso.add(mesh(BOX(0.245, 0.035, 0.20), std(PAL.woodDark), 0, 0.01, 0));
+  torso.add(mesh(BOX(0.045, 0.035, 0.025), gold, 0, 0.01, 0.135));
+  head.clear();
+  head.add(mesh(CYL(0.09, 0.10, 0.18, 8), steel, 0, 0, 0));
+  head.add(mesh(BOX(0.125, 0.013, 0.015), darkSteel, 0, 0.025, 0.095));
+  head.add(mesh(BOX(0.014, 0.145, 0.018), tier >= 3 ? gold : steel, 0, 0, 0.104));
+  for (const side of [-1, 1])
+    head.add(mesh(BOX(0.028, 0.008, 0.014), darkSteel, side * 0.05, -0.04, 0.096));
+  for (let i = 0; i < 3; i++) {
+    const plume = mesh(CONE(0.046 - i * 0.007, 0.15, 5), cloth, 0, 0.145 - i * 0.018, -i * 0.052);
+    plume.rotation.x = -0.35 - i * 0.32;
+    head.add(plume);
+  }
   const arms = new THREE.Group();
-  arms.position.y = 0.34;
-  const shield = mesh(BOX(0.05, 0.3 + tier * 0.03, 0.24 + tier * 0.03), std(PAL.wood, { roughness: 0.8 }), -0.18, 0.02, 0.05);
+  arms.position.y = 0.24;
+  for (const side of [-1, 1]) {
+    arms.add(mesh(BOX(0.07, 0.16, 0.08), steel, side * 0.175, -0.08, 0.025));
+    arms.add(mesh(BOX(0.075, 0.065, 0.085), darkSteel, side * 0.175, -0.16, 0.055));
+  }
+  const shield = new THREE.Group();
+  shield.position.set(-0.165, -0.075, 0.13);
+  shield.rotation.y = -0.18;
+  const face = mesh(CYL(0.135, 0.135, 0.035, 4), gold);
+  face.rotation.x = Math.PI / 2;
+  face.scale.set(0.85, 1, 1.65);
+  shield.add(face);
+  const panel = mesh(CYL(0.122, 0.122, 0.04, 4), cloth, 0, 0, 0.016);
+  panel.rotation.x = Math.PI / 2;
+  panel.scale.set(0.85, 1, 1.65);
+  shield.add(panel);
+  shield.add(mesh(BOX(0.025, 0.29, 0.012), cream, 0, 0, 0.043));
+  shield.add(mesh(BOX(0.16, 0.026, 0.012), cream, 0, 0.045, 0.043));
+  shield.add(mesh(SPH(0.043, 8, 4), gold, 0, 0.025, 0.05));
   arms.add(shield);
-  arms.add(mesh(BOX(0.02, 0.12, 0.12), std(PAL.gold, { metalness: 0.5, roughness: 0.4 }), -0.21, 0.02, 0.05));
-  const sword = mesh(BOX(0.045, 0.38, 0.015), std(PAL.iron, { metalness: 0.6, roughness: 0.35 }), 0.19, 0.14, 0.04);
-  sword.rotation.z = -0.35;
+  const sword = new THREE.Group();
+  sword.position.set(0.17, -0.14, 0.08);
+  sword.rotation.z = -0.06;
+  sword.add(mesh(CYL(0.018, 0.018, 0.10, 6), std(PAL.woodDark), 0, 0.01, 0));
+  sword.add(mesh(BOX(0.13, 0.025, 0.045), gold, 0, 0.065, 0));
+  sword.add(mesh(BOX(0.043, 0.31, 0.017), steel, 0, 0.235, 0));
+  sword.add(mesh(CONE(0.027, 0.08, 4), steel, 0, 0.43, 0));
+  sword.add(mesh(SPH(0.026, 6, 4), gold, 0, -0.055, 0));
   arms.add(sword);
-  body.add(arms);
-
-  return { body: body, arms: arms };
+  torso.add(arms);
+  return { body, arms };
 }
 
 /** Paladino: capuz e arco longo, o caçador à distância. */
 function buildPaladin(tier, color) {
-  const body = humanoid(color, PAL.skin, 0.95 + (tier - 2) * 0.05);
-  body.add(mesh(CONE(0.11, 0.16, 6), std(color, { roughness: 0.85 }), 0, 0.54, 0));
-
-  const arms = new THREE.Group();
-  arms.position.y = 0.33;
-  const bow = new THREE.Mesh(
-    geo('bow', function () { return new THREE.TorusGeometry(0.19, 0.016, 5, 12, Math.PI * 1.15); }),
-    std(PAL.woodDark, { roughness: 0.8 })
-  );
-  bow.position.set(0.02, 0.03, 0.18);
-  bow.rotation.set(0, Math.PI / 2, Math.PI / 2 + 0.58);
-  bow.castShadow = true;
-  arms.add(bow);
-  arms.add(mesh(BOX(0.008, 0.36, 0.008), std(PAL.cloth), 0.02, 0.03, 0.15));
-  if (tier >= 3) {
-    arms.add(mesh(CYL(0.03, 0.03, 0.12, 6), std(PAL.gold, { metalness: 0.6, roughness: 0.3 }), -0.1, -0.08, -0.05));
+  const cloth = std(color, { roughness: 0.88 });
+  const cream = std(0xeee0ba, { roughness: 0.9 });
+  const gold = std(PAL.gold, { metalness: 0.65, roughness: 0.36 });
+  const steel = std(0x9da8aa, { metalness: 0.7, roughness: 0.42 });
+  const leather = std(PAL.woodDark);
+  const body = builderBody(tier, cream, std(0x73634c), leather);
+  const { torso, head, legL, legR } = body.userData;
+  builderCape(torso, cloth, gold);
+  builderHood(head, cloth, std(0x63442b));
+  const beard = mesh(CONE(0.06, 0.08, 5), std(0x63442b), 0, -0.055, 0.055);
+  beard.rotation.z = Math.PI;
+  head.add(beard);
+  torso.add(mesh(BOX(0.145, 0.34, 0.035), cream, 0, 0.045, 0.125));
+  for (const side of [-1, 1]) {
+    torso.add(mesh(BOX(0.015, 0.34, 0.04), gold, side * 0.08, 0.045, 0.125));
+    const shoulder = mesh(SPH(0.079, 6, 4), steel, side * 0.15, 0.24, 0);
+    shoulder.scale.y = 0.65;
+    torso.add(shoulder);
+    torso.add(mesh(BOX(0.09, 0.02, 0.14), gold, side * 0.15, 0.225, 0));
   }
-  body.add(arms);
-
-  return { body: body, arms: arms };
+  torso.add(mesh(BOX(0.025, 0.105, 0.012), gold, 0, -0.025, 0.15));
+  torso.add(mesh(BOX(0.085, 0.022, 0.012), gold, 0, 0, 0.15));
+  torso.add(mesh(BOX(0.24, 0.04, 0.195), leather, 0, 0.015, 0));
+  for (const leg of [legL, legR]) {
+    leg.add(mesh(BOX(0.08, 0.13, 0.04), steel, 0, -0.21, 0.06));
+    if (tier >= 3) leg.add(mesh(BOX(0.085, 0.025, 0.045), gold, 0, -0.16, 0.06));
+  }
+  const quiver = new THREE.Group();
+  quiver.position.set(-0.145, 0.005, -0.01);
+  quiver.rotation.z = -0.18;
+  quiver.add(mesh(CYL(0.043, 0.035, 0.18, 6), leather));
+  quiver.add(mesh(CYL(0.045, 0.045, 0.024, 6), gold, 0, 0.08, 0));
+  for (let i = 0; i < 3; i++) {
+    quiver.add(mesh(CYL(0.006, 0.006, 0.14, 4), std(PAL.wood), (i - 1) * 0.022, 0.105, 0));
+    quiver.add(mesh(BOX(0.025, 0.045, 0.008), cream, (i - 1) * 0.022, 0.17, 0));
+  }
+  torso.add(quiver);
+  const arms = new THREE.Group();
+  arms.position.set(0, 0.22, 0);
+  for (const side of [-1, 1]) {
+    const arm = mesh(BOX(0.065, 0.075, 0.19), cream, side * 0.145, -0.065, 0.065);
+    arm.rotation.y = side * -0.35;
+    arms.add(arm);
+    arms.add(mesh(BOX(0.07, 0.07, 0.10), steel, side * 0.11, -0.065, 0.15));
+    arms.add(mesh(SPH(0.035, 6, 4), std(PAL.skin), side * 0.075, -0.055, 0.19));
+  }
+  arms.add(mesh(BOX(0.065, 0.065, 0.30), leather, 0, -0.035, 0.19));
+  arms.add(mesh(BOX(0.024, 0.018, 0.30), steel, 0, 0.007, 0.21));
+  arms.add(mesh(BOX(0.095, 0.075, 0.035), gold, 0, -0.035, 0.16));
+  for (const side of [-1, 1]) {
+    const limb = mesh(BOX(0.16, 0.035, 0.04), steel, side * 0.11, -0.02, 0.29);
+    limb.rotation.y = side * 0.3;
+    arms.add(limb);
+    arms.add(mesh(BOX(0.024, 0.055, 0.05), gold, side * 0.185, -0.02, 0.265));
+    const string = mesh(BOX(0.19, 0.006, 0.006), cream, side * 0.092, -0.015, 0.225);
+    string.rotation.y = side * 0.42;
+    arms.add(string);
+  }
+  arms.add(mesh(BOX(0.035, 0.035, 0.07), gold, 0, -0.025, 0.33));
+  if (tier >= 3) arms.add(mesh(OCT(0.024), gold, 0, 0.017, 0.16));
+  torso.add(arms);
+  return { body, arms };
 }
 
 /** Feiticeiro: manto e orbe arcano flutuante — magia ofensiva. */
 function buildSorcerer(tier, color) {
-  const body = humanoid(shade(color, 0.75), PAL.skin, 0.95 + (tier - 2) * 0.05);
-  body.add(mesh(CONE(0.16, 0.34, 8), std(color, { roughness: 0.85 }), 0, 0.27, 0));
-
-  const staff = mesh(CYL(0.016, 0.02, 0.5, 6), std(PAL.woodDark), 0.17, 0.32, 0.04);
-  staff.rotation.z = -0.1;
-  body.add(staff);
-
-  const orb = new THREE.Mesh(ICO(0.09, 0), std(color, {
-    emissive: color, emissiveIntensity: 1.5, roughness: 0.3
-  }));
-  orb.position.set(0.17, 0.58, 0.05);
+  const purple = std(color, { roughness: 0.9 });
+  const cream = std(0xdfd3bb, { roughness: 0.92 });
+  const gold = std(PAL.gold, { metalness: 0.6, roughness: 0.4 });
+  const hair = std(0xa5a1a0, { roughness: 0.94 });
+  const magic = std(0xbc65f2, { emissive: 0x9f36e9, emissiveIntensity: 1.5, roughness: 0.3 });
+  const body = builderBody(tier, purple, std(0x514551), std(PAL.woodDark));
+  const { torso, head } = body.userData;
+  builderCape(torso, purple, gold);
+  torso.add(mesh(CYL(0.105, 0.17, 0.31, 6), cream, 0, -0.055, 0));
+  for (const side of [-1, 1]) {
+    const robe = mesh(BOX(0.095, 0.37, 0.035), purple, side * 0.09, 0.005, 0.13);
+    robe.rotation.z = side * 0.14;
+    torso.add(robe);
+    const trim = mesh(BOX(0.018, 0.37, 0.04), gold, side * 0.05, 0.005, 0.145);
+    trim.rotation.z = side * 0.14;
+    torso.add(trim);
+    const collar = mesh(BOX(0.11, 0.04, 0.16), purple, side * 0.065, 0.27, 0);
+    collar.rotation.z = side * 0.40;
+    torso.add(collar);
+    head.add(mesh(CYL(0.043, 0.038, 0.21, 5), hair, side * 0.075, -0.055, -0.025));
+  }
+  const crown = mesh(SPH(0.09, 8, 6), hair, 0, 0.035, -0.025);
+  crown.scale.set(1, 0.85, 0.85);
+  head.add(crown);
+  const beard = mesh(CONE(0.06, 0.17, 6), hair, 0, -0.09, 0.06);
+  beard.rotation.z = Math.PI;
+  head.add(beard);
+  head.add(mesh(BOX(0.085, 0.02, 0.035), hair, 0, -0.02, 0.085));
+  torso.add(mesh(BOX(0.24, 0.045, 0.205), std(PAL.woodDark), 0, 0.015, 0));
+  torso.add(mesh(OCT(0.033), gold, 0, 0.02, 0.125));
+  torso.add(mesh(BOX(0.095, 0.125, 0.06), std(0x51332e), 0.13, -0.05, 0.07));
+  torso.add(mesh(BOX(0.078, 0.10, 0.063), cream, 0.13, -0.05, 0.072));
+  torso.add(mesh(BOX(0.10, 0.018, 0.075), gold, 0.13, -0.015, 0.07));
+  const arms = new THREE.Group();
+  arms.position.y = 0.24;
+  for (const side of [-1, 1]) {
+    const sleeve = mesh(CYL(0.05, 0.075, 0.18, 6), purple, side * 0.16, -0.045, 0.05);
+    sleeve.rotation.x = -0.65;
+    arms.add(sleeve);
+    arms.add(mesh(CYL(0.06, 0.065, 0.045, 6), cream, side * 0.17, -0.11, 0.11));
+    arms.add(mesh(SPH(0.038, 6, 4), std(PAL.skin), side * 0.18, -0.095, 0.16));
+  }
+  const staff = new THREE.Group();
+  staff.position.set(-0.19, -0.17, 0.13);
+  staff.add(mesh(CYL(0.016, 0.022, 0.62, 6), std(PAL.woodDark)));
+  for (const y of [-0.10, 0.23, 0.30]) staff.add(mesh(CYL(0.025, 0.025, 0.026, 6), gold, 0, y, 0));
+  const crystal = mesh(OCT(0.065), magic, 0, 0.37, 0);
+  crystal.scale.y = 1.35;
+  staff.add(crystal);
+  for (const side of [-1, 1]) {
+    const claw = mesh(CONE(0.024, 0.12, 5), gold, side * 0.057, 0.33, 0);
+    claw.rotation.z = side * -0.3;
+    staff.add(claw);
+  }
+  arms.add(staff);
+  torso.add(arms);
+  // Orbe e halo ficam nas coordenadas do corpo: o animateWorker usa altura absoluta.
+  const orbY = 0.57;
+  const orb = mesh(ICO(0.073, 0), magic, 0.19, orbY, 0.17);
   orb.castShadow = false;
   body.add(orb);
-
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: glowTexture(), color: color, transparent: true, opacity: 0.45,
+    map: glowTexture(), color: 0xb864f2, transparent: true, opacity: 0.45,
     blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
   }));
   halo.scale.setScalar(0.36);
   halo.position.copy(orb.position);
   body.add(halo);
-
   const shards = [];
-  const shardCount = tier >= 3 ? 4 : 0;
-  for (let i = 0; i < shardCount; i++) {
-    const sh = mesh(OCT(0.04), std(color, { emissive: color, emissiveIntensity: 0.9, roughness: 0.35 }));
-    sh.castShadow = false;
-    sh.userData.angle = (i / shardCount) * Math.PI * 2;
-    body.add(sh);
-    shards.push(sh);
+  if (tier >= 3) {
+    for (let i = 0; i < 4; i++) {
+      const angle = i * Math.PI / 2;
+      const sh = mesh(OCT(0.03), magic, Math.cos(angle) * 0.14, orbY, 0.05 + Math.sin(angle) * 0.14);
+      sh.castShadow = false;
+      sh.userData.angle = angle;
+      body.add(sh);
+      shards.push(sh);
+    }
+    torso.add(mesh(BOX(0.20, 0.02, 0.035), gold, 0, 0.205, 0.13));
   }
-
-  return { body: body, arms: null, orb: orb, halo: halo, shards: shards, orbY: 0.58 };
+  return { body, arms, orb, halo, shards, orbY };
 }
 
 /** Naturalista: manto e cajado de cristal — magia da natureza que retarda. */
 function buildNaturalist(tier, color) {
-  const body = humanoid(shade(color, 0.8), PAL.skin, 0.95 + (tier - 2) * 0.05);
-  body.add(mesh(CONE(0.16, 0.3, 8), std(color, { roughness: 0.85 }), 0, 0.26, 0));
-
-  const crystalMat = std(color, {
-    emissive: color, emissiveIntensity: 0.5,
-    roughness: 0.15, metalness: 0.15, transparent: true, opacity: 0.9
-  });
-  const staff = mesh(CYL(0.014, 0.018, 0.44, 6), std(PAL.woodDark), 0.18, 0.38, 0.04);
-  body.add(staff);
-  const staffTop = mesh(OCT(0.065), crystalMat, 0.18, 0.6, 0.04);
-  body.add(staffTop);
-
-  const sats = [];
-  const satCount = tier >= 3 ? 3 : 0;
-  for (let i = 0; i < satCount; i++) {
-    const a = (i / satCount) * Math.PI * 2;
-    const c = mesh(OCT(0.038), crystalMat, 0.18 + Math.cos(a) * 0.08, 0.6 + Math.sin(a) * 0.05, 0.04 + Math.sin(a) * 0.08);
-    c.userData.baseY = c.position.y;
-    body.add(c);
-    sats.push(c);
+  const green = std(color, { roughness: 0.94 });
+  const leafMat = std(shade(color, 0.7), { roughness: 0.92 });
+  const cream = std(0xe6dbc0, { roughness: 0.94 });
+  const hair = std(0x974c2b, { roughness: 0.94 });
+  const wood = std(0x695337, { roughness: 0.96 });
+  const gold = std(PAL.gold, { metalness: 0.55, roughness: 0.4 });
+  const cyan = std(0x71eee1, { emissive: 0x35d9d0, emissiveIntensity: 1.3, roughness: 0.24 });
+  const leafGlow = std(0x8bde9a, { emissive: 0x45bc9e, emissiveIntensity: 0.7, roughness: 0.65 });
+  const body = builderBody(tier, cream, std(0x746b51), std(PAL.woodDark));
+  const { torso, head } = body.userData;
+  builderCape(torso, green, tier >= 3 ? gold : null);
+  builderHood(head, green, hair);
+  head.add(mesh(BOX(0.14, 0.20, 0.045), hair, 0, -0.07, -0.095));
+  torso.add(mesh(CYL(0.10, 0.17, 0.29, 6), cream, 0, -0.045, 0));
+  torso.add(mesh(BOX(0.13, 0.31, 0.03), cream, 0, -0.015, 0.13));
+  for (let i = 0; i < 3; i++) {
+    for (const side of [-1, 1]) {
+      builderLeaf(torso, leafMat, side * 0.038, 0.055 - i * 0.067, 0.149, side * -0.55, 0.026);
+      builderLeaf(head, leafMat, side * (0.04 + i * 0.027), 0.098 - i * 0.022, 0.055, side * -0.7, 0.03);
+    }
   }
-
-  return { body: body, arms: null, sats: sats };
+  for (const side of [-1, 1]) {
+    builderLeaf(torso, green, side * 0.13, 0.22, 0.055, side * 0.9, 0.08);
+    builderLeaf(torso, leafMat, side * 0.15, 0.14, -0.10, side * 0.5, 0.07);
+  }
+  torso.add(mesh(BOX(0.24, 0.04, 0.20), wood, 0, 0.015, 0));
+  torso.add(mesh(OCT(0.036), tier >= 3 ? gold : leafMat, 0, 0.02, 0.125));
+  torso.add(mesh(BOX(0.07, 0.09, 0.065), wood, 0.12, -0.035, 0.06));
+  const arms = new THREE.Group();
+  arms.position.y = 0.24;
+  for (const side of [-1, 1]) {
+    const sleeve = mesh(CYL(0.045, 0.065, 0.17, 6), cream, side * 0.16, -0.05, 0.045);
+    sleeve.rotation.x = -0.7;
+    arms.add(sleeve);
+    arms.add(mesh(SPH(0.038, 6, 4), std(PAL.skin), side * 0.18, -0.09, 0.145));
+  }
+  const staff = new THREE.Group();
+  staff.position.set(-0.19, -0.18, 0.12);
+  for (let i = 0; i < 4; i++) {
+    const segment = mesh(CYL(0.017, 0.024, 0.17, 5), wood, Math.sin(i * 1.8) * 0.019, -0.23 + i * 0.15, 0);
+    segment.rotation.z = Math.cos(i * 1.8) * 0.19;
+    staff.add(segment);
+  }
+  for (const side of [-1, 1]) {
+    const fork = mesh(CYL(0.010, 0.022, 0.15, 5), wood, side * 0.04, 0.31, 0);
+    fork.rotation.z = side * -0.45;
+    staff.add(fork);
+    builderLeaf(staff, green, side * 0.038, 0.20, 0.015, side * -0.7, 0.04);
+  }
+  const crystal = mesh(OCT(0.057), cyan, 0, 0.36, 0);
+  crystal.scale.y = 1.5;
+  staff.add(crystal);
+  arms.add(staff);
+  torso.add(arms);
+  // Espiral de folhas luminosas em volta da mão livre erguida.
+  const sats = [];
+  for (let i = 0; i < 5; i++) {
+    const a = i * Math.PI * 0.65;
+    const leaf = builderLeaf(body, leafGlow, 0.18 + Math.cos(a) * 0.055,
+      0.47 + i * 0.029, 0.16 + Math.sin(a) * 0.06, a, 0.028);
+    leaf.castShadow = false;
+    if (tier >= 3) {
+      leaf.userData.baseY = leaf.position.y;
+      sats.push(leaf);
+    }
+  }
+  if (tier >= 3) {
+    torso.add(mesh(BOX(0.15, 0.025, 0.03), gold, 0, 0.20, 0.13));
+    head.add(mesh(OCT(0.024), gold, 0, 0.09, 0.079));
+  }
+  return { body, arms, sats };
 }
 
 const BUILDER_VOCATIONS = {

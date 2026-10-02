@@ -6,14 +6,14 @@
 // cena three.js em sincronia. Se o WebGL não estiver disponível, nada é
 // anexado e o jogo segue no canvas 2D original.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js?v=siege-art-4';
-import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './siegeWorld.js?v=siege-art-4';
+import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js?v=siege-art-5';
+import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './siegeWorld.js?v=siege-art-5';
 import {
   buildTower, buildEnemy, buildWorker, buildMinion,
   animateTower, animateEnemy, animateWorker, pokeRecoil
-} from './actors.js?v=siege-art-4';
-import { disposeTower, towerModelCache } from './towerModels.js?v=siege-art-4';
-import { createEffects } from './fx.js?v=siege-art-4';
+} from './actors.js?v=siege-art-5';
+import { disposeTower, towerModelCache } from './towerModels.js?v=siege-art-5';
+import { createEffects } from './fx.js?v=siege-art-5';
 import { createOverlay } from './overlay.js';
 
 // Câmera calcada na de Warcraft III, cujos padrões são ângulo de ataque 304,
@@ -373,11 +373,12 @@ function createRenderer3D() {
     el.addEventListener('touchend', fimToque, { passive: true });
     el.addEventListener('touchcancel', fimToque, { passive: true });
 
+    // As setas são do Mestre de Obras (index.html); a câmera fica com o WASD.
     onKeyDown = function (e) {
-      if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = true;
-      else if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = true;
-      else if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
-      else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+      if (e.code === 'KeyW') keys.up = true;
+      else if (e.code === 'KeyS') keys.down = true;
+      else if (e.code === 'KeyA') keys.left = true;
+      else if (e.code === 'KeyD') keys.right = true;
       else if (e.code === 'Equal' || e.code === 'NumpadAdd') keys.zoomIn = true;
       else if (e.code === 'Minus' || e.code === 'NumpadSubtract') keys.zoomOut = true;
       else if (e.code === 'Home') { reenquadrar(); }
@@ -385,10 +386,10 @@ function createRenderer3D() {
       e.preventDefault();
     };
     onKeyUp = function (e) {
-      if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
-      else if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
-      else if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
-      else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+      if (e.code === 'KeyW') keys.up = false;
+      else if (e.code === 'KeyS') keys.down = false;
+      else if (e.code === 'KeyA') keys.left = false;
+      else if (e.code === 'KeyD') keys.right = false;
       else if (e.code === 'Equal' || e.code === 'NumpadAdd') keys.zoomIn = false;
       else if (e.code === 'Minus' || e.code === 'NumpadSubtract') keys.zoomOut = false;
     };
@@ -671,7 +672,10 @@ function createRenderer3D() {
     worker.userData.pickTarget.y = builder.y;
 
     let yaw = Math.PI;
-    if (builder.state === 'walking') {
+    if (builder.state === 'walking' && builder.manualMove) {
+      // Andando pelas setas: olha para onde está indo (eixo lógico y = eixo z).
+      if (builder.faceX || builder.faceY) yaw = Math.atan2(builder.faceX, builder.faceY);
+    } else if (builder.state === 'walking') {
       const dx = map.colX(builder.targetCol) - wx;
       const dz = map.rowZ(builder.targetRow) - wz;
       if (dx * dx + dz * dz > 1e-5) yaw = Math.atan2(dx, dz);

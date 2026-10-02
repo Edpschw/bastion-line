@@ -1,7 +1,7 @@
 // Cerco ao Vale — campo e arquitetura de cenário originais.
 // A malha de células continua exata para a lógica, mas a superfície lê como
 // um terreno único, com divisas gravadas em vez de um tabuleiro de cubos.
-import {THREE,PAL,HORIZON,geo,std,glow,mesh,rng} from './core.js?v=siege-art-4';
+import {THREE,PAL,HORIZON,geo,std,glow,mesh,rng} from './core.js?v=siege-art-5';
 
 const box=(w,h,d)=>geo(`valley-box:${w}:${h}:${d}`,()=>new THREE.BoxGeometry(w,h,d));
 const cyl=(a,b,h,n=8)=>geo(`valley-cyl:${a}:${b}:${h}:${n}`,()=>new THREE.CylinderGeometry(a,b,h,n));

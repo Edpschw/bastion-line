@@ -1,6 +1,6 @@
 // Cerco ao Vale: oito arquiteturas originais, legíveis na câmera RTS.
 // A matéria constrói a silhueta; a cor do ramo marca apenas focos e estandartes.
-import { THREE, geo, std, glow, mesh, shade } from './core.js?v=siege-art-4';
+import { THREE, geo, std, glow, mesh, shade } from './core.js?v=siege-art-5';
 
 const box=(w,h,d)=>geo(`siege-box:${w}:${h}:${d}`,()=>new THREE.BoxGeometry(w,h,d));
 const cyl=(a,b,h,n=8)=>geo(`siege-cyl:${a}:${b}:${h}:${n}`,()=>new THREE.CylinderGeometry(a,b,h,n));

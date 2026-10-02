@@ -188,11 +188,15 @@ anda pelo mapa são teclas e arrasto.
 | Gesto | Ação |
 |---|---|
 | Roda do mouse / pinça | zoom, mantendo sob o cursor o ponto que já estava lá (como o AoE) |
-| Setas ou WASD | mover |
+| WASD | mover (as setas são do Mestre de Obras) |
 | Arrastar com botão direito ou do meio | mover |
 | Dois dedos | mover e dar zoom |
 | `Home` | reenquadrar o tabuleiro inteiro |
 | `+` / `−` | zoom pelo teclado |
+
+As **setas** andam livremente com o Mestre de Obras pelo tabuleiro. Elas
+assumem o controle quando ele está parado ou só voltando para uma casa vazia; se
+havia uma construção a caminho, ela é cancelada (o ouro só é cobrado na obra).
 
 O WC3 clássico vai de 1250 a 1650 de distância — só 0,76× para dentro, e o
 padrão já é o mais afastado. Aqui a visão inicial também é a mais afastada, mas
