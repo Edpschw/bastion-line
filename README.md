@@ -233,6 +233,9 @@ as sombras. Só desce, nunca sobe — voltar atrás causaria oscilação visíve
   `scripts/strip_glb_anims.py`; os originais completos ficam em `art-src/`. O elenco
   (qual modelo veste cada inimigo e cada vocação) fica em `js/render3d/characters.js`.
 - `assets/terrain/` — texturas pintadas do terreno (geradas pelo Codex, contínuas).
+- `assets/nature/` — árvores, arbustos, pedras e flores estilizados (Quaternius, CC0;
+  origem em `SOURCES.txt`), com as texturas embutidas reduzidas para 512 px por
+  `scripts/shrink_glb_textures.py`. Os originais ficam em `art-src/`.
 - `godot/` — protótipo paralelo em Godot 4.7, seguindo o mesmo GDD.
 - `godot-web/` — build web do protótipo Godot.
 - `Fantasy_Tower_Defense_GDD_Claude.md` — documento de design.

@@ -2,6 +2,7 @@
 // A malha de células continua exata para a lógica, mas a superfície lê como
 // um terreno único, com divisas gravadas em vez de um tabuleiro de cubos.
 import {THREE,geo,std,glow,mesh,rng} from './core.js?v=siege-art-6';
+import {GLTFLoader} from '../../vendor/three/GLTFLoader.js';
 
 const box=(w,h,d)=>geo(`valley-box:${w}:${h}:${d}`,()=>new THREE.BoxGeometry(w,h,d));
 const cyl=(a,b,h,n=8)=>geo(`valley-cyl:${a}:${b}:${h}:${n}`,()=>new THREE.CylinderGeometry(a,b,h,n));
@@ -270,8 +271,133 @@ function defendedKeep(map){
   g.userData={gateGlow,banners,sigil,gate};
   return g;
 }
+// Coleções exportadas em centímetros/Z-up e com deslocamentos de catálogo:
+// assa as matrizes originais e recentra cada variante separadamente na base.
+let natureAssets;
+function loadNatureAssets(){
+  if(!natureAssets){
+    const loader=new GLTFLoader();
+    const specs=[
+      ['Pine_A','tree'],['Pine_B','tree'],['Pine_C','tree'],['Tree_A','tree'],
+      ['Dead_Tree','dead'],
+      ['Bush_A','bush'],['Bush_Berries','bush'],['Bush_Flowers','bush'],['Bushes','bush',2],
+      ['Rock_A','rock'],['Rocks_A','rock'],['Rocks_B','rock',3],
+      ['Flowers','flower',3],['Grass','grass'],['Stump_Moss','stump'],['Mushroom','mushroom']
+    ];
+    // Falhas isoladas preservam as outras famílias e permitem nova tentativa.
+    natureAssets=Promise.all(specs.map(async ([name,kind,limit=Infinity])=>{
+      try{
+        const gltf=await loader.loadAsync(new URL(`../../assets/nature/${name}.glb`,import.meta.url).href);
+        gltf.scene.updateMatrixWorld(true);
+        const root=gltf.scene.children[0];
+        const roots=root?.isMesh?[root]:(root?.children.length?root.children:gltf.scene.children);
+        return roots.slice(0,limit).map(variant=>{
+          const bounds=new THREE.Box3().setFromObject(variant);
+          const center=bounds.getCenter(new THREE.Vector3());
+          const height=Math.max(0.001,bounds.max.y-bounds.min.y);
+          const normalize=new THREE.Matrix4().makeScale(1/height,1/height,1/height)
+            .multiply(new THREE.Matrix4().makeTranslation(-center.x,-bounds.min.y,-center.z));
+          const parts=[];
+          variant.traverse(node=>{
+            if(!node.isMesh)return;
+            const geometry=node.geometry.clone().applyMatrix4(normalize.clone().multiply(node.matrixWorld));
+            const materials=Array.isArray(node.material)?node.material:[node.material];
+            // O GLTFLoader separa primitivas em filhos; grupos também são aceitos.
+            for(let i=0;i<materials.length;i++){
+              const part=geometry.clone();
+              if(materials.length>1){
+                const group=geometry.groups.find(group=>group.materialIndex===i);
+                if(!group){part.dispose();continue;}
+                part.clearGroups();part.setDrawRange(group.start,group.count);
+              }
+              const material=materials[i].clone();
+              material.metalness=0;material.roughness=Math.max(0.85,material.roughness);
+              if(material.transparent||/leaves|flowers|grass/i.test(material.name)){
+                material.transparent=false;material.opacity=1;material.alphaTest=0.5;
+                material.side=THREE.DoubleSide;material.depthWrite=true;
+              }
+              // Os mapas sRGB/normal permanecem como configurados pelo GLTFLoader.
+              parts.push({geometry:part,material});
+            }
+            geometry.dispose();
+          });
+          const radius=Math.hypot(bounds.max.x-bounds.min.x,bounds.max.z-bounds.min.z)/(2*height);
+          return {kind,parts,radius};
+        });
+      }catch(error){console.warn(`Cenário: falha ao carregar ${name}`,error);return [];}
+    })).then(results=>{natureAssets=null;return results.flat();});
+  }
+  return natureAssets;
+}
+function populateNature(group,map){
+  // Todas as escolhas acontecem depois de Promise.all, em ordem fixa: a rede
+  // nunca muda a sequência do RNG nem a distribuição das instâncias.
+  loadNatureAssets().then(assets=>{
+    const rand=rng(0x524959),dummy=new THREE.Object3D(),tint=new THREE.Color();
+    const families={};
+    for(const asset of assets)(families[asset.kind]??=[]).push({...asset,spots:[]});
+    const groundY=(x,z)=>{
+      const dx=Math.max(0,Math.abs(x)-map.halfW-3),dz=Math.max(0,Math.abs(z)-map.halfH-3);
+      const t=Math.min(1,Math.hypot(dx,dz)/5);
+      return -0.83+t*t*(3-2*t)*(0.28*Math.sin(x*0.22)*Math.cos(z*0.18)+0.14*Math.sin(x*0.11+z*0.16)+0.12);
+    };
+    function place(kind,x,z,height){
+      const options=families[kind];if(!options?.length)return;
+      const asset=options[Math.floor(rand()*options.length)],radius=asset.radius*height;
+      // Margem considera a copa inteira, não apenas o tronco/pivô.
+      if(Math.abs(x)-radius<map.halfW+0.8&&Math.abs(z)-radius<map.halfH+2.1)return;
+      if((kind==='tree'||kind==='dead')&&z+radius>map.halfH-2)return;
+      // Corredor central, tendas, cercas e bandeiras continuam livres.
+      if(Math.abs(x)-radius<3.2&&Math.abs(z)>map.halfH)return;
+      for(const side of [-1,1]){
+        if(Math.abs(x-side*(map.halfW+3.5))<radius+1.4&&Math.abs(z+map.halfH+2.5)<radius+1.4)return;
+        if(Math.abs(x-side*(map.halfW+2.8))<radius+0.18&&z>-map.halfH-5-radius&&z< -map.halfH+8.5+radius)return;
+        if(Math.abs(x-side*(map.halfW+0.95))<radius+0.6&&z>-map.halfH&&z<map.halfH)return;
+      }
+      asset.spots.push({x,z,height,yaw:rand()*Math.PI*2,tone:0.88+rand()*0.2});
+    }
+    // Flancos: núcleos densos afastados do muro e da câmera; fundo: arco
+    // interrompido no eixo do portal para manter a leitura da invasão.
+    for(let i=0;i<210;i++){
+      const side=i%2?-1:1,cluster=Math.floor(i/30);
+      const x=side*(map.halfW+6+(cluster%3)*3.2)+(rand()-0.5)*5;
+      const z=-map.halfH-5+(cluster%4)*3+(rand()-0.5)*4;
+      place('tree',x,z,2+rand()*2);
+    }
+    for(let i=0;i<55;i++)place('tree',(rand()-0.5)*32,-map.halfH-7-rand()*6,2.6+rand()*1.4);
+    for(let i=0;i<6;i++)place('dead',(i%2?-1:1)*(4.5+rand()*2),-map.halfH-3.8-rand()*2,2.4+rand()*1.3);
+    // Pedras achatadas crescem na largura ao normalizar pela altura: faixa baixa.
+    for(const [kind,count,min,max] of [['rock',68,0.22,0.75],['stump',26,0.3,0.65],
+      ['bush',160,0.4,0.8],['flower',150,0.15,0.35],['grass',240,0.15,0.35],['mushroom',35,0.15,0.28]]){
+      for(let i=0;i<count;i++){
+        const side=i%2?-1:1,edge=i%3!==0;
+        const x=side*(map.halfW+(edge?1.6+rand()*5:6+rand()*12));
+        const z=-map.halfH-6+rand()*(map.ROWS+9);
+        place(kind,x,z,min+rand()*(max-min));
+      }
+    }
+    for(const options of Object.values(families))for(const asset of options){
+      if(!asset.spots.length)continue;
+      for(const part of asset.parts){
+        const instances=new THREE.InstancedMesh(part.geometry,part.material,asset.spots.length);
+        instances.name=`nature:${asset.kind}`;
+        instances.castShadow=['tree','dead','rock','stump','bush'].includes(asset.kind);
+        instances.receiveShadow=true;
+        asset.spots.forEach((spot,i)=>{
+          dummy.position.set(spot.x,groundY(spot.x,spot.z),spot.z);
+          dummy.rotation.set(0,spot.yaw,0);dummy.scale.setScalar(spot.height);dummy.updateMatrix();
+          instances.setMatrixAt(i,dummy.matrix);
+          tint.setRGB(spot.tone,spot.tone,spot.tone*0.98);instances.setColorAt(i,tint);
+        });
+        instances.instanceMatrix.needsUpdate=true;instances.instanceColor.needsUpdate=true;
+        instances.computeBoundingBox();instances.computeBoundingSphere();group.add(instances);
+      }
+    }
+  }).catch(error=>console.warn('Cenário: falha ao preparar instâncias',error));
+}
+
 function landscape(map){
-  const g=new THREE.Group(),rand=rng(0x524959);
+  const g=new THREE.Group();
   const terrain=new THREE.PlaneGeometry(180,180,180,180);terrain.rotateX(-Math.PI/2);
   const terrainPos=terrain.attributes.position;
   for(let i=0;i<terrainPos.count;i++){
@@ -305,58 +431,9 @@ function landscape(map){
     add(g,cyl(0.11,0.14,0.72,5),timber,x-side*1.23,-0.45,z+0.7).rotation.z=side*0.14;
   }
 
-  // Bosques nos flancos e no fundo. Nada de copa alta no corredor próximo da
-  // câmera, nem quando o jogador desce a visão até o bastião.
-  const spots=[];
-  for(let i=0;i<112;i++){
-    const side=i%2?-1:1,cluster=(i/14)|0;
-    const cx=side*(map.halfW+5.5+(cluster%3)*4.2);
-    const cz=-map.halfH-4+(cluster%4)*3.4;
-    const x=cx+(rand()-0.5)*5,z=cz+(rand()-0.5)*4;
-    spots.push({x,z,s:0.65+rand()*1.05,oak:rand()>0.48});
-  }
-  const dummy=new THREE.Object3D(),tint=new THREE.Color();
-  const trunks=new THREE.InstancedMesh(cyl(0.10,0.17,1.12,6),timber,spots.length);
-  const pines=new THREE.InstancedMesh(cone(0.67,1.8,7),std(0xffffff,{roughness:1}),spots.length);
-  const lobes=new THREE.InstancedMesh(rock(0.64),std(0xffffff,{roughness:1}),spots.length*2);
-  let l=0;
-  for(let i=0;i<spots.length;i++){
-    const s=spots[i];dummy.rotation.set(0,rand()*6,0);
-    dummy.position.set(s.x,-0.83+0.56*s.s,s.z);dummy.scale.setScalar(s.s);dummy.updateMatrix();
-    trunks.setMatrixAt(i,dummy.matrix);
-    dummy.position.set(s.x,-0.83+1.67*s.s,s.z);
-    dummy.scale.setScalar(s.oak?0:s.s);dummy.updateMatrix();pines.setMatrixAt(i,dummy.matrix);
-    tint.setHex(rand()>0.35?0x46633f:0x617447).multiplyScalar(0.82+rand()*0.27);pines.setColorAt(i,tint);
-    if(s.oak)for(let j=0;j<2;j++){
-      dummy.position.set(s.x+(j?0.29:-0.27)*s.s,-0.83+(j?1.71:1.42)*s.s,s.z+(j?-0.18:0.21)*s.s);
-      dummy.scale.set(0.87*s.s,0.67*s.s,0.83*s.s);dummy.updateMatrix();lobes.setMatrixAt(l,dummy.matrix);
-      tint.setHex(j?0x6a7c48:0x405e3f).multiplyScalar(0.82+rand()*0.24);lobes.setColorAt(l++,tint);
-    }
-  }
-  lobes.count=l;
-  for(const m of [trunks,pines,lobes]){
-    m.castShadow=true;m.instanceMatrix.needsUpdate=true;
-    if(m.instanceColor)m.instanceColor.needsUpdate=true;g.add(m);
-  }
-  const stones=new THREE.InstancedMesh(rock(0.35),std(0xffffff,{roughness:1}),55);
-  for(let i=0;i<55;i++){
-    const a=rand()*Math.PI*2,rad=5.0+rand()*22;
-    let x=Math.cos(a)*rad,z=Math.sin(a)*rad*0.9;
-    if(Math.abs(x)<map.halfW+1.4&&Math.abs(z)<map.halfH+1.5)x+=Math.sign(x||1)*3;
-    dummy.position.set(x,-0.65,z);dummy.rotation.set(rand()*2,rand()*3,rand()*2);
-    dummy.scale.set(0.6+rand(),0.3+rand()*0.5,0.6+rand());dummy.updateMatrix();stones.setMatrixAt(i,dummy.matrix);
-    tint.setHex(rand()>0.5?0x9ca18e:0x5b6a64);stones.setColorAt(i,tint);
-  }
-  stones.castShadow=true;stones.instanceMatrix.needsUpdate=true;stones.instanceColor.needsUpdate=true;g.add(stones);
-  // Arbustos baixos enchem o primeiro plano sem esconder as casas de construção.
-  const scrub=new THREE.InstancedMesh(rock(0.38),std(0xffffff,{roughness:1}),140);
-  for(let i=0;i<140;i++){
-    const side=i%2?-1:1;
-    dummy.position.set(side*(map.halfW+1.6+rand()*12),-0.58,-map.halfH-4+rand()*(map.ROWS+11));
-    dummy.rotation.set(0,rand()*6,0);dummy.scale.set(0.7+rand()*0.9,0.4+rand()*0.45,0.7+rand());dummy.updateMatrix();
-    scrub.setMatrixAt(i,dummy.matrix);tint.setHex(i%3?0x5f7a43:0x7d8c4b);scrub.setColorAt(i,tint);
-  }
-  scrub.instanceMatrix.needsUpdate=true;scrub.instanceColor.needsUpdate=true;scrub.receiveShadow=true;g.add(scrub);
+  // O carregamento não bloqueia o terreno nem a arquitetura do cerco.
+  populateNature(g,map);
+  const dummy=new THREE.Object3D();
 
   // Duas cordilheiras facetadas somem no horizonte quente (duas draw calls).
   for(let layer=0;layer<2;layer++){
@@ -369,7 +446,7 @@ function landscape(map){
     const mountains=add(g,ridge,new THREE.MeshBasicMaterial({color:layer?0x9daaa5:0x7f9792,side:THREE.DoubleSide}),0,0,0);
     mountains.castShadow=false;
   }
-  // Fence stakes and rails form a modest supply perimeter beside the camp.
+  // Estacas e travessas delimitam os suprimentos ao lado do acampamento.
   const fence=new THREE.InstancedMesh(box(0.08,0.7,0.08),timber,32);
   const rails=new THREE.InstancedMesh(box(0.07,0.07,0.95),timber,28);
   let rail=0;

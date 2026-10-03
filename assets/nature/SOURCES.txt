@@ -1,0 +1,19 @@
+Modelos de natureza de Quaternius (quaternius.com), domínio público / CC0, baixados do Poly Pizza.
+Formato: id-poly.pizza  nome-local  URL de origem
+
+699sFuLCN2 Pine_A https://static.poly.pizza/c55b8641-4679-4a85-8bd8-2a20e79abecd.glb
+79gmlLnweB Pine_B https://static.poly.pizza/082c2026-56af-4e3f-bea7-9ae5de71101f.glb
+rfnxJv0Rqa Pine_C https://static.poly.pizza/3fc02c15-0e5e-4757-a553-2d065e3d0f44.glb
+qZtx0AHhcy Tree_A https://static.poly.pizza/24cf9df9-435f-408e-971b-640d670ce973.glb
+EoTERLq3z2 Bush_A https://static.poly.pizza/5d3066f4-58ac-46d4-899c-39d9e566e9df.glb
+TSbIxkDtxF Bush_Berries https://static.poly.pizza/30a7c72d-c014-40c4-8e1d-aaa949ebc465.glb
+U1ymDy8tbY Bush_Flowers https://static.poly.pizza/af83abca-9b41-4229-9652-e336a5f5eaba.glb
+J2h3HrO356 Bushes https://static.poly.pizza/11bcb3a1-5901-402c-9863-75988b9e21d8.glb
+RtLRqYjfMs Rock_A https://static.poly.pizza/87d3dfd2-de47-4b03-b9f1-4c84c2a605b0.glb
+OQvi8PIZ40 Rocks_A https://static.poly.pizza/c6f65def-08c5-4c81-b17f-f37b171ad911.glb
+gYhoEOKItJ Rocks_B https://static.poly.pizza/01671e28-0504-4db1-a5d5-af71ce0a6a1e.glb
+NBUxHir6FJ Flowers https://static.poly.pizza/c25cb5dc-3cd3-470c-a08c-045af0c0fe3d.glb
+vUJjrRsFp4 Grass https://static.poly.pizza/0a84d74b-eb09-4794-ad58-dd10eed6b11e.glb
+nFvEbUX6LE Stump_Moss https://static.poly.pizza/f6caf11a-75ff-4a6e-9d87-28b44f685803.glb
+CD4edbPSGm Dead_Tree https://static.poly.pizza/4db29f97-8e10-413d-be54-39ecda1a7c8d.glb
+aOW08oSrd4 Mushroom https://static.poly.pizza/abade6e4-375f-457a-898e-66644673f54e.glb

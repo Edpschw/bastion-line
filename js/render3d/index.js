@@ -48,11 +48,15 @@ const DRAG_THRESHOLD = 4;              // pixels antes de um clique virar arrast
 
 // Altura aproximada de cada inimigo em unidades locais (antes da escala do raio).
 const ENEMY_HEIGHT = {
-  grunt: 0.78, raider: 0.82, brute: 0.68, swarmling: 0.62,
-  reaver: 0.95, orc: 0.85, wolf: 0.55, troll: 0.95,
-  golem: 0.95, shaman: 0.85, assassin: 0.8, harpy: 0.8,
+  grunt: 0.78, raider: 0.82, brute: 0.72, swarmling: 0.55,
+  reaver: 0.95, orc: 0.9, wolf: 0.8, troll: 1.0,
+  golem: 1.0, shaman: 1.05, assassin: 0.85, harpy: 1.0,
   warlord: 1.1, boss: 1.15, deathking: 1.1
 };
+
+// Personagens animados saem maiores que os bonecos procedurais: como no WC3,
+// a unidade precisa ser lida de longe, mesmo sobrando para fora da casa.
+const UNIT_SCALE = 1.2;
 
 // Altura de voo, em células. Alta o bastante para ler como "acima do alcance
 // corpo a corpo" sem sair da moldura da câmera.
@@ -597,11 +601,13 @@ function createRenderer3D() {
       let g = enemyMeshes.get(e.id);
       if (!g) {
         const cast = ENEMY_CAST[e.type];
-        const ch = cast && createCharacter(cast.key, cast);
+        const ch = cast && createCharacter(cast.key, {
+          height: cast.height * UNIT_SCALE, tint: cast.tint, tintStrength: cast.tintStrength
+        });
         g = buildEnemy(e.type, hexInt(e.color), map.len(e.r),
                        e.aura ? map.len(e.aura.range) : 0, ch);
         if (ch) ch.play(cast.run ? 'run' : 'walk');
-        g.userData.height = (ENEMY_HEIGHT[e.type] || 0.8) * g.scale.y;
+        g.userData.height = (ENEMY_HEIGHT[e.type] || 0.8) * (ch ? UNIT_SCALE : 1) * g.scale.y;
         scene.add(g);
         enemyMeshes.set(e.id, g);
       }
@@ -678,7 +684,7 @@ function createRenderer3D() {
       alive.add(m.id);
       let g = minionMeshes.get(m.id);
       if (!g) {
-        const ch = createCharacter(MINION_CAST.key, MINION_CAST);
+        const ch = createCharacter(MINION_CAST.key, { height: MINION_CAST.height * UNIT_SCALE });
         if (ch) {
           g = new THREE.Group();
           g.add(ch.root);
@@ -726,7 +732,7 @@ function createRenderer3D() {
       }
       const cast = builderCast(builder.tier, builder.branch);
       const ch = createCharacter(cast.key, {
-        height: builder.tier >= 3 ? 0.98 : 0.86, tint: cast.tint, tintStrength: cast.tintStrength
+        height: (builder.tier >= 3 ? 0.98 : 0.86) * UNIT_SCALE, tint: cast.tint, tintStrength: cast.tintStrength
       });
       if (ch) {
         worker = new THREE.Group();

@@ -20,6 +20,14 @@ const PRESETS = {
   level_up: [26,0xfff2b5,0xe6a93b,.12,.85,.15,0,1,1.15,0,1,1,.1]
 };
 
+// Escala para a câmera de RTS (9–20 unidades): as explosões precisam ler de
+// longe. Rastros saem a cada quadro, então crescem menos e não multiplicam.
+for (const [name, p] of Object.entries(PRESETS)) {
+  const trail = name === 'arrow_trail' || name === 'ember';
+  p[3] *= trail ? 1.4 : 1.8;
+  if (!trail) { p[5] *= 1.35; p[0] = Math.round(p[0] * 1.35); }
+}
+
 const FROST_MIST = {count:5,color:0xb1e9ff,scale:.65};
 const SOUL_WISP = {count:3,color:0x99d9df,scale:.65};
 const BUILD_GOLD = {count:8,scale:.7};
