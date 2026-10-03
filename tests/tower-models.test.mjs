@@ -25,7 +25,8 @@ const html = await fs.readFile(path.join(root,'index.html'),'utf8');
 const data = vm.createContext({});
 vm.runInContext(html.slice(html.indexOf('var UNIT_BASE='), html.indexOf('var ENEMY_BASE=')),data);
 assert.equal(manifest.models.length,72);
-assert.deepEqual(Object.keys(TOWER_BRANCHES).sort(),Object.keys(data.UNIT_BASE).sort());
+// O Mestre de Obras vive no UNIT_BASE para reaproveitar o combate, mas não é torre.
+assert.deepEqual(Object.keys(TOWER_BRANCHES).sort(),Object.keys(data.UNIT_BASE).filter(t=>t!=='builder').sort());
 for (const type of Object.keys(TOWER_BRANCHES)) assert.deepEqual(TOWER_BRANCHES[type].slice().sort(),Object.keys(data.BRANCHES[type]).sort());
 assert.equal(towerModelKey('archer',1,'francoatiradora'),'archer__base__L01');
 assert.throws(()=>towerModelKey('archer',2,'invalid'));

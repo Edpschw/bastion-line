@@ -1,7 +1,7 @@
 // Cerco ao Vale — campo e arquitetura de cenário originais.
 // A malha de células continua exata para a lógica, mas a superfície lê como
 // um terreno único, com divisas gravadas em vez de um tabuleiro de cubos.
-import {THREE,PAL,HORIZON,geo,std,glow,mesh,rng} from './core.js?v=siege-art-5';
+import {THREE,geo,std,glow,mesh,rng} from './core.js?v=siege-art-6';
 
 const box=(w,h,d)=>geo(`valley-box:${w}:${h}:${d}`,()=>new THREE.BoxGeometry(w,h,d));
 const cyl=(a,b,h,n=8)=>geo(`valley-cyl:${a}:${b}:${h}:${n}`,()=>new THREE.CylinderGeometry(a,b,h,n));
@@ -17,18 +17,34 @@ const redCloth=std(0x933e36,{roughness:0.92,side:THREE.DoubleSide});
 const tealCloth=std(0x346d70,{roughness:0.92,side:THREE.DoubleSide});
 function add(g,shape,material,x,y,z){const p=mesh(shape,material,x,y,z);g.add(p);return p;}
 
+// Mesma cor da névoa em mount(); o HORIZON antigo do core fica intocado.
+const VALLEY_HORIZON=0xbfbea2;
 export function createSky(){
   const sky=new THREE.Mesh(
-    new THREE.SphereGeometry(120,24,12),
+    new THREE.SphereGeometry(120,32,16),
     new THREE.ShaderMaterial({
       side:THREE.BackSide,depthWrite:false,fog:false,
       uniforms:{
-        topColor:{value:new THREE.Color(0x3e5b67)},
-        midColor:{value:new THREE.Color(HORIZON)},
-        botColor:{value:new THREE.Color(0xd2ba91)}
+        topColor:{value:new THREE.Color(0x527d91)},
+        midColor:{value:new THREE.Color(VALLEY_HORIZON)},
+        botColor:{value:new THREE.Color(0xe9bd85)},
+        sunDirection:{value:new THREE.Vector3(-0.48,0.36,-0.8).normalize()}
       },
       vertexShader:'varying vec3 p; void main(){p=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-      fragmentShader:'uniform vec3 topColor,midColor,botColor; varying vec3 p; void main(){float h=normalize(p).y;vec3 c=mix(botColor,midColor,smoothstep(-.23,.18,h));c=mix(c,topColor,smoothstep(.08,.75,h));gl_FragColor=vec4(c,1.);}'
+      fragmentShader:`
+        uniform vec3 topColor,midColor,botColor,sunDirection;
+        varying vec3 p;
+        void main(){
+          vec3 d=normalize(p);float h=d.y;
+          vec3 c=mix(midColor,botColor,(1.-smoothstep(-.3,0.,h)));
+          c=mix(c,topColor,smoothstep(.06,.85,h));
+          float sun=max(0.,dot(d,sunDirection));
+          c+=vec3(.32,.18,.055)*pow(sun,18.);
+          c=mix(c,vec3(1.,.88,.61),smoothstep(.9991,.9997,sun));
+          gl_FragColor=vec4(c,1.);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`
     })
   );
   sky.frustumCulled=false;
@@ -36,113 +52,123 @@ export function createSky(){
 }
 
 export function createLights(scene,map){
-  const hemi=new THREE.HemisphereLight(0xf3e9d0,0x465c4d,1.33);scene.add(hemi);
-  const key=new THREE.DirectionalLight(0xffd69c,2.35);
-  key.position.set(-8,15,7);key.castShadow=true;
+  const hemi=new THREE.HemisphereLight(0xb9d6e5,0x62523c,1.05);scene.add(hemi);
+  const key=new THREE.DirectionalLight(0xffd29a,2.65);
+  key.position.set(-10,16,-9);key.castShadow=true;
   key.shadow.mapSize.set(2048,2048);
-  key.shadow.bias=-0.0008;key.shadow.normalBias=0.025;
+  key.shadow.bias=-0.00025;key.shadow.normalBias=0.035;key.shadow.radius=2;
   const c=key.shadow.camera;
-  c.near=1;c.far=48;c.left=-(map.halfW+5);c.right=map.halfW+5;
-  c.top=map.halfH+5;c.bottom=-(map.halfH+5);c.updateProjectionMatrix();
+  // Enquadra no espaço da luz o portal, o bastião e os atores elevados.
+  // Limites no eixo do mundo desperdiçam texels de sombra com o sol na diagonal.
   scene.add(key,key.target);
-  const fill=new THREE.DirectionalLight(0x96b8c1,0.62);
+  c.position.copy(key.position);c.lookAt(0,0,0);c.updateMatrixWorld(true);
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,minZ=Infinity,maxZ=-Infinity;
+  const corner=new THREE.Vector3();
+  for(const x of [-map.halfW-1.9,map.halfW+1.9])
+    for(const z of [-map.halfH-3,map.halfH+2.4])
+      for(const y of [-0.9,4.6]){
+        corner.set(x,y,z).applyMatrix4(c.matrixWorldInverse);
+        minX=Math.min(minX,corner.x);maxX=Math.max(maxX,corner.x);
+        minY=Math.min(minY,corner.y);maxY=Math.max(maxY,corner.y);
+        minZ=Math.min(minZ,-corner.z);maxZ=Math.max(maxZ,-corner.z);
+      }
+  c.left=minX-0.5;c.right=maxX+0.5;c.bottom=minY-0.5;c.top=maxY+0.5;
+  c.near=Math.max(0.1,minZ-2);c.far=maxZ+2;c.updateProjectionMatrix();
+  const fill=new THREE.DirectionalLight(0x91b9dc,0.48);
   fill.position.set(8,8,-8);scene.add(fill);
   return {hemi,key,fill};
 }
 
-function vertexTone(x,z){
-  const n=Math.sin(x*2.13+z*1.37)*0.035+Math.sin(x*5.7-z*3.1)*0.023;
-  const edge=Math.min(1,Math.abs(x)/4+Math.abs(z)/10);
-  const c=new THREE.Color(0x6d8054);
-  c.lerp(new THREE.Color(0x817252),Math.max(0,Math.min(0.35,edge*0.18+n+0.08)));
-  c.multiplyScalar(0.96+Math.sin(x*0.8+z*2.3)*0.025);
-  return c;
+// Texturas compartilhadas; o mapa pode fornecer renderer ou textureAnisotropy.
+let terrainTextures;
+function loadTerrainTextures(map){
+  const limit=map.renderer?.capabilities?.getMaxAnisotropy?.();
+  const anisotropy=Math.max(1,Math.min(limit||8,map.textureAnisotropy||limit||4));
+  if(!terrainTextures){
+    const loader=new THREE.TextureLoader();terrainTextures={};
+    for(const name of ['grass','grass_dark','dirt','cobble','rock']){
+      const texture=loader.load(new URL(`../../assets/terrain/${name}.jpg`,import.meta.url).href);
+      texture.colorSpace=THREE.SRGBColorSpace;
+      texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+      texture.generateMipmaps=true;texture.minFilter=THREE.LinearMipmapLinearFilter;
+      texture.magFilter=THREE.LinearFilter;terrainTextures[name]=texture;
+    }
+  }
+  for(const texture of Object.values(terrainTextures)){
+    if(texture.anisotropy!==anisotropy){texture.anisotropy=anisotropy;texture.needsUpdate=true;}
+  }
+  return terrainTextures;
+}
+
+// Troca apenas o albedo: iluminação, sombras e névoa seguem o material padrão.
+function terrainMaterial(map,board=false){
+  const textures=loadTerrainTextures(map);
+  const material=new THREE.MeshStandardMaterial({roughness:1});
+  material.customProgramCacheKey=()=>board?'valley-board-terrain-v2':'valley-outside-terrain-v2';
+  material.onBeforeCompile=shader=>{
+    for(const name of ['grass','grass_dark','dirt','cobble','rock'])
+      shader.uniforms['terrain_'+name]={value:textures[name]};
+    shader.uniforms.terrainHalfSize={value:new THREE.Vector2(map.halfW,map.halfH)};
+    shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
+      varying vec3 terrainPosition;`).replace('#include <begin_vertex>',`#include <begin_vertex>
+      terrainPosition=(modelMatrix*vec4(position,1.0)).xyz;`);
+    shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
+      varying vec3 terrainPosition;
+      uniform sampler2D terrain_grass,terrain_grass_dark,terrain_dirt,terrain_cobble,terrain_rock;
+      uniform vec2 terrainHalfSize;
+      // Duas escalas, a segunda girada: quebra a simetria de espelho das
+      // texturas (que foram tornadas contínuas por espelhamento).
+      vec3 terrainSample(sampler2D t,vec2 p,float s){
+        vec2 q=mat2(0.8,-0.6,0.6,0.8)*p;
+        return mix(texture2D(t,p/s).rgb,texture2D(t,q/(s*2.3)+0.37).rgb,0.42);
+      }
+      // Satura menos e puxa para um tom: a pintura é viva, mas o grading do
+      // postfx ainda soma saturação por cima.
+      vec3 terrainGrade(vec3 c,float sat,vec3 tint){
+        float l=dot(c,vec3(0.299,0.587,0.114));
+        return mix(vec3(l),c,sat)*tint;
+      }`);
+    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',board?`
+      vec2 p=terrainPosition.xz;
+      vec2 cell=p+terrainHalfSize;
+      float variation=sin(p.y*2.1+sin(p.x*3.0))*0.10;
+      float grassWeight=1.0-smoothstep(0.10,0.78+variation,terrainHalfSize.x-abs(p.x));
+      vec3 dirt=terrainGrade(terrainSample(terrain_dirt,p,3.0),0.5,vec3(1.0,0.9,0.78));
+      vec3 grass=terrainGrade(terrainSample(terrain_grass,p,3.5),0.72,vec3(0.9,1.0,0.82));
+      vec3 terrainColor=mix(dirt,grass,grassWeight*0.72);
+      float paving=1.0-smoothstep(0.94,1.04,terrainHalfSize.y-abs(p.y));
+      terrainColor=mix(terrainColor,terrainGrade(terrainSample(terrain_cobble,p,2.0),0.6,vec3(0.98,0.96,0.92)),paving);
+      // Grade de construção: linha fina escura e um leve brilho no miolo da
+      // casa, para o jogador ler as células sem um quadriculado gritante.
+      vec2 f=fract(cell);
+      vec2 edge=min(f,1.0-f);
+      vec2 aa=max(fwidth(cell),vec2(0.001));
+      vec2 line=1.0-smoothstep(vec2(0.018),vec2(0.018)+aa*1.5,edge);
+      float center=1.0-smoothstep(0.18,0.5,max(abs(f.x-0.5),abs(f.y-0.5)));
+      terrainColor*=(1.0-0.3*max(line.x,line.y))*(1.0+0.05*center*(1.0-paving));
+      diffuseColor.rgb*=terrainColor;`:`
+      vec2 p=terrainPosition.xz;
+      float forest=smoothstep(-0.35,0.55,sin(p.x*0.24+sin(p.y*0.19))*cos(p.y*0.21));
+      float stoneWeight=smoothstep(0.48,0.88,sin(p.x*0.31-p.y*0.17)*cos(p.y*0.23));
+      float clearance=length(max(abs(p)-terrainHalfSize-vec2(2.0),vec2(0.0)));
+      stoneWeight*=smoothstep(2.0,7.0,clearance)*0.65;
+      vec3 terrainColor=mix(terrainGrade(terrainSample(terrain_grass,p,4.0),0.7,vec3(0.88,1.0,0.8)),
+        terrainGrade(terrainSample(terrain_grass_dark,p,4.0),0.75,vec3(0.9,1.0,0.86)),forest*0.82);
+      terrainColor=mix(terrainColor,terrainGrade(terrainSample(terrain_rock,p,3.5),0.7,vec3(1.0)),stoneWeight);
+      diffuseColor.rgb*=terrainColor;`);
+  };
+  return material;
 }
 export function createBoard(scene,map){
-  const g=new THREE.Group(),rand=rng(0x5ee9e);
+  const g=new THREE.Group();
   const soil=add(g,box(map.COLS+0.18,0.72,map.ROWS+0.18),std(0x5b4b3d,{roughness:1}),0,-0.42,0);
   soil.castShadow=false;
   add(g,box(map.COLS+0.06,0.11,map.ROWS+0.06),darkStone,0,-0.095,0).castShadow=false;
-
-  const surfaceGeo=new THREE.PlaneGeometry(map.COLS,map.ROWS,map.COLS*5,map.ROWS*5);
+  // Uma superfície plana mantém as células e os indicadores na altura original.
+  const surfaceGeo=new THREE.PlaneGeometry(map.COLS,map.ROWS);
   surfaceGeo.rotateX(-Math.PI/2);
-  const pos=surfaceGeo.attributes.position,colors=[];
-  for(let i=0;i<pos.count;i++){
-    const x=pos.getX(i),z=pos.getZ(i);
-    const c=vertexTone(x,z);colors.push(c.r,c.g,c.b);
-  }
-  surfaceGeo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-  const surface=add(g,surfaceGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide}),0,-0.018,0);
+  const surface=add(g,surfaceGeo,terrainMaterial(map,true),0,-0.018,0);
   surface.receiveShadow=true;surface.castShadow=false;
-
-  // Células: linhas gravadas no solo, discretas porém exatas para construir.
-  const lines=[];
-  for(let c=0;c<=map.COLS;c++){
-    const x=c-map.halfW;lines.push(x,0.012,-map.halfH,x,0.012,map.halfH);
-  }
-  for(let r=0;r<=map.ROWS;r++){
-    const z=r-map.halfH;lines.push(-map.halfW,0.012,z,map.halfW,0.012,z);
-  }
-  const gridGeo=new THREE.BufferGeometry();
-  gridGeo.setAttribute('position',new THREE.Float32BufferAttribute(lines,3));
-  const grid=new THREE.LineSegments(gridGeo,new THREE.LineBasicMaterial({color:0x263a35,transparent:true,opacity:0.28,depthWrite:false}));
-  g.add(grid);
-
-  const stainGeo=new THREE.CircleGeometry(0.26,7);
-  const stains=new THREE.InstancedMesh(stainGeo,new THREE.MeshBasicMaterial({
-    color:0xffffff,transparent:true,opacity:0.13,depthWrite:false,side:THREE.DoubleSide
-  }),84);
-  const stainDummy=new THREE.Object3D(),stainColor=new THREE.Color();
-  for(let i=0;i<84;i++){
-    const c=(rand()*map.COLS)|0,r=1+((rand()*(map.ROWS-2))|0);
-    stainDummy.position.set(map.colX(c)+(rand()-0.5)*0.8,0.002,map.rowZ(r)+(rand()-0.5)*0.8);
-    stainDummy.rotation.set(-Math.PI/2,0,rand()*Math.PI);
-    stainDummy.scale.set(0.45+rand()*0.75,0.4+rand()*0.6,1);
-    stainDummy.updateMatrix();stains.setMatrixAt(i,stainDummy.matrix);
-    stainColor.setHex(rand()>0.42?0x9a8054:0x31543a);stains.setColorAt(i,stainColor);
-  }
-  stains.instanceMatrix.needsUpdate=true;stains.instanceColor.needsUpdate=true;g.add(stains);
-
-  // Entrada e saída pavimentadas: lajes irregulares numa faixa contínua.
-  const slabGeo=box(0.82,0.055,0.76);
-  const slabs=new THREE.InstancedMesh(slabGeo,std(0xffffff,{roughness:0.98}),map.COLS*2);
-  const dummy=new THREE.Object3D(),color=new THREE.Color();
-  for(let i=0;i<map.COLS*2;i++){
-    const row=i<map.COLS?0:map.ROWS-1,c=i%map.COLS;
-    dummy.position.set(map.colX(c)+(rand()-0.5)*0.1,0.012,map.rowZ(row)+(rand()-0.5)*0.11);
-    dummy.rotation.set(0,(rand()-0.5)*0.13,0);
-    dummy.scale.set(0.84+rand()*0.17,1,0.86+rand()*0.16);dummy.updateMatrix();
-    slabs.setMatrixAt(i,dummy.matrix);
-    color.setHex(rand()>0.55?0xa9a58f:0x777d72).multiplyScalar(0.86+rand()*0.21);
-    slabs.setColorAt(i,color);
-  }
-  slabs.instanceMatrix.needsUpdate=true;slabs.instanceColor.needsUpdate=true;
-  slabs.receiveShadow=true;g.add(slabs);
-
-  // Pedra e capim são instanciados: variedade sem dezenas de draw calls.
-  const pebble=new THREE.InstancedMesh(rock(0.09),std(0xffffff,{roughness:1}),76);
-  for(let i=0;i<76;i++){
-    const c=(rand()*map.COLS)|0,r=1+((rand()*(map.ROWS-2))|0);
-    dummy.position.set(map.colX(c)+(rand()-0.5)*0.85,0.035,map.rowZ(r)+(rand()-0.5)*0.85);
-    dummy.rotation.set(rand()*2,rand()*6,rand()*2);
-    dummy.scale.set(0.28+rand()*0.55,0.24+rand()*0.35,0.28+rand()*0.55);dummy.updateMatrix();
-    pebble.setMatrixAt(i,dummy.matrix);
-    color.setHex(rand()>0.4?0x9d9881:0x617568).multiplyScalar(0.8+rand()*0.25);
-    pebble.setColorAt(i,color);
-  }
-  pebble.instanceMatrix.needsUpdate=true;pebble.instanceColor.needsUpdate=true;g.add(pebble);
-
-  const grass=new THREE.InstancedMesh(cone(0.052,0.19,3),std(0xffffff,{roughness:1}),130);
-  for(let i=0;i<130;i++){
-    const c=(rand()*map.COLS)|0,r=1+((rand()*(map.ROWS-2))|0);
-    dummy.position.set(map.colX(c)+(rand()-0.5)*0.86,0.085,map.rowZ(r)+(rand()-0.5)*0.86);
-    dummy.rotation.set(0,rand()*6,0);
-    dummy.scale.set(0.6+rand(),0.45+rand()*0.7,0.6+rand());dummy.updateMatrix();
-    grass.setMatrixAt(i,dummy.matrix);
-    color.setHex(rand()>0.42?0x667c48:0x9c9661).multiplyScalar(0.86+rand()*0.3);
-    grass.setColorAt(i,color);
-  }
-  grass.instanceMatrix.needsUpdate=true;grass.instanceColor.needsUpdate=true;g.add(grass);
   scene.add(g);return g;
 }
 
@@ -246,8 +272,18 @@ function defendedKeep(map){
 }
 function landscape(map){
   const g=new THREE.Group(),rand=rng(0x524959);
-  const apron=add(g,new THREE.CircleGeometry(95,56),std(0x45583c,{roughness:1}),0,-0.83,0);
-  apron.rotation.x=-Math.PI/2;apron.castShadow=false;apron.receiveShadow=true;
+  const terrain=new THREE.PlaneGeometry(180,180,180,180);terrain.rotateX(-Math.PI/2);
+  const terrainPos=terrain.attributes.position;
+  for(let i=0;i<terrainPos.count;i++){
+    const x=terrainPos.getX(i),z=terrainPos.getZ(i);
+    // Faixa plana de três células: nenhum relevo invade o tabuleiro ou os muros.
+    const dx=Math.max(0,Math.abs(x)-map.halfW-3),dz=Math.max(0,Math.abs(z)-map.halfH-3);
+    const t=Math.min(1,Math.hypot(dx,dz)/5),fade=t*t*(3-2*t);
+    terrainPos.setY(i,fade*(0.28*Math.sin(x*0.22)*Math.cos(z*0.18)+0.14*Math.sin(x*0.11+z*0.16)+0.12));
+  }
+  terrain.computeVertexNormals();
+  const apron=add(g,terrain,terrainMaterial(map),0,-0.83,0);
+  apron.castShadow=false;apron.receiveShadow=true;
   // Estradas de acesso dão continuidade ao corredor fora da área jogável.
   for(const side of [-1,1]){
     const z=side*(map.halfH+1.15);
@@ -269,16 +305,19 @@ function landscape(map){
     add(g,cyl(0.11,0.14,0.72,5),timber,x-side*1.23,-0.45,z+0.7).rotation.z=side*0.14;
   }
 
+  // Bosques nos flancos e no fundo. Nada de copa alta no corredor próximo da
+  // câmera, nem quando o jogador desce a visão até o bastião.
   const spots=[];
-  while(spots.length<74){
-    const a=rand()*Math.PI*2,rad=6.5+rand()*rand()*28;
-    const x=Math.cos(a)*rad,z=Math.sin(a)*rad*0.86;
-    if(Math.abs(x)<map.halfW+3.4&&Math.abs(z)<map.halfH+3.4)continue;
-    spots.push({x,z,s:0.72+rand()*0.82,oak:rand()>0.55});
+  for(let i=0;i<112;i++){
+    const side=i%2?-1:1,cluster=(i/14)|0;
+    const cx=side*(map.halfW+5.5+(cluster%3)*4.2);
+    const cz=-map.halfH-4+(cluster%4)*3.4;
+    const x=cx+(rand()-0.5)*5,z=cz+(rand()-0.5)*4;
+    spots.push({x,z,s:0.65+rand()*1.05,oak:rand()>0.48});
   }
   const dummy=new THREE.Object3D(),tint=new THREE.Color();
   const trunks=new THREE.InstancedMesh(cyl(0.10,0.17,1.12,6),timber,spots.length);
-  const pines=new THREE.InstancedMesh(cone(0.67,1.4,7),std(0xffffff,{roughness:1}),spots.length);
+  const pines=new THREE.InstancedMesh(cone(0.67,1.8,7),std(0xffffff,{roughness:1}),spots.length);
   const lobes=new THREE.InstancedMesh(rock(0.64),std(0xffffff,{roughness:1}),spots.length*2);
   let l=0;
   for(let i=0;i<spots.length;i++){
@@ -309,6 +348,38 @@ function landscape(map){
     tint.setHex(rand()>0.5?0x9ca18e:0x5b6a64);stones.setColorAt(i,tint);
   }
   stones.castShadow=true;stones.instanceMatrix.needsUpdate=true;stones.instanceColor.needsUpdate=true;g.add(stones);
+  // Arbustos baixos enchem o primeiro plano sem esconder as casas de construção.
+  const scrub=new THREE.InstancedMesh(rock(0.38),std(0xffffff,{roughness:1}),140);
+  for(let i=0;i<140;i++){
+    const side=i%2?-1:1;
+    dummy.position.set(side*(map.halfW+1.6+rand()*12),-0.58,-map.halfH-4+rand()*(map.ROWS+11));
+    dummy.rotation.set(0,rand()*6,0);dummy.scale.set(0.7+rand()*0.9,0.4+rand()*0.45,0.7+rand());dummy.updateMatrix();
+    scrub.setMatrixAt(i,dummy.matrix);tint.setHex(i%3?0x5f7a43:0x7d8c4b);scrub.setColorAt(i,tint);
+  }
+  scrub.instanceMatrix.needsUpdate=true;scrub.instanceColor.needsUpdate=true;scrub.receiveShadow=true;g.add(scrub);
+
+  // Duas cordilheiras facetadas somem no horizonte quente (duas draw calls).
+  for(let layer=0;layer<2;layer++){
+    const vertices=[],ridgeRand=rng(0x9912+layer),z=-38-layer*18;
+    for(let i=0;i<24;i++){
+      const x=-65+i*5.5,h=3+ridgeRand()*8;
+      vertices.push(x,-0.85,z,x+2.75,h,z-2,x+5.5,-0.85,z);
+    }
+    const ridge=new THREE.BufferGeometry();ridge.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));ridge.computeVertexNormals();
+    const mountains=add(g,ridge,new THREE.MeshBasicMaterial({color:layer?0x9daaa5:0x7f9792,side:THREE.DoubleSide}),0,0,0);
+    mountains.castShadow=false;
+  }
+  // Fence stakes and rails form a modest supply perimeter beside the camp.
+  const fence=new THREE.InstancedMesh(box(0.08,0.7,0.08),timber,32);
+  const rails=new THREE.InstancedMesh(box(0.07,0.07,0.95),timber,28);
+  let rail=0;
+  for(let i=0;i<32;i++){
+    const side=i<16?-1:1,j=i%16;
+    dummy.position.set(side*(map.halfW+2.8),-0.48,-map.halfH-5+j*0.9);
+    dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);dummy.updateMatrix();fence.setMatrixAt(i,dummy.matrix);
+    if(j<14){dummy.position.y=-0.28;dummy.position.z+=0.45;dummy.updateMatrix();rails.setMatrixAt(rail++,dummy.matrix);}
+  }
+  for(const m of [fence,rails]){m.instanceMatrix.needsUpdate=true;m.castShadow=true;g.add(m);}
   return g;
 }
 export function createEnvironment(scene,map){

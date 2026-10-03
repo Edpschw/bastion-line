@@ -3,11 +3,12 @@
 // Projéteis, impactos, explosões e poeira. Tudo sai de pools pré-alocados:
 // nenhum objeto é criado durante o jogo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, glow, hexInt } from './core.js?v=siege-art-5';
+import { THREE, PAL, glow, hexInt } from './core.js?v=siege-art-6';
+import { createParticles } from './particles.js?v=siege-art-6';
 
 const MAX_BOLTS = 72;
 const MAX_RINGS = 56;
-const MAX_SPARKS = 320;
+
 
 // Assinatura visual de cada tipo de torre.
 const SHOT_STYLE = {
@@ -29,224 +30,116 @@ const SHOT_STYLE = {
 };
 
 export function createEffects(scene, map) {
-  const group = new THREE.Group();
-  group.name = 'fx';
-  scene.add(group);
-
-  // ---- pool de projéteis -------------------------------------------------
-  const boltGeo = new THREE.BoxGeometry(1, 1, 1);
-  const trailGeo = new THREE.BoxGeometry(1, 1, 1);
-  const bolts = [];
-  for (let i = 0; i < MAX_BOLTS; i++) {
-    const head = new THREE.Mesh(boltGeo, glow(0xffffff, 1).clone());
-    const trail = new THREE.Mesh(trailGeo, glow(0xffffff, 0.5).clone());
-    head.visible = trail.visible = false;
-    head.frustumCulled = trail.frustumCulled = false;
-    group.add(head, trail);
-    bolts.push({ head: head, trail: trail });
+  const group = new THREE.Group(); group.name = 'fx'; scene.add(group);
+  const particles = createParticles(group);
+  const arrowGeo = new THREE.ConeGeometry(.5,1,5);
+  arrowGeo.rotateX(Math.PI/2);
+  const orbGeo = new THREE.SphereGeometry(.5,8,6);
+  const lineGeo = new THREE.BoxGeometry(1,1,1);
+  const ringGeo = new THREE.RingGeometry(.91,1,48);
+  const bolts = [], rings = [];
+  for(let i=0;i<MAX_BOLTS;i++) {
+    const head=new THREE.Mesh(arrowGeo,glow(0xffffff,1).clone());
+    const trail=new THREE.Mesh(lineGeo,glow(0xffffff,.5).clone());
+    head.visible=trail.visible=false; group.add(head,trail); bolts.push({head,trail});
   }
-
-  // ---- pool de anéis no chão --------------------------------------------
-  const ringGeo = new THREE.RingGeometry(0.72, 1.0, 28);
-  const rings = [];
-  for (let i = 0; i < MAX_RINGS; i++) {
-    const m = new THREE.Mesh(ringGeo, glow(0xffffff, 1).clone());
-    m.rotation.x = -Math.PI / 2;
-    m.visible = false;
-    m.frustumCulled = false;
-    group.add(m);
-    rings.push(m);
+  for(let i=0;i<MAX_RINGS;i++) {
+    const ring=new THREE.Mesh(ringGeo,glow(0xffffff,1).clone());
+    ring.rotation.x=-Math.PI/2;ring.visible=false;group.add(ring);rings.push(ring);
   }
-
-  // ---- pool de estilhaços (uma só draw call) -----------------------------
-  const sparkGeo = new THREE.BoxGeometry(0.055, 0.055, 0.055);
-  const sparkMat = glow(0xffffff, 1).clone();
-  const sparks = new THREE.InstancedMesh(sparkGeo, sparkMat, MAX_SPARKS);
-  sparks.frustumCulled = false;
-  sparks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  sparks.count = 0;
-  group.add(sparks);
-
-  const dummy = new THREE.Object3D();
-  const color = new THREE.Color();
-  const a = new THREE.Vector3();
-  const b = new THREE.Vector3();
-  const mid = new THREE.Vector3();
-
-  let boltUsed = 0, ringUsed = 0, sparkUsed = 0;
-
-  function takeBolt() { return boltUsed < MAX_BOLTS ? bolts[boltUsed++] : null; }
-  function takeRing() { return ringUsed < MAX_RINGS ? rings[ringUsed++] : null; }
-
-  function addSpark(x, y, z, scale, hex, alpha) {
-    if (sparkUsed >= MAX_SPARKS) return;
-    dummy.position.set(x, y, z);
-    dummy.rotation.set(x * 7, y * 11 + z, z * 5);
-    dummy.scale.setScalar(Math.max(0.001, scale));
-    dummy.updateMatrix();
-    sparks.setMatrixAt(sparkUsed, dummy.matrix);
-    color.setHex(hex).multiplyScalar(Math.max(0.05, alpha));
-    sparks.setColorAt(sparkUsed, color);
-    sparkUsed++;
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),mid=new THREE.Vector3();
+  const options={count:2,scale:1};
+  // Registro fixo evita alocar metadados a cada disparo e libera referências expiradas.
+  const events=new Array(1024).fill(null), stamps=new Float64Array(1024), seen=new Uint32Array(1024);
+  let frame=0,lastTime=null,boltUsed=0,ringUsed=0;
+  function slot(f) {
+    for(let i=0;i<events.length;i++)if(events[i]===f)return i;
+    for(let i=0;i<events.length;i++)if(events[i]===null){events[i]=f;stamps[i]=-Infinity;seen[i]=0;return i;}
+    return -1;
   }
-
-  /** Reconstrói todos os efeitos do frame a partir da lista do núcleo do jogo. */
-  function update(attackFX, t, resolveShotOrigin) {
-    boltUsed = ringUsed = sparkUsed = 0;
-
-    for (let i = 0; i < attackFX.length; i++) {
-      const f = attackFX[i];
-      const life = Math.max(0, Math.min(1, f.life / f.maxLife)); // 1 = recém-criado
-      const age = 1 - life;
-      const hex = hexInt(f.color);
-
-      a.set(map.x(f.x1), 0.32, map.z(f.y1));
-      b.set(map.x(f.x2), 0.32, map.z(f.y2));
-
-      if (f.kind === 'shot' || (!f.kind && !f.impact)) {
-        const style = SHOT_STYLE[f.unitType] || SHOT_STYLE.archer;
-        if (!style.melee && resolveShotOrigin) resolveShotOrigin(f, a);
-
-        if (style.melee) {
-          // Corpo a corpo: arco de lâmina junto ao alvo
-          const ring = takeRing();
-          if (ring) {
-            ring.visible = true;
-            ring.position.set(b.x, 0.34, b.z);
-            ring.rotation.z = Math.atan2(b.z - a.z, b.x - a.x) + age * 2.4;
-            ring.scale.setScalar(0.22 + age * 0.3);
-            ring.material.color.setHex(style.color);
-            ring.material.opacity = life * 0.85;
-          }
-          for (let s = 0; s < 3; s++) {
-            addSpark(
-              b.x + (s - 1) * 0.07, 0.35 + age * 0.12, b.z + (s % 2) * 0.06,
-              0.5 + life * 0.6, style.color, life * 0.9
-            );
-          }
+  function burst(type) {
+    if(type==='mage'||type==='trap')return 'fire_burst';
+    if(type==='frost')return 'frost_burst';
+    if(type==='lightning')return 'lightning_spark';
+    if(type==='nature'||type==='builder-naturalista')return 'poison_cloud';
+    if(type==='necro'||type==='builder-feiticeiro')return 'arcane_burst';
+    return 'hit_spark';
+  }
+  function wave(position,radius,hex,opacity,height=0.045) {
+    if(ringUsed>=MAX_RINGS)return;
+    const ring=rings[ringUsed++];ring.visible=true;
+    ring.position.set(position.x,height,position.z);ring.scale.setScalar(radius);
+    ring.material.color.setHex(hex);ring.material.opacity=opacity;
+  }
+  function update(attackFX,t,resolveShotOrigin) {
+    const dt=lastTime===null?0:Math.max(0,Math.min(.1,t-lastTime));lastTime=t;
+    frame++;boltUsed=ringUsed=0;
+    for(let i=0;i<attackFX.length;i++) {
+      const f=attackFX[i],life=Math.max(0,Math.min(1,f.life/f.maxLife)),age=1-life;
+      const hex=hexInt(f.color),id=slot(f),fresh=id>=0&&seen[id]===0;
+      if(id>=0)seen[id]=frame;
+      a.set(map.x(f.x1),.32,map.z(f.y1));b.set(map.x(f.x2),.32,map.z(f.y2));
+      const shot=f.kind==='shot'||(!f.kind&&!f.impact),preset=burst(f.unitType);
+      if(shot) {
+        const style=SHOT_STYLE[f.unitType]||SHOT_STYLE.archer;
+        if(!style.melee&&resolveShotOrigin)resolveShotOrigin(f,a);
+        if(style.melee) {
+          if(fresh)particles.emit('hit_spark',b);
+          wave(b,.16+age*.23,style.color,life*.55,.28);
         } else {
-          // À distância: o projétil percorre o trajeto durante a vida do efeito
-          const bolt = takeBolt();
-          if (bolt) {
-            const travel = Math.min(1, age * 1.35 + 0.1);
-            mid.lerpVectors(a, b, travel);
-            const dir = b.clone().sub(a);
-            const len = Math.max(0.001, dir.length());
-            const shotColor = style.color === null ? hex : style.color;
-
-            bolt.head.visible = true;
-            bolt.head.position.copy(mid);
-            bolt.head.lookAt(b.x, b.y, b.z);
-            const hw = style.width * (style.soft ? 1.5 : 1);
-            bolt.head.scale.set(hw, hw, style.length || 0.3);
-            bolt.head.material.color.setHex(style.tip || shotColor);
-            bolt.head.material.opacity = Math.min(1, life * 1.6);
-
-            // Rastro entre a origem e a posição atual
-            const trailLen = len * travel;
-            bolt.trail.visible = trailLen > 0.05;
-            if (bolt.trail.visible) {
-              mid.lerpVectors(a, b, travel * 0.5);
-              bolt.trail.position.copy(mid);
-              bolt.trail.lookAt(b.x, b.y, b.z);
-              bolt.trail.scale.set(style.width * 0.6, style.width * 0.6, trailLen);
-              bolt.trail.material.color.setHex(shotColor);
-              bolt.trail.material.opacity = life * (style.soft ? 0.55 : 0.35);
+          const travel=Math.min(1,age*1.35+.1);mid.lerpVectors(a,b,travel);
+          // Emissões distribuídas no segmento impedem lacunas em frames lentos.
+          if(id>=0 && t-stamps[id]>=.025 && travel<1) {
+            const trail=f.unitType==='mage'||f.unitType==='trap'?'ember':
+              f.unitType==='frost'?'smoke_puff':preset==='hit_spark'?'arrow_trail':preset;
+            options.count=trail==='arrow_trail'?2:3;options.scale=trail==='smoke_puff'?.4:.55;
+            for(let n=0;n<3;n++) {
+              mid.lerpVectors(a,b,Math.max(0,travel-n*.055));particles.emit(trail,mid,options);
             }
+            stamps[id]=t;mid.lerpVectors(a,b,travel);
+          }
+          if(fresh&&f.unitType==='lightning') {particles.emit('lightning_spark',a);particles.emit('lightning_spark',b);}
+          if(boltUsed<MAX_BOLTS) {
+            const bolt=bolts[boltUsed++],soft=style.soft||f.unitType==='frost';
+            bolt.head.geometry=soft?orbGeo:arrowGeo;bolt.head.visible=true;
+            bolt.head.position.copy(mid);bolt.head.lookAt(b);
+            const width=style.width*(soft?2.2:2);
+            bolt.head.scale.set(width,width,soft?width:style.length||.3);
+            bolt.head.material.color.setHex(style.tip||hex);bolt.head.material.opacity=Math.min(1,life*2);
+            // O feixe curto acompanha o projétil; só a eletricidade liga os dois pontos.
+            const lightning=f.unitType==='lightning';
+            const length=lightning?a.distanceTo(b):Math.min(.3,a.distanceTo(mid));
+            bolt.trail.visible=length>.02;
+            if(lightning)bolt.trail.position.lerpVectors(a,b,.5);
+            else {bolt.trail.position.copy(mid);a.sub(b).normalize();bolt.trail.position.addScaledVector(a,length*.5);}
+            bolt.trail.lookAt(b);bolt.trail.scale.set(style.width*.45,style.width*.45,length);
+            bolt.trail.material.color.setHex(style.color??hex);bolt.trail.material.opacity=life*(lightning?.8:.28);
           }
         }
-
-        // Área de efeito rente ao chão
-        if (f.splashR) {
-          const ring = takeRing();
-          if (ring) {
-            ring.visible = true;
-            ring.position.set(b.x, 0.06, b.z);
-            ring.rotation.z = 0;
-            ring.scale.setScalar(Math.max(0.08, map.len(f.splashR) * (0.35 + age * 0.75)));
-            ring.material.color.setHex(hex);
-            ring.material.opacity = life * 0.55;
-          }
+        if(f.splashR) {
+          wave(b,Math.max(.08,map.len(f.splashR)*(.25+age*.85)),hex,life*.4);
+          if(fresh)particles.emit(preset,b);
         }
-        continue;
-      }
-
-      if (f.kind === 'impact' || f.impact) {
-        // Clarão de acerto: anel curto + faíscas radiais
-        const ring = takeRing();
-        if (ring) {
-          ring.visible = true;
-          ring.position.set(b.x, 0.3, b.z);
-          ring.rotation.x = -Math.PI / 2;
-          ring.rotation.z = 0;
-          ring.scale.setScalar(0.1 + age * 0.4);
-          ring.material.color.setHex(hex);
-          ring.material.opacity = life * 0.9;
-        }
-        for (let s = 0; s < 4; s++) {
-          const ang = s * Math.PI / 2 + Math.PI / 4;
-          const d = 0.08 + age * 0.3;
-          addSpark(b.x + Math.cos(ang) * d, 0.32 + age * 0.14, b.z + Math.sin(ang) * d, 0.6 * life + 0.25, hex, life);
-        }
-        continue;
-      }
-
-      if (f.kind === 'death') {
-        // Morte: onda no chão + estilhaços subindo
-        const ring = takeRing();
-        if (ring) {
-          ring.visible = true;
-          ring.position.set(b.x, 0.05, b.z);
-          ring.rotation.x = -Math.PI / 2;
-          ring.rotation.z = age * 1.2;
-          ring.scale.setScalar(0.12 + age * map.len(f.splashR || 20) * 1.5);
-          ring.material.color.setHex(hex);
-          ring.material.opacity = life * 0.7;
-        }
-        for (let s = 0; s < 7; s++) {
-          const ang = (s / 7) * Math.PI * 2 + b.x;
-          const d = age * 0.5;
-          addSpark(
-            b.x + Math.cos(ang) * d, 0.18 + age * 0.55 - age * age * 0.5, b.z + Math.sin(ang) * d,
-            0.9 * life, hex, life
-          );
-        }
-        continue;
-      }
-
-      if (f.kind === 'build') {
-        // Construção concluída: anel dourado subindo
-        const ring = takeRing();
-        if (ring) {
-          ring.visible = true;
-          ring.position.set(b.x, 0.05 + age * 0.7, b.z);
-          ring.rotation.x = -Math.PI / 2;
-          ring.rotation.z = 0;
-          ring.scale.setScalar(0.55 - age * 0.18);
-          ring.material.color.setHex(PAL.goldLight);
-          ring.material.opacity = life * 0.8;
-        }
-        for (let s = 0; s < 6; s++) {
-          const ang = (s / 6) * Math.PI * 2 + t;
-          addSpark(
-            b.x + Math.cos(ang) * 0.42, 0.1 + age * 0.9, b.z + Math.sin(ang) * 0.42,
-            0.8 * life, PAL.gold, life
-          );
-        }
+      } else if(f.kind==='impact'||f.impact||f.kind==='splash') {
+        if(fresh)particles.emit(preset,b);
+        if(f.splashR)wave(b,Math.max(.12,map.len(f.splashR))*(.3+age),hex,life*.45);
+      } else if(f.kind==='death') {
+        if(fresh)particles.emit('death_dust',b);
+      } else if(f.kind==='build') {
+        if(fresh){particles.emit('build_dust',b);particles.emit('level_up',b);}
+        wave(b,.48-age*.08,PAL.goldLight,life*.45,.06+age*.7);
+      } else if(fresh) {
+        // Compatibilidade com eventos opcionais sem mudar o contrato do núcleo.
+        if(f.kind==='heal')particles.emit('heal_sparkle',b);
+        if(f.kind==='gold')particles.emit('gold_pop',b);
+        if(f.kind==='level_up')particles.emit('level_up',b);
+        if(f.kind==='chain') {particles.emit('lightning_spark',a);particles.emit('lightning_spark',b);}
       }
     }
-
-    // Esconde o que sobrou dos pools
-    for (let i = boltUsed; i < MAX_BOLTS; i++) {
-      bolts[i].head.visible = false;
-      bolts[i].trail.visible = false;
-    }
-    for (let i = ringUsed; i < MAX_RINGS; i++) rings[i].visible = false;
-
-    sparks.count = sparkUsed;
-    sparks.instanceMatrix.needsUpdate = true;
-    if (sparks.instanceColor) sparks.instanceColor.needsUpdate = true;
+    for(let i=0;i<events.length;i++)if(events[i]!==null&&seen[i]!==frame)events[i]=null;
+    for(let i=boltUsed;i<MAX_BOLTS;i++)bolts[i].head.visible=bolts[i].trail.visible=false;
+    for(let i=ringUsed;i<MAX_RINGS;i++)rings[i].visible=false;
+    particles.update(dt);
   }
-
-  return { group: group, update: update };
+  return {group:group,update:update};
 }

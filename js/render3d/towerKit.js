@@ -23,7 +23,7 @@ let shared = null;
 
 /**
  * Carrega todas as peças. Falhar aqui derruba o renderer 3D inteiro, e o
- * núcleo volta para o canvas 2D — é o caminho de fallback que já existia.
+ * núcleo mostra o aviso de erro no lugar do tabuleiro.
  */
 export function preloadTowerKit() {
   const loader = new GLTFLoader();

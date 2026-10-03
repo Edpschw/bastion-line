@@ -1,0 +1,13 @@
+Modelos de Quaternius (quaternius.com), domínio público / CC0, baixados do Poly Pizza.
+Formato: id-poly.pizza  nome-local  URL de origem
+
+5vO2YJsPEf Orc https://static.poly.pizza/52a479b3-a635-4a23-92cb-6697eaa5eed5.glb
+P1gU3Qkr9r Wolf https://static.poly.pizza/f1d12388-e39b-4157-b32a-646a1d089fc4.glb
+LyjSUKHKnh Slime https://static.poly.pizza/195565b4-842a-44e9-a59a-5ebb1d133255.glb
+BldaiPtyJa Giant https://static.poly.pizza/260aff73-1409-4a45-9746-b078229d8cf3.glb
+ceRHrn8HHE Yeti https://static.poly.pizza/40a831b3-686a-4af8-b189-a13b38a3c26a.glb
+LnfIziKv4o Demon https://static.poly.pizza/46b52ba4-5d2a-4fc8-85cc-3e980f199141.glb
+S7jYW6Amye Blue_Demon https://static.poly.pizza/6fbb8914-bd11-45e1-a906-51ace2ca5d2d.glb
+hNO9XvjlKa Bat https://static.poly.pizza/4ae13ae9-c257-41ed-86b5-1b4760924ebc.glb
+LlwD0QNUPj Dragon_Evolved https://static.poly.pizza/90ed3740-d8c4-4910-88ce-ac2ed426022d.glb
+kttbFvCl2C Wizard https://static.poly.pizza/7e77cc7a-eff9-4ebd-90a6-7728c265b092.glb

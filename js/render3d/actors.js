@@ -3,9 +3,9 @@
 // Malhas procedurais de torres, inimigos e do Mestre de Obras.
 // As oito fundações têm arquitetura própria; ocupantes e armas animam no topo.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=siege-art-5';
-import { attachDetailedTower } from './towerModels.js?v=siege-art-5';
-import { buildTowerArchitecture } from './towerArchitecture.js?v=siege-art-5';
+import { THREE, PAL, geo, std, glow, glowTexture, mesh, rng, lerpAngle, damp, shade } from './core.js?v=siege-art-6';
+import { attachDetailedTower } from './towerModels.js?v=siege-art-6';
+import { buildTowerArchitecture } from './towerArchitecture.js?v=siege-art-6';
 
 const BOX = function (w, h, d) {
   return geo('box:' + w + ':' + h + ':' + d, function () { return new THREE.BoxGeometry(w, h, d); });
@@ -521,305 +521,187 @@ export function buildTower(type, tier, branch, color, options) {
 // Inimigos
 // ---------------------------------------------------------------------------
 
+// Enemy-only pieces. Animated Mesh joints retain the original public types.
+function enemyPiece(parent, geometry, material, x=0, y=0, z=0, rx=0, ry=0, rz=0) {
+  const m = mesh(geometry, material, x, y, z);
+  m.rotation.set(rx, ry, rz); parent.add(m); return m;
+}
+function enemyJoint(parent, material, x, y, z, radius=0.035, group=false) {
+  const j = group ? new THREE.Group() : mesh(SPH(radius, 6, 4), material);
+  j.position.set(x,y,z); parent.add(j); return j;
+}
+function enemyLeg(parent, material, boot, x, height, width, z=0) {
+  const j=enemyJoint(parent,material,x,height,z,width*0.45);
+  enemyPiece(j,CYL(width*0.45,width*0.36,height*0.48,5),material,0,-height*0.24,0);
+  enemyPiece(j,BOX(width,height*0.4,width),boot,0,-height*0.66,0);
+  enemyPiece(j,BOX(width*1.15,height*0.18,width*1.6),boot,0,-height*0.91,width*0.22);
+  return j;
+}
+function enemyArm(parent, skin, cuff, x, y, length, width, group=true) {
+  const j=enemyJoint(parent,skin,x,y,0.02,width*0.55,group);
+  enemyPiece(j,CYL(width*0.55,width*0.45,length*0.5,6),skin,0,-length*0.23,0);
+  enemyPiece(j,CYL(width*0.48,width*0.6,length*0.36,6),cuff,0,-length*0.64,0.02,-0.22);
+  enemyPiece(j,BOX(width*1.15,length*0.22,width*1.2),skin,0,-length*0.86,0.04);
+  return j;
+}
+function enemyEyes(head, material, x, y, z, size=0.022) {
+  for(const side of [-1,1]) {
+    const eye=enemyPiece(head,BOX(size*1.4,size,size*0.6),material,side*x,y,z);
+    eye.castShadow=false;
+  }
+}
+function enemyBlade(arm, steel, leather, y, curved=false) {
+  enemyPiece(arm,CYL(0.018,0.02,0.09,5),leather,0,y,0.07);
+  enemyPiece(arm,BOX(0.10,0.022,0.035),steel,0,y+0.05,0.07);
+  enemyPiece(arm,BOX(0.035,0.16,0.018),steel,0,y+0.14,0.07,0,0,curved?-0.18:0);
+  enemyPiece(arm,CONE(0.024,0.09,3),steel,curved?0.026:0,y+0.25,0.07,0,0,curved?-0.5:0);
+}
+function enemyCape(parent, material, width, height, y, z) {
+  const cape=enemyPiece(parent,BOX(width,0.025,0.03),material,0,y,z);
+  for(let i=0;i<5;i++) {
+    const h=height*(i%2?0.82:1);
+    enemyPiece(cape,BOX(width/5*0.94,h,0.025),material,(i-2)*width/5,-h/2,0,0,0,(i-2)*0.035);
+  }
+  return cape;
+}
+function enemyFeather(parent, material, x,y,z,length, angle=0) {
+  const f=enemyPiece(parent,OCT(0.06),material,x,y,z,0,0,angle);
+  f.scale.set(0.65,length/0.12,0.22); return f;
+}
+
 function buildGoblin(color, scout) {
-  const g = new THREE.Group();
-  // Cabeça clara sobre corpo médio e pernas escuras: visto de cima, a silhueta
-  // se separa em três faixas em vez de virar um borrão verde.
-  const skin = std(color, { roughness: 0.85 });
-  const skinLight = std(shade(color, 1.28), { roughness: 0.85 });
-  const cloth = std(scout ? 0x8f5333 : 0x6a5230, { roughness: 0.9 });
-
-  const legL = mesh(BOX(0.085, 0.16, 0.095), cloth, -0.06, 0.08, 0);
-  const legR = mesh(BOX(0.085, 0.16, 0.095), cloth, 0.06, 0.08, 0);
-  g.add(legL, legR);
-
-  const body = mesh(BOX(0.24, 0.26, 0.19), skin, 0, 0.28, 0);
-  g.add(body);
-  g.add(mesh(BOX(0.16, 0.16, 0.05), cloth, 0, 0.3, 0.1)); // peitoral
-
-  const head = mesh(SPH(0.14, 10, 8), skinLight, 0, 0.53, 0.02);
-  head.scale.set(1, 0.92, 1.05);
-  g.add(head);
-
-  // Orelhas pontudas
-  for (let side = -1; side <= 1; side += 2) {
-    const ear = mesh(CONE(0.055, 0.17, 4), skinLight, side * 0.14, 0.56, 0);
-    ear.rotation.z = side * -1.0;
-    g.add(ear);
+  const g=new THREE.Group(), skin=std(color), light=std(shade(color,1.28)), leather=std(0x59412a), cloth=std(scout?0x875036:0x716038), iron=std(0x8b7460,{metalness:0.45,roughness:0.75});
+  const legL=enemyLeg(g,skin,leather,-0.065,0.20,0.065), legR=enemyLeg(g,skin,leather,0.065,0.20,0.065);
+  const body=enemyPiece(g,CYL(scout?0.095:0.13,0.10,0.24,6),skin,0,0.31,-0.025,0.22);
+  enemyPiece(g,CYL(0.13,0.15,0.17,6),cloth,0,0.25,0);
+  enemyPiece(g,BOX(0.25,0.035,0.20),leather,0,0.24,0);
+  for(const side of [-1,1]) {
+    enemyPiece(g,BOX(0.06,0.07,0.06),leather,side*0.12,0.21,0.08);
+    enemyPiece(g,BOX(0.045,0.018,0.065),iron,side*0.12,0.23,0.085);
+    enemyPiece(g,CONE(0.045,0.09,3),cloth,side*0.055,0.14,0.06,0,0,Math.PI);
   }
-  // Olhos
-  for (let side = -1; side <= 1; side += 2) {
-    const eye = mesh(SPH(0.028, 6, 6), std(0xffe9a8, { emissive: 0xffc94a, emissiveIntensity: 0.8 }), side * 0.06, 0.55, 0.13);
-    eye.castShadow = false;
-    g.add(eye);
+  enemyPiece(g,BOX(0.035,0.19,0.025),leather,0.035,0.34,0.11,0,0,0.4);
+  const head=enemyPiece(g,SPH(0.12,8,6),light,0,0.50,0.075); head.scale.set(1,0.88,1);
+  enemyPiece(head,BOX(0.12,0.05,0.10),skin,0,-0.055,0.07);
+  enemyPiece(head,CONE(0.035,0.10,4),light,0,0,0.13,Math.PI/2);
+  for(const side of [-1,1]) {
+    enemyPiece(head,CONE(0.048,0.19,4),light,side*0.145,0.025,-0.025,0,0,-side*1.15);
+    enemyPiece(head,BOX(0.065,0.02,0.035),skin,side*0.05,0.045,0.09,0,0,-side*0.2);
+    enemyPiece(head,CONE(0.014,0.05,4),std(PAL.bone),side*0.045,-0.025,0.12);
   }
-
-  // Presas, elmo e capa: a silhueta lê como orc, não como duende genérico
-  for (let side = -1; side <= 1; side += 2) {
-    const tusk = mesh(CONE(0.026, 0.1, 4), std(PAL.bone, { roughness: 0.7 }), side * 0.055, 0.47, 0.12);
-    tusk.rotation.x = -0.25;
-    tusk.castShadow = false;
-    g.add(tusk);
-  }
-  if (!scout) {
-    const helm = mesh(SPH(0.145, 10, 6), std(PAL.stoneDark, { metalness: 0.35, roughness: 0.55 }), 0, 0.58, 0.01);
-    helm.scale.set(1, 0.58, 1);
-    g.add(helm);
-    for (let side = -1; side <= 1; side += 2) {
-      const horn = mesh(CONE(0.035, 0.15, 4), std(PAL.bone, { roughness: 0.7 }), side * 0.13, 0.62, 0);
-      horn.rotation.z = side * -0.85;
-      g.add(horn);
-    }
-  }
-  const shoulderCape = mesh(BOX(0.26, 0.22, 0.03), std(scout ? 0x4a6b33 : 0x9c3a2c, { roughness: 0.9 }), 0, 0.3, -0.11);
-  shoulderCape.rotation.x = -0.14;
-  g.add(shoulderCape);
-
-  // Arma
-  const armR = new THREE.Group();
-  armR.position.set(0.16, 0.36, 0.02);
-  armR.add(mesh(BOX(0.07, 0.16, 0.07), skin, 0, -0.06, 0));
-  if (scout) {
-    const dagger = mesh(BOX(0.03, 0.22, 0.012), std(PAL.iron, { metalness: 0.6, roughness: 0.35 }), 0.02, -0.18, 0.06);
-    dagger.rotation.x = 0.4;
-    armR.add(dagger);
-  } else {
-    // Machado tosco
-    const haft = mesh(CYL(0.025, 0.025, 0.32, 6), std(PAL.woodDark), 0.03, -0.2, 0.05);
-    haft.rotation.x = 0.35;
-    armR.add(haft);
-    const axeHead = mesh(BOX(0.045, 0.17, 0.13), std(PAL.iron, { metalness: 0.5, roughness: 0.45 }), 0.03, -0.33, 0.11);
-    axeHead.rotation.x = 0.35;
-    armR.add(axeHead);
-  }
-  g.add(armR);
-  const armL = mesh(BOX(0.07, 0.16, 0.07), skin, -0.16, 0.28, 0.02);
-  g.add(armL);
-
-  if (scout) {
-    // Penacho do batedor
-    const feather = mesh(CONE(0.03, 0.2, 4), std(0xc94f3a), 0, 0.72, -0.03);
-    feather.rotation.x = -0.35;
-    g.add(feather);
-  }
-
-  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, body: body };
-  return g;
+  enemyEyes(head,std(0xffe4a0,{emissive:0xffc94a,emissiveIntensity:0.8}),0.048,0.02,0.108);
+  const cap=enemyPiece(head,SPH(0.125,8,5),leather,0,0.06,-0.025); cap.scale.y=0.5;
+  enemyPiece(head,BOX(0.17,0.025,0.10),cloth,0,0.035,0.07);
+  if(scout) for(let i=0;i<3;i++) enemyFeather(head,std(0xc94f3a),0,0.13+i*0.018,-0.06+i*0.045,0.13,-0.15);
+  const armR=enemyArm(g,skin,leather,scout?0.14:0.17,0.39,0.20,0.06);
+  const armL=enemyArm(g,skin,leather,scout?-0.14:-0.17,0.39,0.20,0.06,false);
+  enemyBlade(armR,iron,leather,-0.19,true);
+  if(scout) enemyBlade(armL,iron,leather,-0.19,true);
+  g.userData={legL,legR,armR,armL,head,body}; return g;
 }
 
 function buildSlime(color, tiny) {
-  const g = new THREE.Group();
-  const mat = std(color, {
-    roughness: 0.22, metalness: 0.05,
-    transparent: true, opacity: 0.82,
-    emissive: color, emissiveIntensity: 0.28
-  });
-  const blob = mesh(ICO(0.34, 1), mat, 0, 0.26, 0);
-  blob.scale.set(1.06, 0.86, 1.06);
-  g.add(blob);
-
-  // Camada interna opaca dá volume ao gel
-  const core = mesh(ICO(0.19, 0), std(color, { roughness: 0.5, emissive: color, emissiveIntensity: 0.15 }), 0, 0.22, 0);
-  core.castShadow = false;
-  g.add(core);
-
-  // Olhos boiando no gel
-  const eyes = [];
-  for (let side = -1; side <= 1; side += 2) {
-    const eye = mesh(SPH(0.058, 8, 6), std(0xf7f3e0, { roughness: 0.3 }), side * 0.11, 0.32, 0.24);
-    eye.castShadow = false;
-    g.add(eye);
-    const pupil = mesh(SPH(0.028, 6, 6), std(0x1a2410), side * 0.11, 0.32, 0.29);
-    pupil.castShadow = false;
-    g.add(pupil);
-    eyes.push(eye, pupil);
+  const g=new THREE.Group(), gel=std(color,{roughness:0.22,metalness:0.05,transparent:true,opacity:0.65}), inner=std(shade(color,0.7),{roughness:0.45});
+  const blob=enemyPiece(g,ICO(0.32,1),gel,0,0.28,0); blob.scale.set(1.06,0.86,1.06);
+  const core=enemyPiece(g,ICO(0.14,0),inner,0,0.22,0); core.castShadow=false;
+  const eyes=[];
+  for(const side of [-1,1]) {
+    const eye=enemyPiece(g,SPH(0.052,8,6),std(0xf7f3e0),side*0.10,0.33,0.24);
+    const pupil=enemyPiece(g,SPH(0.025,6,4),std(0x1a2410),side*0.10,0.33,0.284);
+    eye.castShadow=pupil.castShadow=false; eyes.push(eye,pupil);
   }
-
-  // Gotas escorrendo
-  if (!tiny) {
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + 0.6;
-      const drop = mesh(SPH(0.07, 6, 5), mat, Math.cos(a) * 0.3, 0.07, Math.sin(a) * 0.3);
-      drop.scale.set(1, 0.6, 1);
-      g.add(drop);
-    }
+  for(let i=0;i<10;i++) {
+    const a=i*Math.PI*2/10, r=tiny?0.25:0.29;
+    const drop=enemyPiece(g,SPH(0.065,6,4),gel,Math.cos(a)*r,0.035,Math.sin(a)*r); drop.scale.y=0.53;
+    const bubble=enemyPiece(g,SPH(i%2?0.025:0.04,6,4),std(shade(color,1.3),{transparent:true,opacity:0.8,roughness:0.18}),Math.cos(a)*0.17,0.17+(i%3)*0.08,Math.sin(a)*0.17); bubble.castShadow=false;
   }
-
-  g.userData = { blob: blob, core: core, eyes: eyes, squash: true };
-  return g;
+  for(let i=0;i<5;i++) enemyPiece(blob,ICO(0.035,0),gel,Math.sin(i*2)*0.23,0.08+Math.cos(i)*0.13,Math.cos(i*2)*0.23);
+  g.userData={blob,core,eyes,squash:true}; return g;
 }
 
 function buildSkeletonKnight(color) {
-  const g = new THREE.Group();
-  const bone = std(PAL.bone, { roughness: 0.75 });
-  const steel = std(color, { metalness: 0.55, roughness: 0.4 });
-  const cloak = std(0x3a3340, { roughness: 0.95, side: THREE.DoubleSide });
-
-  const legL = mesh(BOX(0.07, 0.22, 0.08), bone, -0.08, 0.11, 0);
-  const legR = mesh(BOX(0.07, 0.22, 0.08), bone, 0.08, 0.11, 0);
-  g.add(legL, legR);
-
-  // Caixa torácica sugerida por costelas
-  g.add(mesh(BOX(0.2, 0.05, 0.14), bone, 0, 0.3, 0));
-  for (let i = 0; i < 3; i++) {
-    g.add(mesh(BOX(0.24, 0.028, 0.16), bone, 0, 0.36 + i * 0.07, 0));
+  const g=new THREE.Group(), bone=std(PAL.bone), steel=std(color,{metalness:0.55,roughness:0.65}), dark=std(shade(color,0.48)), gold=std(0x8c754b,{metalness:0.5});
+  const legL=enemyLeg(g,bone,steel,-0.075,0.28,0.06), legR=enemyLeg(g,bone,steel,0.075,0.28,0.06);
+  enemyPiece(g,BOX(0.21,0.05,0.13),bone,0,0.29,0);
+  enemyPiece(g,BOX(0.045,0.27,0.05),bone,0,0.43,-0.045);
+  for(let i=0;i<4;i++) for(const side of [-1,1]) enemyPiece(g,BOX(0.11,0.022,0.12),bone,side*0.065,0.34+i*0.042,0.015,0,side*0.2,side*0.12);
+  enemyPiece(g,BOX(0.25,0.12,0.18),steel,0,0.53,0);
+  enemyPiece(g,BOX(0.06,0.18,0.035),steel,-0.09,0.43,0.08,0,0,-0.12);
+  enemyPiece(g,BOX(0.23,0.028,0.17),gold,0,0.31,0);
+  const head=enemyPiece(g,SPH(0.105,8,6),bone,0,0.70,0.02);
+  enemyPiece(head,BOX(0.12,0.05,0.10),bone,0,-0.085,0.025);
+  for(const side of [-1,1]) enemyPiece(head,BOX(0.055,0.04,0.025),dark,side*0.042,0,0.09);
+  enemyEyes(head,std(0xff5a3c,{emissive:0xff4a2c,emissiveIntensity:2}),0.042,0,0.108);
+  enemyPiece(head,CONE(0.02,0.04,3),dark,0,-0.035,0.103,Math.PI);
+  for(let i=0;i<4;i++) enemyPiece(head,BOX(0.016,0.022,0.025),bone,(i-1.5)*0.023,-0.058,0.08);
+  enemyPiece(head,BOX(0.19,0.06,0.18),steel,0,0.075,-0.02);
+  const armR=enemyArm(g,bone,steel,0.19,0.54,0.25,0.06), armL=enemyArm(g,bone,steel,-0.19,0.54,0.25,0.06);
+  for(const [side,arm] of [[-1,armL],[1,armR]]) {
+    enemyPiece(arm,ICO(0.105,0),steel,0,0,0);
+    enemyPiece(arm,CONE(0.026,0.11,4),dark,side*0.04,0.08,0);
   }
-  g.add(mesh(BOX(0.05, 0.26, 0.05), bone, 0, 0.42, -0.04)); // coluna
-
-  // Peitoral e ombreiras
-  g.add(mesh(BOX(0.26, 0.18, 0.17), steel, 0, 0.46, 0.02));
-  for (let side = -1; side <= 1; side += 2) {
-    const pauldron = mesh(SPH(0.1, 8, 6), steel, side * 0.17, 0.56, 0);
-    pauldron.scale.set(1, 0.7, 1);
-    g.add(pauldron);
-    for (let i = 0; i < 2; i++) {
-      const spike = mesh(CONE(0.026, 0.13, 4), std(PAL.stoneDark, { metalness: 0.4, roughness: 0.5 }),
-        side * (0.14 + i * 0.07), 0.62, -0.03 + i * 0.06);
-      spike.rotation.z = side * -0.5;
-      spike.castShadow = false;
-      g.add(spike);
-    }
-  }
-  g.add(mesh(BOX(0.27, 0.03, 0.18), std(PAL.gold, { metalness: 0.6, roughness: 0.35 }), 0, 0.39, 0.02));
-
-  // Crânio e elmo
-  const head = mesh(BOX(0.16, 0.17, 0.16), bone, 0, 0.72, 0.01);
-  g.add(head);
-  g.add(mesh(BOX(0.18, 0.1, 0.18), steel, 0, 0.79, 0.01));
-  for (let side = -1; side <= 1; side += 2) {
-    const eye = mesh(BOX(0.035, 0.035, 0.02), std(0xff5a3c, { emissive: 0xff4a2c, emissiveIntensity: 2 }), side * 0.045, 0.72, 0.09);
-    eye.castShadow = false;
-    g.add(eye);
-  }
-
-  // Manto
-  const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.5, 3, 3), cloak);
-  cape.position.set(0, 0.42, -0.11);
-  cape.rotation.x = 0.16;
-  cape.castShadow = true;
-  g.add(cape);
-
-  // Escudo e espada
-  const armL = new THREE.Group();
-  armL.position.set(-0.2, 0.46, 0.04);
-  const shield = mesh(BOX(0.05, 0.3, 0.26), steel, 0, -0.02, 0);
-  armL.add(shield);
-  armL.add(mesh(BOX(0.02, 0.1, 0.1), std(PAL.gold, { metalness: 0.6, roughness: 0.35 }), -0.035, -0.02, 0));
-  g.add(armL);
-
-  const armR = new THREE.Group();
-  armR.position.set(0.2, 0.46, 0.04);
-  const blade = mesh(BOX(0.05, 0.42, 0.016), std(PAL.iron, { metalness: 0.7, roughness: 0.28 }), 0, 0.12, 0);
-  armR.add(blade);
-  armR.add(mesh(BOX(0.16, 0.035, 0.035), std(PAL.stoneDark), 0, -0.1, 0));
-  armR.rotation.x = -0.25;
-  g.add(armR);
-
-  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, cape: cape };
-  return g;
+  enemyBlade(armR,std(PAL.iron,{metalness:0.7}),dark,-0.20);
+  for(let i=0;i<2;i++) enemyPiece(armR,BOX(0.035,0.08,0.018),steel,0.012+i*0.012,0.13+i*0.07,0.07,0,0,-0.18);
+  const shield=enemyPiece(armL,CYL(0.15,0.15,0.035,10),dark,0,-0.13,0.09,Math.PI/2);
+  enemyPiece(shield,CYL(0.13,0.13,0.045,10),steel);
+  enemyPiece(shield,SPH(0.045,6,4),gold,0,0.04,0);
+  const cape=enemyCape(g,std(0x3a3340,{side:THREE.DoubleSide}),0.30,0.46,0.56,-0.12);
+  g.userData={legL,legR,armR,armL,head,cape}; return g;
 }
 
 function buildDragon(color) {
-  const g = new THREE.Group();
-  const scale = std(color, {
-    metalness: 0.3, roughness: 0.2,
-    emissive: color, emissiveIntensity: 0.35,
-    transparent: true, opacity: 0.94
-  });
-  const crystal = std(0xaee6ff, { emissive: 0x7fd4ff, emissiveIntensity: 1.1, roughness: 0.1, metalness: 0.2 });
-
-  // Patas
-  const legs = [];
-  for (let sx = -1; sx <= 1; sx += 2) {
-    for (let sz = -1; sz <= 1; sz += 2) {
-      const leg = mesh(BOX(0.1, 0.26, 0.12), scale, sx * 0.19, 0.13, sz * 0.18);
-      g.add(leg);
-      legs.push(leg);
+  const g=new THREE.Group(), scales=std(color,{roughness:0.65,metalness:0.15}), dark=std(shade(color,0.55)), bone=std(0xc5c1a1), belly=std(shade(color,1.3)), eyes=std(0xfff0b0,{emissive:0xffd45a,emissiveIntensity:2.2});
+  const body=enemyPiece(g,ICO(0.30,1),scales,0,0.43,0); body.scale.set(1,0.85,1.5);
+  for(let i=0;i<4;i++) enemyPiece(g,BOX(0.23-i*0.018,0.055,0.12),belly,0,0.27+i*0.025,0.25-i*0.13);
+  const legs=[];
+  for(const z of [0.20,-0.24]) for(const side of [-1,1]) {
+    const leg=enemyJoint(g,scales,side*0.19,0.35,z,0.04);
+    enemyPiece(leg,CYL(0.065,0.04,0.16,6),scales,0,-0.07,0,-0.25);
+    enemyPiece(leg,CYL(0.04,0.03,0.13,5),dark,0,-0.20,0.025,0.3);
+    enemyPiece(leg,BOX(0.10,0.055,0.15),scales,0,-0.3225,0.055);
+    for(const sx of [-1,1]) enemyPiece(leg,CONE(0.017,0.075,4),bone,sx*0.03,-0.32,0.15,Math.PI/2);
+    legs.push(leg);
+  }
+  const neck=enemyJoint(g,scales,0,0.55,0.25,0.04,true);
+  enemyPiece(neck,CYL(0.09,0.14,0.30,6),scales,0,0.13,0.08,-0.55);
+  enemyPiece(neck,BOX(0.13,0.19,0.045),belly,0,0.14,0.18,-0.55);
+  enemyPiece(neck,ICO(0.14,0),scales,0,0.30,0.24);
+  enemyPiece(neck,BOX(0.16,0.09,0.23),scales,0,0.27,0.37);
+  enemyPiece(neck,BOX(0.14,0.035,0.22),dark,0,0.21,0.38);
+  for(const side of [-1,1]) {
+    enemyPiece(neck,CONE(0.035,0.23,4),bone,side*0.09,0.43,0.17,-0.55,0,side*0.3);
+    enemyPiece(neck,BOX(0.07,0.025,0.06),dark,side*0.075,0.34,0.34,0,0,side*0.2);
+    enemyPiece(neck,SPH(0.025,6,4),eyes,side*0.078,0.315,0.36);
+    enemyPiece(neck,CONE(0.015,0.045,4),bone,side*0.055,0.235,0.44,0,0,Math.PI);
+    enemyPiece(neck,CONE(0.035,0.15,4),scales,side*0.13,0.29,0.20,0,0,-side*1.1);
+  }
+  const wings=[];
+  for(const side of [-1,1]) {
+    const wing=enemyJoint(g,scales,side*0.22,0.56,-0.025,0.04,true);
+    // Triangular panels meet at the wrist; finger bones define a scalloped fan.
+    const points=[[0.12,0.10],[0.47,0.35],[0.86,0.14],[0.71,-0.18],[0.42,-0.30]];
+    const membrane=std(shade(color,0.75),{side:THREE.DoubleSide,transparent:true,opacity:0.88,roughness:0.8});
+    for(let i=1;i<4;i++) {
+      const key='enemy-dragon-panel:'+side+':'+i;
+      const geometry=geo(key,()=>{ const a=points[0],b=points[i],c=points[i+1]; const geom=new THREE.BufferGeometry(); geom.setAttribute('position',new THREE.Float32BufferAttribute([side*a[0],a[1],0,side*b[0],b[1],-0.04,side*c[0],c[1],-0.04],3)); geom.computeVertexNormals(); return geom; });
+      enemyPiece(wing,geometry,membrane);
     }
-  }
-
-  // Tronco
-  const body = mesh(ICO(0.32, 1), scale, 0, 0.44, 0);
-  body.scale.set(1.15, 0.92, 1.5);
-  g.add(body);
-
-  // Pescoço e cabeça
-  const neck = new THREE.Group();
-  neck.position.set(0, 0.6, 0.26);
-  const neckSeg = mesh(CYL(0.1, 0.15, 0.34, 6), scale, 0, 0.12, 0.08);
-  neckSeg.rotation.x = -0.6;
-  neck.add(neckSeg);
-  const head = mesh(BOX(0.2, 0.17, 0.3), scale, 0, 0.3, 0.26);
-  neck.add(head);
-  const snout = mesh(CONE(0.1, 0.22, 5), scale, 0, 0.27, 0.44);
-  snout.rotation.x = Math.PI / 2;
-  neck.add(snout);
-  for (let side = -1; side <= 1; side += 2) {
-    const horn = mesh(CONE(0.04, 0.22, 4), crystal, side * 0.08, 0.42, 0.16);
-    horn.rotation.set(-0.5, 0, side * 0.3);
-    horn.castShadow = false;
-    neck.add(horn);
-    const eye = mesh(SPH(0.032, 6, 6), std(0xfff0b0, { emissive: 0xffd45a, emissiveIntensity: 2.2 }), side * 0.08, 0.33, 0.38);
-    eye.castShadow = false;
-    neck.add(eye);
-  }
-  g.add(neck);
-
-  // Asas membranosas
-  const wings = [];
-  for (let side = -1; side <= 1; side += 2) {
-    const wing = new THREE.Group();
-    wing.position.set(side * 0.2, 0.6, -0.02);
-    const membrane = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.5, 3, 2), std(color, {
-      side: THREE.DoubleSide, roughness: 0.35, metalness: 0.1,
-      transparent: true, opacity: 0.72, emissive: color, emissiveIntensity: 0.25
-    }));
-    membrane.position.set(side * 0.38, 0.1, -0.05);
-    membrane.rotation.y = side * 0.25;
-    membrane.castShadow = true;
-    wing.add(membrane);
-    // Nervuras
-    for (let i = 0; i < 3; i++) {
-      const rib = mesh(BOX(0.42, 0.022, 0.022), crystal, side * 0.24, 0.16 - i * 0.1, -0.05);
-      rib.rotation.z = side * (0.24 - i * 0.2);
-      rib.castShadow = false;
-      wing.add(rib);
+    for(let i=1;i<5;i++) {
+      const dx=side*(points[i][0]-points[0][0]),dy=points[i][1]-points[0][1];
+      enemyPiece(wing,CYL(0.012,0.021,Math.hypot(dx,dy),5),bone,side*(points[i][0]+points[0][0])/2,(points[i][1]+points[0][1])/2,0,0,0,-Math.atan2(dx,dy));
     }
-    g.add(wing);
-    wings.push({ group: wing, side: side });
+    enemyPiece(wing,CONE(0.025,0.10,4),bone,side*0.48,0.40,0);
+    wings.push({group:wing,side});
   }
-
-  // Cauda segmentada
-  const tail = new THREE.Group();
-  tail.position.set(0, 0.42, -0.3);
-  const tailSegs = [];
-  for (let i = 0; i < 4; i++) {
-    const s = 0.13 - i * 0.025;
-    const seg = mesh(BOX(s * 2, s * 1.6, 0.2), scale, 0, -i * 0.02, -0.1 - i * 0.19);
-    tail.add(seg);
-    tailSegs.push(seg);
+  const tail=enemyJoint(g,scales,0,0.40,-0.35,0.035,true), tailSegs=[];
+  for(let i=0;i<4;i++) {
+    const seg=enemyPiece(tail,CYL(0.10-i*0.018,0.08-i*0.017,0.20,6),scales,0,-i*0.025,-0.08-i*0.17,Math.PI/2); tailSegs.push(seg);
+    if(i%2===0) enemyPiece(tail,CONE(0.035-i*0.004,0.10,4),bone,0,0.07-i*0.025,-0.08-i*0.17);
   }
-  const barb = mesh(CONE(0.09, 0.26, 4), crystal, 0, -0.06, -0.92);
-  barb.rotation.x = -Math.PI / 2;
-  barb.castShadow = false;
-  tail.add(barb);
-  g.add(tail);
-
-  // Cristas dorsais
-  for (let i = 0; i < 4; i++) {
-    const fin = mesh(CONE(0.05, 0.18, 4), crystal, 0, 0.72 - i * 0.02, 0.16 - i * 0.17);
-    fin.castShadow = false;
-    g.add(fin);
-  }
-
-  // Aura do chefe
-  const aura = new THREE.Mesh(new THREE.CircleGeometry(0.85, 28), glow(0x6fd0ff, 0.22).clone());
-  aura.rotation.x = -Math.PI / 2;
-  aura.position.y = 0.02;
-  g.add(aura);
-
-  g.userData = { wings: wings, neck: neck, tail: tail, tailSegs: tailSegs, legs: legs, aura: aura, flying: true };
-  return g;
+  enemyPiece(tail,CONE(0.055,0.18,4),dark,0,-0.08,-0.77,-Math.PI/2);
+  for(let i=0;i<5;i++) enemyPiece(g,CONE(0.045,0.16,4),bone,0,0.70-i*0.018,0.20-i*0.13);
+  const aura=new THREE.Mesh(new THREE.CircleGeometry(0.85,28),glow(0x6fd0ff,0.22).clone()); aura.rotation.x=-Math.PI/2; aura.position.y=0.02; g.add(aura);
+  g.userData={wings,neck,tail,tailSegs,legs,aura,flying:true}; return g;
 }
 
 /**
@@ -828,62 +710,28 @@ function buildDragon(color) {
  * confundir com o chefe na distância da câmera.
  */
 function buildHarpy(color) {
-  const g = new THREE.Group();
-  const body = std(color, { roughness: 0.7 });
-  const feather = std(shade(color, 0.72), { roughness: 0.8, side: THREE.DoubleSide });
-
-  const torso = mesh(ICO(0.2, 0), body, 0, 0.3, 0);
-  torso.scale.set(0.85, 1.25, 0.9);
-  g.add(torso);
-
-  const head = mesh(SPH(0.115, 8, 6), std(shade(color, 1.3), { roughness: 0.7 }), 0, 0.53, 0.04);
-  g.add(head);
-  const beak = mesh(CONE(0.045, 0.14, 4), std(PAL.gold, { roughness: 0.5 }), 0, 0.51, 0.14);
-  beak.rotation.x = Math.PI / 2;
-  g.add(beak);
-  for (let side = -1; side <= 1; side += 2) {
-    const eye = mesh(SPH(0.025, 6, 6), std(0xffe9a8, { emissive: 0xffc94a, emissiveIntensity: 1.2 }), side * 0.05, 0.56, 0.1);
-    eye.castShadow = false;
-    g.add(eye);
+  const g=new THREE.Group(), body=std(color), feather=std(shade(color,0.65)), light=std(shade(color,1.3)), gold=std(PAL.gold);
+  const torso=enemyPiece(g,ICO(0.18,0),body,0,0.31,0); torso.scale.set(0.7,1.3,0.75);
+  enemyPiece(g,CYL(0.08,0.12,0.12,6),feather,0,0.19,0);
+  const head=enemyPiece(g,SPH(0.10,8,6),light,0,0.56,0.04);
+  enemyPiece(head,CONE(0.032,0.09,4),gold,0,-0.025,0.11,Math.PI/2);
+  enemyEyes(head,std(0xffe9a8,{emissive:0xffc94a,emissiveIntensity:1.2}),0.043,0.018,0.09);
+  for(let i=0;i<5;i++) enemyFeather(head,i%2?body:feather,(i-2)*0.035,0.09+0.025*(2-Math.abs(i-2)),-0.035,0.14,(i-2)*-0.25);
+  for(const side of [-1,1]) {
+    enemyPiece(g,CYL(0.035,0.02,0.16,5),gold,side*0.075,0.10,0.035,0.25);
+    for(let i=0;i<3;i++) enemyPiece(g,CONE(0.013,0.08,4),std(PAL.ironDark),side*0.075+(i-1)*0.025,0.025,0.08,Math.PI/2+0.4);
   }
-
-  // Garras recolhidas sob o corpo
-  for (let side = -1; side <= 1; side += 2) {
-    const claw = mesh(BOX(0.05, 0.16, 0.06), std(PAL.ironDark), side * 0.08, 0.13, 0.02);
-    claw.rotation.x = 0.5;
-    g.add(claw);
+  const wings=[];
+  for(const side of [-1,1]) {
+    const wing=enemyJoint(g,body,side*0.12,0.40,0,0.03,true);
+    enemyPiece(wing,CYL(0.045,0.025,0.25,5),body,side*0.12,0.02,0,0,0,side*-Math.PI/2);
+    for(let i=0;i<7;i++) enemyFeather(wing,i%2?feather:body,side*(0.12+i*0.075),-0.04-i*0.023,-0.025,0.23+i*0.018,side*-0.5);
+    for(let i=0;i<3;i++) enemyFeather(wing,light,side*(0.12+i*0.10),0.02,-0.005,0.13,side*-0.8);
+    wings.push({group:wing,side});
   }
-
-  const wings = [];
-  for (let side = -1; side <= 1; side += 2) {
-    const wing = new THREE.Group();
-    wing.position.set(side * 0.13, 0.36, 0);
-    const membrane = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.3, 3, 1), feather);
-    membrane.position.set(side * 0.32, 0.03, -0.03);
-    membrane.rotation.y = side * 0.18;
-    membrane.castShadow = true;
-    wing.add(membrane);
-    for (let i = 0; i < 2; i++) {
-      const rib = mesh(BOX(0.34, 0.018, 0.018), std(shade(color, 0.55)), side * 0.2, 0.06 - i * 0.08, -0.03);
-      rib.rotation.z = side * (0.18 - i * 0.16);
-      rib.castShadow = false;
-      wing.add(rib);
-    }
-    g.add(wing);
-    wings.push({ group: wing, side: side });
-  }
-
-  const tail = new THREE.Group();
-  tail.position.set(0, 0.24, -0.16);
-  const plume = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.4, 1, 2), feather);
-  plume.position.set(0, -0.04, -0.18);
-  plume.rotation.x = -0.5;
-  tail.add(plume);
-  g.add(tail);
-
-  g.userData = { wings: wings, tail: tail, head: head, flying: true, legs: [],
-                 fastFlap: true, hoverBase: 0 };
-  return g;
+  const tail=enemyJoint(g,feather,0,0.23,-0.12,0.025,true);
+  for(let i=0;i<5;i++) { const f=enemyFeather(tail,i%2?feather:body,(i-2)*0.035,-0.075,-0.10,0.24,(i-2)*0.2); f.rotation.x=-0.7; }
+  g.userData={wings,tail,head,flying:true,legs:[],fastFlap:true,hoverBase:0}; return g;
 }
 
 /**
@@ -892,55 +740,34 @@ function buildHarpy(color) {
  * ombros largos, braços que quase raspam o chão.
  */
 function buildOrc(color) {
-  const g = new THREE.Group();
-  const skin = std(color, { roughness: 0.88 });
-  const skinLight = std(shade(color, 1.22), { roughness: 0.88 });
-  const leather = std(0x5a4526, { roughness: 0.92 });
-
-  const legL = mesh(BOX(0.14, 0.2, 0.15), leather, -0.11, 0.1, 0);
-  const legR = mesh(BOX(0.14, 0.2, 0.15), leather, 0.11, 0.1, 0);
-  g.add(legL, legR);
-
-  // Tronco inclinado: a curvatura é o que lê de cima
-  const torso = new THREE.Group();
-  torso.position.set(0, 0.28, 0);
-  torso.rotation.x = 0.22;
-  torso.add(mesh(BOX(0.44, 0.34, 0.28), skin, 0, 0.1, 0));
-  torso.add(mesh(BOX(0.46, 0.1, 0.3), leather, 0, -0.04, 0));
-  for (let side = -1; side <= 1; side += 2) {
-    const pauldron = mesh(SPH(0.15, 8, 6), std(PAL.stoneDark, { metalness: 0.3, roughness: 0.6 }), side * 0.24, 0.24, 0);
-    pauldron.scale.set(1, 0.7, 1);
-    torso.add(pauldron);
+  const g=new THREE.Group(), skin=std(color), light=std(shade(color,1.22)), leather=std(0x5a4526), iron=std(PAL.ironDark,{metalness:0.4}), bone=std(PAL.bone), fur=std(0x78694c);
+  const legL=enemyLeg(g,skin,leather,-0.11,0.24,0.12), legR=enemyLeg(g,skin,leather,0.11,0.24,0.12);
+  const torso=enemyJoint(g,skin,0,0.26,0,0.03,true); torso.rotation.x=0.18;
+  const chest=enemyPiece(torso,ICO(0.27,0),skin,0,0.16,0); chest.scale.set(1,0.95,0.65);
+  enemyPiece(torso,CYL(0.18,0.20,0.15,6),leather,0,0.015,0);
+  enemyPiece(torso,BOX(0.39,0.04,0.27),iron,0,0.04,0);
+  enemyPiece(torso,BOX(0.04,0.27,0.035),leather,0.03,0.20,0.16,0,0,0.5);
+  for(let i=0;i<5;i++) enemyPiece(torso,CONE(0.045,0.13,4),fur,(i-2)*0.065,-0.045,0.1,0,0,Math.PI);
+  const head=enemyPiece(g,SPH(0.13,8,6),light,0,0.59,0.09); head.scale.y=0.9;
+  enemyPiece(head,BOX(0.16,0.075,0.12),skin,0,-0.06,0.07);
+  enemyPiece(head,BOX(0.07,0.05,0.065),light,0,-0.01,0.12);
+  enemyEyes(head,std(0xffd07a,{emissive:0xff9a3d,emissiveIntensity:1.1}),0.052,0.032,0.112);
+  for(const side of [-1,1]) {
+    enemyPiece(head,CONE(0.027,0.12,4),bone,side*0.065,-0.018,0.13,-0.25);
+    enemyPiece(head,CONE(0.04,0.10,4),skin,side*0.14,0,-0.015,0,0,-side*1.1);
+    enemyPiece(head,BOX(0.075,0.024,0.04),skin,side*0.05,0.065,0.10,0,0,-side*0.2);
   }
-  g.add(torso);
-
-  const head = mesh(SPH(0.13, 10, 8), skinLight, 0, 0.55, 0.07);
-  head.scale.set(1, 0.9, 1.05);
-  g.add(head);
-  for (let side = -1; side <= 1; side += 2) {
-    const tusk = mesh(CONE(0.032, 0.14, 4), std(PAL.bone, { roughness: 0.7 }), side * 0.06, 0.5, 0.15);
-    tusk.rotation.x = -2.7;
-    tusk.castShadow = false;
-    g.add(tusk);
-    const eye = mesh(SPH(0.026, 6, 6), std(0xffd07a, { emissive: 0xff9a3d, emissiveIntensity: 1.1 }), side * 0.055, 0.58, 0.16);
-    eye.castShadow = false;
-    g.add(eye);
+  enemyPiece(head,SPH(0.06,6,4),std(0x252521),0,0.12,-0.025);
+  enemyPiece(head,CYL(0.018,0.035,0.13,5),std(0x252521),0,0.19,-0.04);
+  const armR=enemyArm(g,skin,leather,0.26,0.49,0.30,0.10), armL=enemyArm(g,skin,leather,-0.26,0.49,0.30,0.10,false);
+  for(const [side,arm] of [[-1,armL],[1,armR]]) {
+    enemyPiece(arm,ICO(0.13,0),iron,0,0.025,0);
+    for(let i=0;i<2;i++) enemyPiece(arm,CONE(0.027,0.12,4),bone,side*(0.025+i*0.065),0.13,0,0,0,-side*0.3);
   }
-
-  // Braços longos; o direito carrega um cutelo pesado
-  const armR = new THREE.Group();
-  armR.position.set(0.26, 0.44, 0.02);
-  armR.add(mesh(BOX(0.11, 0.26, 0.11), skin, 0, -0.11, 0));
-  const cleaver = mesh(BOX(0.07, 0.3, 0.2), std(PAL.iron, { metalness: 0.45, roughness: 0.5 }), 0.02, -0.34, 0.08);
-  cleaver.rotation.x = 0.3;
-  armR.add(cleaver);
-  g.add(armR);
-
-  const armL = mesh(BOX(0.11, 0.26, 0.11), skin, -0.26, 0.33, 0.02);
-  g.add(armL);
-
-  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, body: torso };
-  return g;
+  enemyPiece(armR,CYL(0.025,0.03,0.31,6),leather,0,-0.20,0.10);
+  enemyPiece(armR,BOX(0.07,0.24,0.17),iron,0.045,-0.08,0.11,0,0,-0.12);
+  enemyPiece(armR,BOX(0.025,0.23,0.18),std(PAL.iron),0.09,-0.08,0.11,0,0,-0.12);
+  g.userData={legL,legR,armR,armL,head,body:torso}; return g;
 }
 
 /**
@@ -948,255 +775,139 @@ function buildOrc(color) {
  * tudo o mais visto de cima — nenhuma outra criatura é mais comprida que alta.
  */
 function buildWolf(color) {
-  const g = new THREE.Group();
-  const fur = std(color, { roughness: 0.92 });
-  const furDark = std(shade(color, 0.7), { roughness: 0.92 });
-
-  const body = mesh(BOX(0.22, 0.2, 0.52), fur, 0, 0.26, -0.02);
-  g.add(body);
-  g.add(mesh(BOX(0.2, 0.14, 0.2), furDark, 0, 0.34, -0.12));   // cernelha
-
-  // Cabeça baixa, à frente do corpo
-  const head = new THREE.Group();
-  head.position.set(0, 0.28, 0.3);
-  head.add(mesh(BOX(0.16, 0.15, 0.2), fur, 0, 0, 0));
-  head.add(mesh(BOX(0.1, 0.09, 0.15), furDark, 0, -0.03, 0.15));  // focinho
-  for (let side = -1; side <= 1; side += 2) {
-    const ear = mesh(CONE(0.05, 0.12, 4), furDark, side * 0.07, 0.11, -0.03);
-    head.add(ear);
-    const eye = mesh(SPH(0.024, 6, 6), std(0xffe08a, { emissive: 0xffb43d, emissiveIntensity: 1.4 }), side * 0.055, 0.03, 0.1);
-    eye.castShadow = false;
-    head.add(eye);
+  const g=new THREE.Group(), fur=std(color), dark=std(shade(color,0.65)), pale=std(shade(color,1.3)), claw=std(PAL.bone);
+  const body=enemyPiece(g,ICO(0.23,1),fur,0,0.29,-0.055); body.scale.set(0.62,0.72,1.55);
+  const chest=enemyPiece(g,ICO(0.18,0),dark,0,0.32,0.13); chest.scale.set(0.85,1.15,0.85);
+  for(let i=0;i<5;i++) enemyPiece(g,CONE(0.045,0.14,4),dark,(i-2)*0.04,0.35,0.09-Math.abs(i-2)*0.025,0.65,0,(i-2)*0.4);
+  const head=enemyJoint(g,fur,0,0.37,0.26,0.03,true);
+  const skull=enemyPiece(head,ICO(0.105,0),fur); skull.scale.set(0.8,0.85,1.1);
+  enemyPiece(head,CYL(0.046,0.067,0.17,5),fur,0,-0.035,0.13,Math.PI/2);
+  enemyPiece(head,BOX(0.07,0.025,0.16),pale,0,-0.067,0.12);
+  enemyPiece(head,ICO(0.033,0),std(0x222824),0,-0.025,0.22);
+  for(const side of [-1,1]) {
+    enemyPiece(head,CONE(0.044,0.13,3),dark,side*0.067,0.10,-0.025,0,0,-side*0.15);
+    enemyPiece(head,CONE(0.025,0.07,3),pale,side*0.067,0.11,-0.003);
+    enemyPiece(head,CONE(0.013,0.036,4),claw,side*0.037,-0.06,0.13,0,0,Math.PI);
   }
-  g.add(head);
-
-  // Quatro patas: dianteiras e traseiras batem em contratempo
-  const legs = [];
-  for (let sx = -1; sx <= 1; sx += 2) {
-    for (let sz = -1; sz <= 1; sz += 2) {
-      const leg = mesh(BOX(0.07, 0.22, 0.08), furDark, sx * 0.09, 0.11, sz * 0.18);
-      g.add(leg);
-      legs.push(leg);
-    }
+  enemyEyes(head,std(0xffe08a,{emissive:0xffb43d,emissiveIntensity:1.4}),0.061,0.026,0.07,0.02);
+  const legs=[];
+  // Explicit left/right front pair, then left/right hind pair.
+  for(const z of [0.17,-0.24]) for(const side of [-1,1]) {
+    const leg=enemyJoint(g,fur,side*0.10,0.28,z,0.037);
+    enemyPiece(leg,CYL(0.04,0.026,0.13,5),fur,0,-0.06,z<0?-0.025:0,z<0?0.35:-0.15);
+    enemyPiece(leg,SPH(0.035,6,4),dark,0,-0.12,0.015);
+    enemyPiece(leg,CYL(0.024,0.022,0.12,5),dark,0,-0.19,0.005,-0.2);
+    enemyPiece(leg,BOX(0.065,0.035,0.09),fur,0,-0.2625,0.025);
+    legs.push(leg);
   }
-
-  const tail = mesh(BOX(0.07, 0.07, 0.26), fur, 0, 0.3, -0.36);
-  tail.rotation.x = -0.5;
-  g.add(tail);
-
-  g.userData = {
-    legL: legs[0], legR: legs[1], legL2: legs[2], legR2: legs[3],
-    head: head, body: body, tail: tail
-  };
-  return g;
+  const tail=enemyJoint(g,fur,0,0.33,-0.34,0.045);
+  for(let i=0;i<3;i++) {
+    const t=enemyPiece(tail,ICO(0.075-i*0.015,0),i===2?pale:fur,0,-i*0.04,-0.075-i*0.10); t.scale.set(0.85,0.85,1.45);
+  }
+  g.userData={legL:legs[0],legR:legs[1],legL2:legs[2],legR2:legs[3],head,body,tail}; return g;
 }
 
 /** Troll: alto e curvado, braços até o chão. Brilha enquanto se regenera. */
 function buildTroll(color) {
-  const g = new THREE.Group();
-  const hide = std(color, { roughness: 0.95 });
-  const hideDark = std(shade(color, 0.72), { roughness: 0.95 });
-
-  const legL = mesh(BOX(0.13, 0.24, 0.14), hideDark, -0.1, 0.12, 0);
-  const legR = mesh(BOX(0.13, 0.24, 0.14), hideDark, 0.1, 0.12, 0);
-  g.add(legL, legR);
-
-  const torso = new THREE.Group();
-  torso.position.set(0, 0.34, 0);
-  torso.rotation.x = 0.3;
-  torso.add(mesh(BOX(0.34, 0.42, 0.26), hide, 0, 0.14, 0));
-  g.add(torso);
-
-  // Cabeça pequena e adiantada, acentuando a corcunda
-  const head = mesh(SPH(0.115, 10, 8), hide, 0, 0.66, 0.12);
-  head.scale.set(1, 1.1, 0.95);
-  g.add(head);
-  g.add(mesh(BOX(0.1, 0.06, 0.09), hideDark, 0, 0.62, 0.2));
-  for (let side = -1; side <= 1; side += 2) {
-    const eye = mesh(SPH(0.022, 6, 6), std(0xd8ffb0, { emissive: 0x9ade4a, emissiveIntensity: 1.2 }), side * 0.045, 0.69, 0.19);
-    eye.castShadow = false;
-    g.add(eye);
+  const g=new THREE.Group(), hide=std(color), dark=std(shade(color,0.72)), moss=std(0x506d39), wood=std(PAL.woodDark), bone=std(PAL.bone);
+  const legL=enemyLeg(g,hide,dark,-0.095,0.34,0.09), legR=enemyLeg(g,hide,dark,0.095,0.34,0.09);
+  const torso=enemyJoint(g,hide,0,0.34,0,0.03,true); torso.rotation.x=0.28;
+  const back=enemyPiece(torso,ICO(0.24,0),hide,0,0.19,-0.045); back.scale.set(0.78,1.15,0.72);
+  enemyPiece(torso,CYL(0.11,0.15,0.16,6),dark,0,0.03,0);
+  for(let i=0;i<5;i++) {
+    enemyPiece(torso,ICO(0.045,0),moss,Math.sin(i*2)*0.13,0.26+(i%2)*0.10,-0.17);
+    if(i<3) { enemyPiece(torso,CYL(0.012,0.015,0.055,5),bone,(i-1)*0.09,0.33,-0.18); enemyPiece(torso,CONE(0.045,0.025,6),std(0xa18c63),(i-1)*0.09,0.36,-0.18); }
   }
-
-  // Braços compridos que quase raspam o chão
-  const armR = new THREE.Group();
-  armR.position.set(0.22, 0.56, 0.02);
-  armR.add(mesh(BOX(0.11, 0.38, 0.11), hide, 0, -0.18, 0));
-  armR.add(mesh(SPH(0.09, 8, 6), hideDark, 0, -0.38, 0.02));
-  g.add(armR);
-  const armL = new THREE.Group();
-  armL.position.set(-0.22, 0.56, 0.02);
-  armL.add(mesh(BOX(0.11, 0.38, 0.11), hide, 0, -0.18, 0));
-  armL.add(mesh(SPH(0.09, 8, 6), hideDark, 0, -0.38, 0.02));
-  g.add(armL);
-
-  // Brilho de regeneração, ligado por info.healing
-  const glowShell = new THREE.Mesh(ICO(0.42, 0), glow(0x8ade5a, 0.3));
-  glowShell.position.y = 0.38;
-  glowShell.visible = false;
-  glowShell.castShadow = false;
-  g.add(glowShell);
-
-  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, body: torso, healGlow: glowShell };
-  return g;
+  const head=enemyPiece(g,SPH(0.105,8,6),hide,0,0.73,0.17); head.scale.y=1.12;
+  enemyPiece(head,CONE(0.037,0.16,4),dark,0,-0.03,0.135,Math.PI/2+0.3);
+  enemyPiece(head,BOX(0.105,0.06,0.07),dark,0,-0.07,0.06);
+  enemyEyes(head,std(0xd8ffb0,{emissive:0x9ade4a,emissiveIntensity:1.2}),0.042,0.032,0.092);
+  for(const side of [-1,1]) { enemyPiece(head,CONE(0.035,0.13,4),hide,side*0.12,0,-0.02,0,0,-side*1.3); enemyPiece(head,CONE(0.015,0.075,4),bone,side*0.04,-0.035,0.10); }
+  const armR=enemyArm(g,hide,dark,0.21,0.64,0.47,0.085), armL=enemyArm(g,hide,dark,-0.21,0.64,0.47,0.085);
+  for(const arm of [armL,armR]) for(let i=0;i<3;i++) enemyPiece(arm,BOX(0.022,0.075,0.03),dark,(i-1)*0.032,-0.45,0.065);
+  enemyPiece(armR,CYL(0.028,0.045,0.36,6),wood,0,-0.32,0.13);
+  enemyPiece(armR,ICO(0.095,0),wood,0,-0.13,0.13);
+  const glowShell=new THREE.Mesh(ICO(0.42,0),glow(0x8ade5a,0.3)); glowShell.position.y=0.38; glowShell.visible=false; glowShell.castShadow=false; g.add(glowShell);
+  g.userData={legL,legR,armR,armL,head,body:torso,healGlow:glowShell}; return g;
 }
 
 /** Golem: blocos empilhados, sem pescoço. Massa angular e fendas acesas. */
 function buildGolem(color) {
-  const g = new THREE.Group();
-  const rock = std(color, { roughness: 1, flatShading: true });
-  const rockDark = std(shade(color, 0.72), { roughness: 1 });
-  const coreMat = std(0xff9a3d, { emissive: 0xff7a1d, emissiveIntensity: 1.6, roughness: 0.4 });
-
-  const legL = mesh(BOX(0.17, 0.2, 0.18), rockDark, -0.13, 0.1, 0);
-  const legR = mesh(BOX(0.17, 0.2, 0.18), rockDark, 0.13, 0.1, 0);
-  g.add(legL, legR);
-
-  // Tronco: três blocos desalinhados, para não ler como uma caixa só
-  const torso = new THREE.Group();
-  torso.position.set(0, 0.22, 0);
-  const b1 = mesh(BOX(0.46, 0.2, 0.32), rock, 0, 0.1, 0);
-  b1.rotation.y = 0.12;
-  const b2 = mesh(BOX(0.42, 0.18, 0.3), rock, 0.02, 0.28, 0);
-  b2.rotation.y = -0.16;
-  const b3 = mesh(BOX(0.34, 0.14, 0.26), rockDark, -0.02, 0.43, 0);
-  b3.rotation.y = 0.2;
-  torso.add(b1, b2, b3);
-  // Fenda acesa no peito
-  const core = mesh(ICO(0.09, 0), coreMat, 0, 0.26, 0.15);
-  core.castShadow = false;
-  torso.add(core);
-  g.add(torso);
-
-  // Cabeça encaixada nos ombros, sem pescoço
-  const head = mesh(BOX(0.22, 0.18, 0.2), rock, 0, 0.74, 0.02);
-  g.add(head);
-  for (let side = -1; side <= 1; side += 2) {
-    const eye = mesh(BOX(0.04, 0.03, 0.02), coreMat, side * 0.055, 0.76, 0.11);
-    eye.castShadow = false;
-    g.add(eye);
-    const shard = mesh(OCT(0.07), rockDark, side * 0.26, 0.62, -0.04);
-    shard.scale.set(1, 1.5, 1);
-    g.add(shard);
+  const g=new THREE.Group(), rock=std(color,{roughness:1}), dark=std(shade(color,0.72)), moss=std(0x61733e), magic=std(0xff9a3d,{emissive:0xff7a1d,emissiveIntensity:1.6});
+  const legL=enemyLeg(g,rock,dark,-0.13,0.25,0.15), legR=enemyLeg(g,rock,dark,0.13,0.25,0.15);
+  const torso=enemyJoint(g,rock,0,0.25,0,0.03,true);
+  for(let i=0;i<3;i++) enemyPiece(torso,BOX(0.44-i*0.045,0.16,0.29-i*0.02),i===2?dark:rock,(i%2)*0.025,0.08+i*0.16,0,0,i%2?-0.16:0.12);
+  enemyPiece(torso,BOX(0.15,0.17,0.03),dark,0,0.24,0.16);
+  enemyPiece(torso,OCT(0.075),magic,0,0.24,0.18);
+  for(const side of [-1,1]) enemyPiece(torso,BOX(0.018,0.14,0.015),magic,side*0.06,0.24,0.184,0,0,side*0.4);
+  const head=enemyPiece(g,BOX(0.20,0.17,0.20),rock,0,0.79,0.025,0,0.08);
+  enemyPiece(head,BOX(0.22,0.045,0.21),dark,0,0.07,0);
+  enemyPiece(head,BOX(0.14,0.035,0.035),dark,0,-0.05,0.1);
+  enemyEyes(head,magic,0.052,0.012,0.11,0.028);
+  const armR=enemyJoint(g,rock,0.29,0.61,0,0.04,true), armL=enemyJoint(g,rock,-0.29,0.61,0,0.04,true);
+  for(const [side,arm] of [[-1,armL],[1,armR]]) {
+    enemyPiece(arm,ICO(0.13,0),rock,0,0,0);
+    enemyPiece(arm,BOX(0.13,0.15,0.15),rock,0,-0.13,0,0,side*0.2);
+    enemyPiece(arm,BOX(0.19,0.17,0.20),dark,0,-0.29,0.025,0,-side*0.15);
+    for(let i=0;i<3;i++) enemyPiece(arm,BOX(0.042,0.065,0.035),rock,(i-1)*0.05,-0.31,0.13);
+    enemyPiece(arm,OCT(0.055),moss,side*0.07,0.10,0);
   }
-
-  const armR = new THREE.Group();
-  armR.position.set(0.3, 0.55, 0);
-  armR.add(mesh(BOX(0.16, 0.3, 0.16), rock, 0, -0.14, 0));
-  armR.add(mesh(BOX(0.22, 0.2, 0.22), rockDark, 0, -0.33, 0));
-  g.add(armR);
-  const armL = new THREE.Group();
-  armL.position.set(-0.3, 0.55, 0);
-  armL.add(mesh(BOX(0.16, 0.3, 0.16), rock, 0, -0.14, 0));
-  armL.add(mesh(BOX(0.22, 0.2, 0.22), rockDark, 0, -0.33, 0));
-  g.add(armL);
-
-  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, body: torso };
-  return g;
+  for(let i=0;i<6;i++) enemyPiece(torso,ICO(0.04,0),moss,Math.sin(i*2)*0.16,0.13+(i%3)*0.14,-0.14);
+  g.userData={legL,legR,armR,armL,head,body:torso}; return g;
 }
 
 /** Xamã: manto cônico e cajado aceso, com o anel da maldição no chão. */
 function buildShaman(color) {
-  const g = new THREE.Group();
-  const robe = std(color, { roughness: 0.88 });
-  const robeDark = std(shade(color, 0.7), { roughness: 0.88 });
-  const bone = std(PAL.bone, { roughness: 0.7 });
-
-  // O manto cônico substitui pernas: silhueta de vela, única no elenco
-  const skirt = mesh(CONE(0.22, 0.42, 8), robe, 0, 0.21, 0);
-  g.add(skirt);
-  g.add(mesh(BOX(0.26, 0.12, 0.2), robeDark, 0, 0.42, 0));
-
-  const head = mesh(SPH(0.1, 10, 8), std(shade(color, 1.3), { roughness: 0.85 }), 0, 0.56, 0.02);
-  g.add(head);
-  // Máscara ritual de osso
-  const mask = mesh(BOX(0.13, 0.15, 0.04), bone, 0, 0.56, 0.1);
-  g.add(mask);
-  for (let side = -1; side <= 1; side += 2) {
-    const eye = mesh(BOX(0.03, 0.025, 0.02), std(0xd8a0ff, { emissive: 0xb060ff, emissiveIntensity: 1.8 }), side * 0.035, 0.58, 0.13);
-    eye.castShadow = false;
-    g.add(eye);
-    const horn = mesh(CONE(0.03, 0.16, 4), bone, side * 0.09, 0.66, 0);
-    horn.rotation.z = side * -0.6;
-    g.add(horn);
+  const g=new THREE.Group(), robe=std(color), dark=std(shade(color,0.65)), bone=std(PAL.bone), wood=std(PAL.woodDark), magic=std(0xc79aff,{emissive:0xa050ff,emissiveIntensity:1.7});
+  enemyPiece(g,CYL(0.105,0.22,0.42,8),robe,0,0.21,0);
+  for(const side of [-1,1]) {
+    enemyPiece(g,BOX(0.075,0.34,0.025),dark,side*0.08,0.21,0.16,0,0,side*0.12);
+    enemyPiece(g,ICO(0.095,0),dark,side*0.12,0.44,0);
+    for(let i=0;i<3;i++) enemyPiece(g,SPH(0.023,6,4),bone,side*(0.04+i*0.027),0.40+i*0.019,0.13);
+    enemyPiece(g,CYL(0.012,0.015,0.10,5),bone,side*0.13,0.30,0.15,0,0,side*0.3);
   }
-
-  // Cajado com orbe acesa
-  const armR = new THREE.Group();
-  armR.position.set(0.18, 0.44, 0.02);
-  armR.add(mesh(CYL(0.02, 0.025, 0.5, 6), std(PAL.woodDark), 0, -0.12, 0.02));
-  const orb = mesh(OCT(0.07), std(0xc79aff, { emissive: 0xa050ff, emissiveIntensity: 1.7, roughness: 0.3 }), 0, 0.16, 0.02);
-  orb.castShadow = false;
-  armR.add(orb);
-  const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), glow(0xb060ff, 0.5));
-  halo.position.copy(orb.position);
-  armR.add(halo);
-  g.add(armR);
-  const armL = mesh(BOX(0.06, 0.16, 0.06), robe, -0.18, 0.4, 0.02);
-  g.add(armL);
-
-  // Anel da maldição: mostra o alcance da aura no chão
-  const auraRing = new THREE.Mesh(new THREE.RingGeometry(0.88, 1.0, 32), glow(0xb060ff, 0.28));
-  auraRing.rotation.x = -Math.PI / 2;
-  auraRing.position.y = 0.01;
-  auraRing.castShadow = false;
-  g.add(auraRing);
-
-  g.userData = { armR: armR, armL: armL, head: head, orb: orb, halo: halo, auraRing: auraRing, glide: true };
-  return g;
+  const head=enemyPiece(g,SPH(0.10,8,6),std(0x759352),0,0.57,0.025);
+  enemyPiece(head,BOX(0.13,0.15,0.045),bone,0,0,0.085);
+  enemyPiece(head,CONE(0.034,0.08,4),wood,0,-0.025,0.13,Math.PI/2);
+  enemyEyes(head,magic,0.035,0.025,0.12);
+  for(const side of [-1,1]) {
+    enemyPiece(head,CONE(0.03,0.17,4),bone,side*0.09,0.10,-0.01,0,0,-side*0.6);
+    for(let i=0;i<3;i++) enemyFeather(head,i%2?robe:dark,side*(0.11+i*0.035),0.025+i*0.04,-0.05,0.13,side*-0.7);
+  }
+  const armR=enemyArm(g,robe,wood,0.18,0.44,0.18,0.055), armL=enemyArm(g,robe,dark,-0.18,0.44,0.18,0.055,false);
+  enemyPiece(armR,CYL(0.02,0.025,0.5,6),wood,0,-0.12,0.02);
+  for(const y of [-0.24,0.04,0.10]) enemyPiece(armR,CYL(0.032,0.032,0.026,6),bone,0,y,0.02);
+  enemyPiece(armR,BOX(0.11,0.065,0.055),wood,0,0.09,0.02);
+  const orb=enemyPiece(armR,OCT(0.07),magic,0,0.16,0.02); orb.castShadow=false;
+  const halo=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.3),glow(0xb060ff,0.5)); halo.position.copy(orb.position); armR.add(halo);
+  const auraRing=new THREE.Mesh(new THREE.RingGeometry(0.88,1.0,32),glow(0xb060ff,0.28)); auraRing.rotation.x=-Math.PI/2; auraRing.position.y=0.01; auraRing.castShadow=false; g.add(auraRing);
+  g.userData={armR,armL,head,orb,halo,auraRing,glide:true}; return g;
 }
 
 /** Assassino: esguio, encapuzado, duas adagas. Some e reaparece em ciclo. */
 function buildAssassin(color) {
-  const g = new THREE.Group();
-  const pano = std(color, { roughness: 0.9 });
-  const panoEsc = std(shade(color, 0.65), { roughness: 0.9 });
-  const aco = std(PAL.iron, { metalness: 0.7, roughness: 0.3 });
-
-  const legL = mesh(BOX(0.07, 0.2, 0.08), panoEsc, -0.055, 0.1, 0);
-  const legR = mesh(BOX(0.07, 0.2, 0.08), panoEsc, 0.055, 0.1, 0);
-  g.add(legL, legR);
-
-  const body = mesh(BOX(0.18, 0.24, 0.14), pano, 0, 0.31, 0);
-  g.add(body);
-
-  const head = mesh(SPH(0.095, 10, 8), panoEsc, 0, 0.5, 0.01);
-  g.add(head);
-  const capuz = mesh(CONE(0.11, 0.16, 6), pano, 0, 0.55, -0.01);
-  g.add(capuz);
-  for (let side = -1; side <= 1; side += 2) {
-    const olho = mesh(BOX(0.022, 0.018, 0.02),
-      std(0xff6a4a, { emissive: 0xff3a1a, emissiveIntensity: 2 }), side * 0.035, 0.5, 0.08);
-    olho.castShadow = false;
-    g.add(olho);
+  const g=new THREE.Group(), cloth=std(color), dark=std(shade(color,0.55)), leather=std(0x302b29), steel=std(PAL.iron,{metalness:0.7});
+  const legL=enemyLeg(g,dark,leather,-0.055,0.25,0.055), legR=enemyLeg(g,dark,leather,0.055,0.25,0.055);
+  const body=enemyPiece(g,CYL(0.105,0.075,0.24,6),cloth,0,0.36,0);
+  for(const side of [-1,1]) {
+    enemyPiece(g,BOX(0.025,0.24,0.024),leather,side*0.03,0.36,0.095,0,0,side*0.38);
+    enemyPiece(g,BOX(0.06,0.075,0.045),leather,side*0.095,0.25,0.03);
+    enemyPiece(g,BOX(0.075,0.028,0.10),steel,side*0.055,0.14,0);
   }
-
-  // Manto curto, para a silhueta não virar a do Xamã
-  const manto = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.3, 2, 2),
-    std(shade(color, 0.5), { roughness: 0.95, side: THREE.DoubleSide }));
-  manto.position.set(0, 0.3, -0.09);
-  manto.rotation.x = 0.15;
-  manto.castShadow = true;
-  g.add(manto);
-
-  const armR = new THREE.Group();
-  armR.position.set(0.13, 0.36, 0.02);
-  armR.add(mesh(BOX(0.055, 0.15, 0.055), pano, 0, -0.06, 0));
-  const adagaR = mesh(BOX(0.022, 0.2, 0.01), aco, 0.01, -0.2, 0.05);
-  adagaR.rotation.x = 0.5;
-  armR.add(adagaR);
-  g.add(armR);
-
-  const armL = new THREE.Group();
-  armL.position.set(-0.13, 0.36, 0.02);
-  armL.add(mesh(BOX(0.055, 0.15, 0.055), pano, 0, -0.06, 0));
-  const adagaL = mesh(BOX(0.022, 0.2, 0.01), aco, -0.01, -0.2, 0.05);
-  adagaL.rotation.x = 0.5;
-  armL.add(adagaL);
-  g.add(armL);
-
-  g.userData = { legL: legL, legR: legR, armR: armR, armL: armL, head: head, body: body, cape: manto };
-  return g;
+  enemyPiece(g,BOX(0.20,0.035,0.16),leather,0,0.27,0);
+  enemyPiece(g,BOX(0.04,0.04,0.02),steel,0,0.27,0.09);
+  const head=enemyPiece(g,SPH(0.09,8,6),dark,0,0.55,0.015);
+  enemyPiece(head,BOX(0.15,0.035,0.16),cloth,0,0.075,-0.025);
+  enemyPiece(head,BOX(0.14,0.15,0.04),cloth,0,0,-0.085);
+  for(const side of [-1,1]) enemyPiece(head,BOX(0.04,0.14,0.12),cloth,side*0.077,0,-0.02,0,0,side*0.1);
+  enemyPiece(head,BOX(0.13,0.065,0.035),leather,0,-0.035,0.077);
+  enemyEyes(head,std(0xff6a4a,{emissive:0xff3a1a,emissiveIntensity:2}),0.035,0.018,0.093,0.018);
+  enemyPiece(g,CYL(0.10,0.10,0.055,6),dark,0,0.47,0);
+  const cape=enemyCape(g,dark,0.16,0.25,0.46,-0.095);
+  enemyPiece(cape,BOX(0.055,0.23,0.025),cloth,0.11,-0.08,-0.06,-0.6,0,-0.5);
+  const armR=enemyArm(g,cloth,leather,0.13,0.43,0.21,0.05), armL=enemyArm(g,cloth,leather,-0.13,0.43,0.21,0.05);
+  enemyBlade(armR,steel,leather,-0.19,true); enemyBlade(armL,steel,leather,-0.19,true);
+  g.userData={legL,legR,armR,armL,head,body,cape}; return g;
 }
 
 /**
@@ -1204,69 +915,54 @@ function buildAssassin(color) {
  * vez de recomeçar — o que o marca como chefe é o porte e a insígnia.
  */
 function buildWarlord(color) {
-  const g = buildOrc(color);
-  const metal = std(PAL.iron, { metalness: 0.6, roughness: 0.4 });
-
-  // Elmo com chifres
-  const elmo = mesh(SPH(0.15, 10, 6), metal, 0, 0.58, 0.06);
-  elmo.scale.set(1, 0.62, 1);
-  g.add(elmo);
-  for (let side = -1; side <= 1; side += 2) {
-    const chifre = mesh(CONE(0.045, 0.24, 4), std(PAL.bone, { roughness: 0.7 }), side * 0.14, 0.62, 0.04);
-    chifre.rotation.z = side * -1.1;
-    g.add(chifre);
+  const g=buildOrc(color), {head,body,armR,armL}=g.userData, metal=std(shade(color,0.6),{metalness:0.6}), gold=std(PAL.gold,{metalness:0.65}), bone=std(PAL.bone);
+  // Replace the cleaver with a boss-sized axe, keeping its shoulder pivot.
+  armR.remove(...armR.children.slice(-3));
+  enemyPiece(armR,CYL(0.027,0.033,0.52,6),std(PAL.woodDark),0,-0.16,0.13);
+  for(const side of [-1,1]) { enemyPiece(armR,BOX(0.14,0.20,0.045),metal,side*0.075,0.04,0.13,0,0,-side*0.3); enemyPiece(armR,BOX(0.022,0.21,0.05),gold,side*0.14,0.04,0.13,0,0,-side*0.3); }
+  enemyPiece(head,SPH(0.14,8,5),metal,0,0.055,-0.025).scale.y=0.65;
+  enemyPiece(head,BOX(0.035,0.17,0.025),gold,0,0.06,0.12);
+  for(const side of [-1,1]) {
+    enemyPiece(head,CONE(0.045,0.23,4),bone,side*0.15,0.12,-0.025,0,0,-side*0.95);
+    enemyPiece(body,BOX(0.16,0.22,0.035),metal,side*0.09,0.20,0.17,0,0,side*0.08);
+    enemyPiece(body,BOX(0.018,0.22,0.04),gold,side*0.16,0.20,0.19);
   }
-
-  // Estandarte nas costas: a insígnia que se vê de longe
-  const mastro = mesh(CYL(0.02, 0.025, 0.8, 5), std(PAL.woodDark), -0.16, 0.6, -0.16);
-  g.add(mastro);
-  const bandeira = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.24, 3, 1),
-    std(0xc03a2a, { side: THREE.DoubleSide, roughness: 0.85 }));
-  bandeira.position.set(-0.01, 0.9, -0.16);
-  bandeira.castShadow = true;
-  g.add(bandeira);
-  g.userData.banner = bandeira;
-
-  const aura = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 28), glow(0xff8a3d, 0.3).clone());
-  aura.rotation.x = -Math.PI / 2;
-  aura.position.y = 0.015;
-  aura.castShadow = false;
-  g.add(aura);
-  g.userData.auraRing = aura;
-  return g;
+  for(const arm of [armL,armR]) { enemyPiece(arm,BOX(0.22,0.05,0.23),metal,0,0.08,0); enemyPiece(arm,BOX(0.23,0.02,0.24),gold,0,0.10,0); }
+  enemyPiece(body,OCT(0.045),gold,0,0.19,0.20);
+  enemyPiece(g,CYL(0.02,0.025,0.8,5),std(PAL.woodDark),-0.16,0.60,-0.16);
+  const banner=enemyPiece(g,BOX(0.30,0.24,0.018),std(0xc03a2a,{side:THREE.DoubleSide}),-0.01,0.90,-0.16);
+  enemyPiece(banner,BOX(0.27,0.02,0.025),gold,0,0.11,0);
+  enemyPiece(banner,OCT(0.06),gold,0,0,0.018).scale.z=0.2;
+  for(const side of [-1,1]) enemyPiece(banner,CONE(0.045,0.08,3),std(0xc03a2a),side*0.10,-0.14,0,0,0,Math.PI);
+  const aura=new THREE.Mesh(new THREE.RingGeometry(0.9,1.0,28),glow(0xff8a3d,0.3).clone()); aura.rotation.x=-Math.PI/2; aura.position.y=0.015; aura.castShadow=false; g.add(aura);
+  g.userData.banner=banner; g.userData.auraRing=aura; return g;
 }
 
 /** Rei da Morte: o cavaleiro esqueleto coroado, com almas ao redor. */
 function buildDeathKing(color) {
-  const g = buildSkeletonKnight(color);
-  const ouro = std(PAL.gold, { metalness: 0.7, roughness: 0.3 });
-
-  // Coroa de pontas
-  g.add(mesh(CYL(0.12, 0.13, 0.06, 8), ouro, 0, 0.86, 0.01));
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const ponta = mesh(CONE(0.025, 0.11, 4), ouro, Math.cos(a) * 0.11, 0.94, Math.sin(a) * 0.11);
-    g.add(ponta);
+  const g=buildSkeletonKnight(color), {head,armR,armL}=g.userData, robe=std(color), dark=std(shade(color,0.48)), gold=std(PAL.gold,{metalness:0.7}), magic=std(0xb89aff,{emissive:0x8a4aff,emissiveIntensity:1.5});
+  // Remove knight weapons, retaining bone arms and their shoulder joints.
+  armR.remove(...armR.children.slice(5)); armL.remove(...armL.children.slice(5));
+  enemyPiece(g,CYL(0.11,0.22,0.42,8),dark,0,0.26,0);
+  for(const side of [-1,1]) {
+    enemyPiece(g,BOX(0.09,0.40,0.028),robe,side*0.085,0.29,0.15,0,0,side*0.09);
+    enemyPiece(g,BOX(0.018,0.40,0.035),gold,side*0.045,0.29,0.17,0,0,side*0.09);
+    enemyPiece(g,BOX(0.12,0.05,0.15),robe,side*0.09,0.60,0,0,0,side*0.35);
   }
-
-  // Almas presas em órbita: o exército que ele ainda pode erguer
-  const almas = [];
-  for (let i = 0; i < 4; i++) {
-    const alma = mesh(OCT(0.05), std(0xb89aff, { emissive: 0x8a4aff, emissiveIntensity: 1.5, roughness: 0.3 }), 0, 0.5, 0);
-    alma.castShadow = false;
-    alma.userData.angle = (i / 4) * Math.PI * 2;
-    g.add(alma);
+  enemyPiece(head,CYL(0.115,0.12,0.05,8),gold,0,0.12,0);
+  for(let i=0;i<6;i++) { const a=i*Math.PI/3; enemyPiece(head,CONE(0.023,0.13,4),gold,Math.cos(a)*0.10,0.20,Math.sin(a)*0.10); }
+  enemyPiece(armR,CYL(0.018,0.024,0.66,6),dark,0,-0.10,0.12);
+  enemyPiece(armR,CYL(0.03,0.03,0.03,6),gold,0,0.20,0.12);
+  enemyPiece(armR,ICO(0.075,0),magic,0,0.28,0.12);
+  for(const side of [-1,1]) enemyPiece(armR,CONE(0.02,0.12,4),gold,side*0.06,0.24,0.12,0,0,-side*0.4);
+  const almas=[];
+  for(let i=0;i<4;i++) {
+    const alma=enemyPiece(g,OCT(0.05),magic,0,0.5,0); alma.castShadow=false; alma.userData.angle=i*Math.PI/2;
+    enemyPiece(alma,CONE(0.025,0.08,4),magic,0,-0.055,0,0,0,Math.PI);
     almas.push(alma);
   }
-  g.userData.souls = almas;
-
-  const aura = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 28), glow(0xa050ff, 0.32).clone());
-  aura.rotation.x = -Math.PI / 2;
-  aura.position.y = 0.015;
-  aura.castShadow = false;
-  g.add(aura);
-  g.userData.auraRing = aura;
-  return g;
+  const aura=new THREE.Mesh(new THREE.RingGeometry(0.9,1.0,28),glow(0xa050ff,0.32).clone()); aura.rotation.x=-Math.PI/2; aura.position.y=0.015; aura.castShadow=false; g.add(aura);
+  g.userData.souls=almas; g.userData.auraRing=aura; return g;
 }
 
 const ENEMY_BUILDERS = {
@@ -1292,9 +988,9 @@ const ENEMY_BUILDERS = {
  * auraWorld, quando houver, é o alcance real da aura em células — o anel no
  * chão precisa dele para não mentir sobre até onde a maldição pega.
  */
-export function buildEnemy(type, color, radiusWorld, auraWorld) {
+export function buildEnemy(type, color, radiusWorld, auraWorld, character) {
   const build = ENEMY_BUILDERS[type] || ENEMY_BUILDERS.grunt;
-  const inner = build(color);
+  const inner = character ? characterInner(character, color, auraWorld) : build(color);
 
   // Casca de gelo (exibida enquanto o inimigo está lento)
   const frost = new THREE.Mesh(ICO(0.46, 0), glow(PAL.frost, 0.3).clone());
@@ -1334,8 +1030,28 @@ export function buildEnemy(type, color, radiusWorld, auraWorld) {
   if (inner.userData.auraRing && auraWorld > 0) {
     inner.userData.auraRing.scale.setScalar(auraWorld / holderScale);
   }
-  holder.userData = { inner: inner, parts: inner.userData, type: type, cloakMark: cloakMark };
+  holder.userData = { inner: inner, parts: inner.userData, type: type, cloakMark: cloakMark, character: character || null };
   return holder;
+}
+
+/**
+ * Casca de um inimigo vestido por personagem animado (characters.js): as
+ * partes procedurais somem — o esqueleto do modelo anima o corpo —, mas o anel
+ * de aura continua sendo do jogo, porque mostra um alcance de regra.
+ */
+function characterInner(character, color, auraWorld) {
+  const g = new THREE.Group();
+  g.add(character.root);
+  g.userData = {};
+  if (auraWorld > 0) {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.88, 1.0, 40), glow(color, 0.3));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.012;
+    ring.castShadow = false;
+    g.add(ring);
+    g.userData.auraRing = ring;
+  }
+  return g;
 }
 
 // ---------------------------------------------------------------------------

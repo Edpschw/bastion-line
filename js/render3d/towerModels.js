@@ -1,6 +1,6 @@
 // Modelos GLB detalhados. Carregamento sob demanda, instâncias independentes e
 // geometrias/materiais compartilhados; a partida não espera pela rede.
-import { THREE } from './core.js?v=siege-art-5';
+import { THREE } from './core.js?v=siege-art-6';
 import { GLTFLoader } from '../../vendor/three/GLTFLoader.js';
 
 export const TOWER_BRANCHES = {

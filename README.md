@@ -12,7 +12,7 @@ Jogue abrindo `index.html` — é um único arquivo estático, sem build.
 | **Status** | `applyStatus` / `tickStatus` | `e.status[tipo] = {fim, poder, stacks, fonte}`. `refresh` renova e mantém o mais forte; `add` empilha até um teto. Produtores hoje: Gélida (slow), Piromante (burn). `stun`, `poison`, `bleed` e `armorBreak` já funcionam, à espera das torres que os produzem. |
 | **Terra / ar** | `canHit`, `UNIT_BASE[].targets` | Voadores traçam rota reta e ignoram o labirinto. A Milícia é corpo a corpo e não alcança o ar — a loja e a ficha da torre dizem isso, porque é regra de balanceamento e não pode ser invisível. |
 | **Inimigos atacantes** | `ENEMY_BASE[].attacker` | Só criaturas marcadas param a marcha para destruir torres. O resto corre para o bastião. Torres sobreviventes são reparadas entre ondas: a pressão vale dentro da onda, sem virar bola de neve. |
-| **Criaturas** | `ENEMY_BASE` | Cada uma carrega uma função estratégica (GDD §18), declarada como dado e não como código especial: `flying`, `attacker`, `splitInto`, `regen`, `immune`, `aura`. `shape2d` diz qual desenho o renderer 2D reaproveita — sem ele, tipo novo cai no `else` e aparece como o chefe. |
+| **Criaturas** | `ENEMY_BASE` | Cada uma carrega uma função estratégica (GDD §18), declarada como dado e não como código especial: `flying`, `attacker`, `splitInto`, `regen`, `immune`, `aura`. Tipo novo precisa de modelo em `ENEMY_BUILDERS` (`js/render3d/actors.js`), senão aparece como goblin. |
 | **Composição de ondas** | `WAVE_THEMES` | Receitas com pesos e onda mínima, em vez de um tipo em destaque mais goblins. É o que permite expressar "incursão aérea" ou "coluna blindada". |
 
 ### Torres
@@ -122,19 +122,13 @@ num fantasma que nunca morre.
 
 ## Como o jogo é desenhado
 
-O projeto tem **dois renderers** para a mesma partida:
-
-| | Renderer 3D (padrão) | Renderer 2D (reserva) |
-|---|---|---|
-| Onde | `js/render3d/` | dentro de `index.html` |
-| Tecnologia | WebGL via three.js | Canvas 2D |
-| Quando entra | sempre que o navegador suportar módulos ES e WebGL | se qualquer um dos dois faltar |
+O jogo é **só 3D**: WebGL via three.js, em `js/render3d/`. Sem módulos ES ou
+WebGL, o tabuleiro dá lugar a um aviso explicando o que falta.
 
 O **núcleo do jogo vive em `index.html`** e roda inteiramente em coordenadas
 lógicas 2D (pixels, tabuleiro de 378×756). Ele não sabe que existe 3D: expõe
 `window.BastionLine` e o renderer apenas *lê* esse estado a cada frame. Isso
-mantém regras e apresentação separadas — e é o que permite a reserva 2D
-continuar funcionando sem código duplicado.
+mantém regras e apresentação separadas.
 
 ```
 index.html  ──readState()──▶  js/render3d/index.js  ──▶  cena three.js
@@ -227,7 +221,18 @@ as sombras. Só desce, nunca sobe — voltar atrás causaria oscilação visíve
 
 ## Outros diretórios
 
-- `sprites/` — ilustrações dos inimigos, usadas pelo renderer 2D de reserva.
+- `sprites/` — ilustrações pintadas (geradas pelo Codex, 200 px, fundo transparente):
+  `enemies/` (um retrato por tipo: o rosto do aviso de onda),
+  `towers/` (ícones do menu de construção e do painel de seleção) e `builder/`
+  (Peão e as 4 vocações). Os originais em alta resolução ficam em `art-src/`,
+  fora do git; para trocar uma imagem, gere em alta, guarde lá e reduza com
+  `sips -Z 200`.
+- `assets/characters/` — personagens animados (esqueleto + clipes), todos CC0:
+  `kaykit/` (Kay Lousberg, Adventurers e Skeletons; licenças junto) e `quaternius/`
+  (origem em `SOURCES.txt`). Os KayKit foram enxugados para só os clipes usados com
+  `scripts/strip_glb_anims.py`; os originais completos ficam em `art-src/`. O elenco
+  (qual modelo veste cada inimigo e cada vocação) fica em `js/render3d/characters.js`.
+- `assets/terrain/` — texturas pintadas do terreno (geradas pelo Codex, contínuas).
 - `godot/` — protótipo paralelo em Godot 4.7, seguindo o mesmo GDD.
 - `godot-web/` — build web do protótipo Godot.
 - `Fantasy_Tower_Defense_GDD_Claude.md` — documento de design.

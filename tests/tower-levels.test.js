@@ -20,8 +20,11 @@ function sourceOf(name) {
 const context = vm.createContext({});
 vm.runInContext(data + '\n' + ['getBaseStats', 'visualTier', 'evolutionCost'].map(sourceOf).join('\n'), context);
 
-assert.equal(Object.keys(context.UNIT_BASE).length, 8);
-for (const type of Object.keys(context.UNIT_BASE)) {
+// O Mestre de Obras vive no UNIT_BASE para reaproveitar o combate, mas não é
+// torre: tem escala própria de 3 estágios e 4 vocações, fora deste contrato.
+const TOWER_TYPES = Object.keys(context.UNIT_BASE).filter(t => t !== 'builder');
+assert.equal(TOWER_TYPES.length, 8);
+for (const type of TOWER_TYPES) {
   const branches = Object.keys(context.BRANCHES[type]);
   assert.equal(branches.length, 2, type + ' has two branches');
   for (const branch of branches) {

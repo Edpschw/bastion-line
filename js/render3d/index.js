@@ -3,18 +3,22 @@
 //
 // O núcleo do jogo (index.html) continua rodando inteiramente em coordenadas
 // lógicas 2D. Este módulo apenas *lê* esse estado a cada frame e mantém uma
-// cena three.js em sincronia. Se o WebGL não estiver disponível, nada é
-// anexado e o jogo segue no canvas 2D original.
+// cena three.js em sincronia. O jogo só existe em 3D: sem WebGL, o núcleo
+// mostra um aviso no lugar do tabuleiro.
 // -----------------------------------------------------------------------------
-import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp } from './core.js?v=siege-art-5';
-import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './siegeWorld.js?v=siege-art-5';
+import { THREE, PAL, HORIZON, makeMap, hexInt, glow, damp, lerpAngle } from './core.js?v=siege-art-6';
+import { createSky, createLights, createBoard, createEnvironment, createIndicators } from './siegeWorld.js?v=siege-art-6';
 import {
   buildTower, buildEnemy, buildWorker, buildMinion,
   animateTower, animateEnemy, animateWorker, pokeRecoil
-} from './actors.js?v=siege-art-5';
-import { disposeTower, towerModelCache } from './towerModels.js?v=siege-art-5';
-import { createEffects } from './fx.js?v=siege-art-5';
+} from './actors.js?v=siege-art-6';
+import { disposeTower, towerModelCache } from './towerModels.js?v=siege-art-6';
+import { createEffects } from './fx.js?v=siege-art-6';
 import { createOverlay } from './overlay.js';
+import { createPostFX } from './postfx.js?v=siege-art-6';
+import {
+  preloadCharacters, castKeys, createCharacter, characterReady, ENEMY_CAST, MINION_CAST, builderCast
+} from './characters.js?v=siege-art-6';
 
 // Câmera calcada na de Warcraft III, cujos padrões são ângulo de ataque 304,
 // campo de visão 70 e distância ao alvo 1650. Em WC3, 360 grau é a horizontal e
@@ -58,13 +62,16 @@ function createRenderer3D() {
   let game, map, container;
   let renderer, scene, camera, overlay;
   let lights, board, environment, indicators, effects;
+  let postFX = null;               // composer: GTAO, bloom, gradação de cor, SMAA
 
   const towerMeshes = new Map();   // unit.id  -> { group, sig }
   const enemyMeshes = new Map();   // enemy.id -> group
   const minionMeshes = new Map();  // minion.id -> group
+  const dying = [];                // inimigos tocando a animação de morte
   const ghostCache = new Map();    // tipo     -> grupo translúcido de pré-visualização
   let worker = null;
   let workerSig = null;
+  let workerPendingKey = null;     // personagem do construtor ainda baixando
   let ghost = null;
 
   const pickables = [];
@@ -114,16 +121,16 @@ function createRenderer3D() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.16;
+    renderer.toneMappingExposure = 1.08;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.domElement.className = 'layer3d';
     container.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    // O tabuleiro fica entre ~9 e ~15 unidades da câmera e o chão visível acaba
-    // por volta de 25: a névoa precisa caber nessa janela estreita para o cenário
-    // distante chegar saturado ao horizonte sem tocar na área de jogo.
-    scene.fog = new THREE.Fog(HORIZON, 19, 34);
+    // O tabuleiro fica entre ~9 e ~15 unidades da câmera: a névoa só começa
+    // depois dele e vai até as cordilheiras do siegeWorld, fundindo o fundo
+    // com a cor do horizonte (VALLEY_HORIZON) sem tocar na área de jogo.
+    scene.fog = new THREE.Fog(0xbfbea2, 24, 62);
     scene.add(createSky());
 
     camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 220);
@@ -134,6 +141,8 @@ function createRenderer3D() {
     environment = createEnvironment(scene, map);
     indicators = createIndicators(scene);
     effects = createEffects(scene, map);
+    preloadCharacters(castKeys());
+    postFX = createPostFX(renderer, scene, camera, { quality: 0 });
 
     worker = buildWorker();
     workerSig = null; // força a reconstrução no primeiro syncWorker(), já com a cor real do jogo
@@ -416,6 +425,7 @@ function createRenderer3D() {
     fitCameraDistance();
     updateCameraPosition(null);
     overlay.resize(w, h, Math.min(2, window.devicePixelRatio || 1));
+    if (postFX) postFX.resize(w, h, renderer.getPixelRatio());
   }
 
   /** Projeta um ponto de mundo para pixels CSS da viewport. */
@@ -486,7 +496,10 @@ function createRenderer3D() {
       seenFX.add(f);
       if (f.kind !== 'shot') continue;
       if (f.unitType && f.unitType.indexOf('builder') === 0) {
-        if (worker) pokeRecoil(worker, 1);
+        if (worker && worker.userData.character) {
+          const ch = worker.userData.character;
+          ch.play(worker.userData.attackState || 'attack', { once: true, then: 'idle', fade: 0.08 });
+        } else if (worker) pokeRecoil(worker, 1);
         continue;
       }
       for (let j = 0; j < units.length; j++) {
@@ -583,8 +596,11 @@ function createRenderer3D() {
 
       let g = enemyMeshes.get(e.id);
       if (!g) {
+        const cast = ENEMY_CAST[e.type];
+        const ch = cast && createCharacter(cast.key, cast);
         g = buildEnemy(e.type, hexInt(e.color), map.len(e.r),
-                       e.aura ? map.len(e.aura.range) : 0);
+                       e.aura ? map.len(e.aura.range) : 0, ch);
+        if (ch) ch.play(cast.run ? 'run' : 'walk');
         g.userData.height = (ENEMY_HEIGHT[e.type] || 0.8) * g.scale.y;
         scene.add(g);
         enemyMeshes.set(e.id, g);
@@ -613,14 +629,45 @@ function createRenderer3D() {
         healing: e.fx.healing,
         cloaked: e.fx.cloaked
       }, t, dt);
+
+      const ch = g.userData.character;
+      if (ch) {
+        const cast = ENEMY_CAST[e.type];
+        if (e.fx.fighting) ch.play('attack');
+        else ch.play(cast.run ? 'run' : 'walk', {
+          // Lento por gelo, a passada desacelera junto com o corpo.
+          timeScale: (e.fx.slowed ? 0.55 : 1) * Math.min(1.6, Math.max(0.7, e.speed / 50))
+        });
+        ch.update(dt);
+      }
+      g.userData.lastY = e.y;
     }
 
     enemyMeshes.forEach(function (g, id) {
-      if (!alive.has(id)) {
+      if (alive.has(id)) return;
+      enemyMeshes.delete(id);
+      // Quem chegou ao bastião some; quem caiu em combate toca a morte e
+      // afunda no chão — o abate precisa ser visto, não só contado.
+      const leaked = g.userData.lastY !== undefined && g.userData.lastY > (game.ROWS - 1.5) * game.CELL;
+      const ch = g.userData.character;
+      if (ch && !leaked && ch.play('death', { once: true, fade: 0.08 })) {
+        dying.push({ g: g, ch: ch, age: 0, hold: Math.min(1.6, ch.duration('death') + 0.25) });
+      } else {
         scene.remove(g);
-        enemyMeshes.delete(id);
       }
     });
+
+    for (let i = dying.length - 1; i >= 0; i--) {
+      const d = dying[i];
+      d.age += dt;
+      d.ch.update(dt);
+      if (d.age > d.hold) d.g.position.y -= dt * 0.6;
+      if (d.age > d.hold + 0.9) {
+        scene.remove(d.g);
+        d.ch.dispose();
+        dying.splice(i, 1);
+      }
+    }
   }
 
   /** Esqueletos invocados: mesma malha do cavaleiro morto, em escala menor. */
@@ -631,7 +678,15 @@ function createRenderer3D() {
       alive.add(m.id);
       let g = minionMeshes.get(m.id);
       if (!g) {
-        g = buildMinion();
+        const ch = createCharacter(MINION_CAST.key, MINION_CAST);
+        if (ch) {
+          g = new THREE.Group();
+          g.add(ch.root);
+          g.userData.character = ch;
+          if (!ch.play('spawn', { once: true, then: 'walk', fade: 0 })) ch.play('walk');
+        } else {
+          g = buildMinion();
+        }
         scene.add(g);
         minionMeshes.set(m.id, g);
       }
@@ -643,7 +698,14 @@ function createRenderer3D() {
       }
       g.position.x = wx;
       g.position.z = wz;
-      animateEnemy(g, { yaw: yaw, moving: !!m.moving, speed: 60, slowed: false, healing: false }, t, dt);
+      const mch = g.userData.character;
+      if (mch) {
+        g.rotation.y = yaw;
+        if (!mch.returnTo) mch.play(m.moving ? 'walk' : 'attack');
+        mch.update(dt);
+      } else {
+        animateEnemy(g, { yaw: yaw, moving: !!m.moving, speed: 60, slowed: false, healing: false }, t, dt);
+      }
     }
     minionMeshes.forEach(function (g, id) {
       if (!alive.has(id)) { scene.remove(g); minionMeshes.delete(id); }
@@ -651,13 +713,43 @@ function createRenderer3D() {
   }
 
   function syncWorker(builder, t, dt) {
-    // O Mestre de Obras troca de malha ao evoluir de vocação, do mesmo jeito
+    // O Mestre de Obras troca de corpo ao evoluir de vocação, do mesmo jeito
     // que uma torre troca ao subir de tier — só que é sempre a mesma peça.
+    // Enquanto o personagem animado não chega, vale o modelo procedural.
     const sig = builder.tier + '|' + (builder.branch || '-') + '|' + builder.color;
+    if (workerPendingKey && characterReady(workerPendingKey)) workerSig = null;
     if (sig !== workerSig) {
       const oldPickTarget = worker ? worker.userData.pickTarget : { x: 0, y: 0 };
-      if (worker) { scene.remove(worker); removePickable(worker); }
-      worker = buildWorker(builder.tier, builder.branch, hexInt(builder.color));
+      if (worker) {
+        scene.remove(worker); removePickable(worker);
+        if (worker.userData.character) worker.userData.character.dispose();
+      }
+      const cast = builderCast(builder.tier, builder.branch);
+      const ch = createCharacter(cast.key, {
+        height: builder.tier >= 3 ? 0.98 : 0.86, tint: cast.tint, tintStrength: cast.tintStrength
+      });
+      if (ch) {
+        worker = new THREE.Group();
+        worker.add(ch.root);
+        worker.userData.character = ch;
+        worker.userData.attackState = cast.attack;
+        if (builder.tier >= 3) {
+          // Promoção: o mesmo anel dourado das torres de tier alto.
+          const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.3, 0.36, 32),
+            new THREE.MeshBasicMaterial({ color: PAL.goldLight, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })
+          );
+          ring.rotation.x = -Math.PI / 2;
+          ring.position.y = 0.02;
+          worker.add(ring);
+          worker.userData.tierRing = ring;
+        }
+        ch.play('idle', { fade: 0 });
+        workerPendingKey = null;
+      } else {
+        worker = buildWorker(builder.tier, builder.branch, hexInt(builder.color));
+        workerPendingKey = cast.key;
+      }
       worker.scale.setScalar(1.3);
       worker.userData.pickTarget = oldPickTarget;
       scene.add(worker);
@@ -683,11 +775,23 @@ function createRenderer3D() {
       yaw = 0;
     }
 
-    animateWorker(worker, {
-      yaw: yaw,
-      walking: builder.state === 'walking',
-      building: builder.state === 'building'
-    }, t, dt);
+    const ch = worker.userData.character;
+    if (!ch) {
+      animateWorker(worker, {
+        yaw: yaw,
+        walking: builder.state === 'walking',
+        building: builder.state === 'building'
+      }, t, dt);
+      return;
+    }
+    const d = worker.userData;
+    d.yaw = d.yaw === undefined ? yaw : lerpAngle(d.yaw, yaw, 1 - Math.pow(0.002, dt));
+    worker.rotation.y = d.yaw;
+    if (builder.state === 'walking') ch.play('run');
+    else if (builder.state === 'building') ch.play('build', { timeScale: 1.25 });
+    else if (!ch.returnTo) ch.play('idle');
+    ch.update(dt);
+    if (d.tierRing) d.tierRing.scale.setScalar(1 + Math.sin(t * 2.2) * 0.05);
   }
 
   /** Pré-visualização translúcida da torre a construir, presa ao cursor. */
@@ -854,7 +958,7 @@ function createRenderer3D() {
     environment.update(t);
     effects.update(state.attackFX, t, resolveShotOrigin);
 
-    renderer.render(scene, camera);
+    if (postFX) postFX.render(dt); else renderer.render(scene, camera);
     drawOverlay(state, perfNow);
     adaptQuality(dt);
   }
@@ -879,6 +983,7 @@ function createRenderer3D() {
     if (quality.level === 0) {
       quality.level = 1;
       renderer.setPixelRatio(1);
+      if (postFX) postFX.setQuality(1);
       lights.key.shadow.mapSize.set(1024, 1024);
       if (lights.key.shadow.map) {
         lights.key.shadow.map.dispose();
@@ -889,6 +994,7 @@ function createRenderer3D() {
     } else {
       quality.level = 2;
       renderer.shadowMap.enabled = false;
+      if (postFX) postFX.setQuality(2);
       scene.traverse(function (o) { if (o.isMesh && o.material) o.material.needsUpdate = true; });
       console.info('[Bastion Line] desempenho baixo: sombras desativadas.');
     }
@@ -900,6 +1006,7 @@ function createRenderer3D() {
     if (onKeyDown) { window.removeEventListener('keydown', onKeyDown); onKeyDown = null; }
     if (onKeyUp) { window.removeEventListener('keyup', onKeyUp); onKeyUp = null; }
     if (overlay) overlay.dispose();
+    if (postFX) { postFX.dispose(); postFX = null; }
     if (renderer) {
       renderer.dispose();
       if (renderer.domElement.parentNode) {
@@ -926,13 +1033,13 @@ function createRenderer3D() {
 }
 
 // -----------------------------------------------------------------------------
-// Auto-anexo: só assume o desenho se o núcleo do jogo estiver pronto e o
-// WebGL funcionar. Qualquer falha mantém o canvas 2D original no comando.
+// Auto-anexo: o jogo só existe em 3D. Se o núcleo não estiver pronto ou o
+// WebGL falhar, attachRenderer() avisa na tela (#bootMsg).
 // -----------------------------------------------------------------------------
 async function boot() {
   const game = window.BastionLine;
   if (!game || !game.attachRenderer) {
-    console.warn('[Bastion Line] núcleo do jogo não encontrado; seguindo em 2D.');
+    console.error('[Bastion Line] núcleo do jogo não encontrado.');
     return;
   }
   const ok = game.attachRenderer(createRenderer3D());

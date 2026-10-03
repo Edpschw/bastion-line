@@ -22,3 +22,13 @@ cp package/LICENSE vendor/three/LICENSE
   (`examples/jsm/loaders/GLTFLoader.js` e `examples/jsm/utils/BufferGeometryUtils.js`),
   com o único ajuste de trocar o import `'three'` pelo caminho relativo do build local.
 - Licença: MIT, mesma do restante do three.js.
+
+## Addons (`addons/`)
+
+Do mesmo pacote `three@0.169.0` (`examples/jsm/`), com o import `'three'` trocado
+pelo caminho relativo de `three.module.min.js`:
+
+- `utils/SkeletonUtils.js` — clona personagens com esqueleto (`js/render3d/characters.js`).
+- `postprocessing/` (EffectComposer, RenderPass, GTAOPass, UnrealBloomPass, SMAAPass,
+  ShaderPass, OutputPass, Pass, MaskPass) e os shaders/`math/SimplexNoise.js` de que
+  dependem — usados por `js/render3d/postfx.js`.
